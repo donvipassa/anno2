@@ -474,7 +474,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
       // Проверка на выделенный bbox и его handles
       const selectedBbox = annotations.boundingBoxes.find(bbox => bbox.id === annotations.selectedObjectId);
       if (selectedBbox) {
-        const handle = getResizeHandleAtPoint(coords.x, coords.y, selectedBbox);
+        const handle = getResizeHandle(coords.x, coords.y, selectedBbox, imageState.scale);
         if (handle) {
           setIsResizing(true);
           setResizeHandle(handle);
