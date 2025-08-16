@@ -421,6 +421,11 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (!imageState.imageElement) return;
 
+    // Подавляем контекстное меню для ПКМ
+    if (e.button === 2) {
+      e.preventDefault();
+    }
+
     // Проверка на инструмент измерения плотности (приоритет над выделением bbox)
     if (e.button === 0 && activeTool === 'density') {
       const rect = canvasRef.current!.getBoundingClientRect();
@@ -978,7 +983,11 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onWheel={handleWheel}
-          onContextMenu={(e) => e.preventDefault()}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+          }}
         />
       )}
 
