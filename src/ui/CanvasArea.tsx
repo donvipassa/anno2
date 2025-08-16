@@ -90,12 +90,11 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
   const getBboxAtPoint = useCallback((imageX: number, imageY: number) => {
     for (let i = annotations.boundingBoxes.length - 1; i >= 0; i--) {
       const bbox = annotations.boundingBoxes[i];
-      if (isPointOnBoxBorder(imageX, imageY, bbox, 5 / imageState.scale)) {
+      if (isPointInBox(imageX, imageY, bbox)) {
         return bbox;
       }
     }
     return null;
-  }, [annotations.boundingBoxes, imageState.scale]);
 
   // Проверка попадания в точку плотности
   const getDensityPointAtPoint = useCallback((imageX: number, imageY: number) => {
@@ -430,19 +429,6 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     }
 
     if (e.button === 0) { // ЛКМ
-      // Если активен инструмент bbox, всегда начинаем рисование новой рамки
-      if (activeTool === 'bbox' && activeClassId >= 0) {
-        setIsDrawing(true);
-        setStartPoint(coords);
-        setCurrentBox({
-          x: coords.x,
-          y: coords.y,
-          width: 0,
-          height: 0
-        });
-        return;
-      }
-
       // Проверка на выделенный bbox и его handles (только если не активен инструмент bbox)
       if (activeTool !== 'bbox') {
         const selectedBbox = annotations.boundingBoxes.find(bbox => bbox.id === annotations.selectedObjectId);
@@ -457,35 +443,60 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
         }
       }
 
-      // Проверка клика по точке плотности
-      const clickedDensityPoint = getDensityPointAtPoint(coords.x, coords.y);
-      if (clickedDensityPoint) {
-        selectObject(clickedDensityPoint.id, 'density');
-        setIsDragging(true);
-        setDragStart({ x: e.clientX, y: e.clientY });
-        return;
+      // Если активен инструмент bbox, проверяем - если клик НЕ на существующую рамку, начинаем рисование
+      if (activeTool === 'bbox' && activeClassId >= 0) {
+        const clickedBbox = getBboxAtPoint(coords.x, coords.y);
+        if (!clickedBbox) {
+          // Клик в пустое место - начинаем рисование новой рамки
+          setIsDrawing(true);
+          setStartPoint(coords);
+          setCurrentBox({
+            x: coords.x,
+            y: coords.y,
+            width: 0,
+            height: 0
+          });
+          return;
+        } else {
+          // Клик на существующую рамку - выделяем её
+          selectObject(clickedBbox.id, 'bbox');
+          onSelectClass(clickedBbox.classId);
+          setIsDragging(true);
+          setDragStart({ x: e.clientX, y: e.clientY });
+          return;
+        }
       }
 
-      // Проверка клика по линейке
-      const clickedRuler = getRulerAtPoint(coords.x, coords.y);
-      if (clickedRuler) {
-        selectObject(clickedRuler.id, 'ruler');
-        setIsDragging(true);
-        setDragStart({ x: e.clientX, y: e.clientY });
-        return;
-      }
-
-      // Проверка клика по калибровочной линии
-      const clickedCalibrationLine = getCalibrationLineAtPoint(coords.x, coords.y);
-      if (clickedCalibrationLine) {
-        selectObject(clickedCalibrationLine.id, 'calibration');
-        setIsDragging(true);
-        setDragStart({ x: e.clientX, y: e.clientY });
-        return;
-      }
-
-      // Проверка клика по существующему bbox (только если не активен инструмент bbox)
+      // Если НЕ активен инструмент bbox, обычная логика выделения
       if (activeTool !== 'bbox') {
+        // Проверка клика по точке плотности
+        const clickedDensityPoint = getDensityPointAtPoint(coords.x, coords.y);
+        if (clickedDensityPoint) {
+          selectObject(clickedDensityPoint.id, 'density');
+          setIsDragging(true);
+          setDragStart({ x: e.clientX, y: e.clientY });
+          return;
+        }
+
+        // Проверка клика по линейке
+        const clickedRuler = getRulerAtPoint(coords.x, coords.y);
+        if (clickedRuler) {
+          selectObject(clickedRuler.id, 'ruler');
+          setIsDragging(true);
+          setDragStart({ x: e.clientX, y: e.clientY });
+          return;
+        }
+
+        // Проверка клика по калибровочной линии
+        const clickedCalibrationLine = getCalibrationLineAtPoint(coords.x, coords.y);
+        if (clickedCalibrationLine) {
+          selectObject(clickedCalibrationLine.id, 'calibration');
+          setIsDragging(true);
+          setDragStart({ x: e.clientX, y: e.clientY });
+          return;
+        }
+
+        // Проверка клика по существующему bbox
         const clickedBbox = getBboxAtPoint(coords.x, coords.y);
         if (clickedBbox) {
           // Выделяем существующую рамку для перемещения
