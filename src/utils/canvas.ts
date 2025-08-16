@@ -1,5 +1,3 @@
-import { DEFECT_CLASSES } from '../types';
-
 // Вспомогательные функции для масштабирования и позиционирования
 
 // Функция для масштабирования от центра
@@ -72,21 +70,6 @@ export function scaleFromPoint(
 export const HANDLE_SIZE_HOVER = 8;
 export const HANDLE_SIZE_VISUAL = 6;
 
-export function getCursorForHandle(handle: string): string {
-  const cursors: { [key: string]: string } = {
-    'nw': 'nw-resize',
-    'n': 'n-resize', 
-    'ne': 'ne-resize',
-    'e': 'e-resize',
-    'se': 'se-resize',
-    's': 's-resize',
-    'sw': 'sw-resize',
-    'w': 'w-resize',
-    'move': 'move'
-  };
-  return cursors[handle] || 'default';
-}
-
 // Проверка попадания точки в рамку
 export function isPointInBox(x: number, y: number, box: any): boolean {
   return x >= box.x && x <= box.x + box.width && y >= box.y && y <= box.y + box.height;
@@ -151,9 +134,10 @@ export function drawBoundingBox(
   ctx: CanvasRenderingContext2D,
   box: any,
   isSelected: boolean,
-  scale: number
+  scale: number,
+  defectClasses: any[]
 ) {
-  const defectClass = DEFECT_CLASSES.find(c => c.id === box.classId);
+  const defectClass = defectClasses.find(c => c.id === box.classId);
   if (!defectClass) return;
 
   // Рамка

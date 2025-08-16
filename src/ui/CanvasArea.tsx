@@ -3,7 +3,6 @@ import { useImage } from '../core/ImageProvider';
 import { useAnnotations } from '../core/AnnotationManager';
 import { useCalibration } from '../core/CalibrationManager';
 import { DEFECT_CLASSES } from '../types';
-import { drawBoundingBox, getResizeHandle, getCursorForHandle } from '../utils/canvas';
 
 interface CanvasAreaProps {
   activeTool: string;
@@ -84,9 +83,28 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
   }, [imageState]);
 
   // Проверка попадания в handle
-  const getResizeHandleAtPoint = useCallback((x: number, y: number, bbox: any) => {
-    return getResizeHandle(x, y, bbox, imageState.scale);
-  }, [imageState.scale]);
+  const getResizeHandle = useCallback((x: number, y: number, bbox: any) => {
+    const canvasCoords = getCanvasCoords(bbox.x, bbox.y);
+    const width = bbox.width * imageState.scale;
+    const height = bbox.height * imageState.scale;
+    const handleSize = 6;
+    const tolerance = 3;
+
+    const handles = [
+      { name: 'nw', x: canvasCoords.x - handleSize/2, y: canvasCoords.y - handleSize/2 },
+      { name: 'ne', x: canvasCoords.x + width - handleSize/2, y: canvasCoords.y - handleSize/2 },
+      { name: 'se', x: canvasCoords.x + width - handleSize/2, y: canvasCoords.y + height - handleSize/2 },
+      { name: 'sw', x: canvasCoords.x - handleSize/2, y: canvasCoords.y + height - handleSize/2 },
+    ];
+
+    for (const handle of handles) {
+      if (x >= handle.x - tolerance && x <= handle.x + handleSize + tolerance &&
+          y >= handle.y - tolerance && y <= handle.y + handleSize + tolerance) {
+        return handle.name;
+      }
+    }
+    return null;
+  }, [getCanvasCoords, imageState.scale]);
 
   // Проверка попадания в bbox
   const getBboxAtPoint = useCallback((imageX: number, imageY: number) => {
@@ -190,9 +208,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     // Отрисовка bounding boxes
     annotations.boundingBoxes.forEach(bbox => {
       if (filterActive && activeClassId !== bbox.classId) return;
-      
-      const isSelected = annotations.selectedObjectId === bbox.id;
-      drawBoundingBox(ctx, bbox, isSelected, imageState.scale);
+
       const defectClass = DEFECT_CLASSES.find(c => c.id === bbox.classId);
       if (!defectClass) return;
 
@@ -547,7 +563,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     getImageCoords, 
     annotations, 
     getBboxAtPoint,
-    getResizeHandleAtPoint,
+    getResizeHandle,
     selectObject,
     onSelectClass,
     addDensityPoint,
@@ -704,37 +720,6 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
         }
       } else {
         // Обычное перетаскивание объектов (уже обработано выше)
-      }
-    } else {
-      // Обновить курсор динамически
-      const canvas = canvasRef.current;
-      if (canvas) {
-        let cursor = 'default';
-        
-        if (activeTool === 'bbox' && activeClassId >= 0) {
-          cursor = 'crosshair';
-        } else if (activeTool === 'ruler' || activeTool === 'calibration') {
-          cursor = 'crosshair';
-        } else if (activeTool === 'density') {
-          cursor = 'crosshair';
-        } else if (annotations.selectedObjectId && annotations.selectedObjectType === 'bbox') {
-          // Проверить наведение на маркеры выделенной рамки
-          const selectedBbox = annotations.boundingBoxes.find(bbox => bbox.id === annotations.selectedObjectId);
-          if (selectedBbox) {
-            const handle = getResizeHandle(coords.x, coords.y, selectedBbox, imageState.scale);
-            if (handle) {
-              cursor = getCursorForHandle(handle);
-            }
-          }
-        } else {
-          // Проверить наведение на рамки
-          const clickedBbox = getBboxAtPoint(coords.x, coords.y);
-          if (clickedBbox) {
-            cursor = 'pointer';
-          }
-        }
-        
-        canvas.style.cursor = cursor;
       }
     }
   }, [
@@ -977,7 +962,6 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
 
   // Курсор
   const getCursor = () => {
-    // Курсор устанавливается динамически в handleMouseMove
     if (isPanning) return 'grabbing';
     if (isResizing) {
       switch (resizeHandle) {
@@ -998,6 +982,14 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
       }
     }
     if (isDragging && !isResizing) return 'grabbing';
+    if (activeTool === 'bbox' && activeClassId >= 0) return 'crosshair';
+    if (activeTool === 'ruler' || activeTool === 'calibration') return 'crosshair';
+    if (activeTool === 'density') return 'crosshair';
+    
+    // Проверяем, наведен ли курсор на handle выделенного bbox
+    if (annotations.selectedObjectId && annotations.selectedObjectType === 'bbox') {
+      // Здесь можно добавить логику для изменения курсора при наведении на handles
+    }
     
     return 'default';
   };
