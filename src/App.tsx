@@ -12,7 +12,7 @@ import { useAnnotations } from './core/AnnotationManager';
 import { useCalibration } from './core/CalibrationManager';
 import { validateImageFile, saveImageAsFile } from './utils/imageUtils';
 import { detectObjects } from './utils/api';
-import { mapApiClassToDefectClassId, convertApiBboxToPixels } from './utils/annotationUtils';
+import { mapApiClassToDefectClassId, convertApiBboxToPixels, convertApiColorToHex } from './utils/annotationUtils';
 
 const AppContent: React.FC = () => {
   const { imageState, loadImage, setScale, toggleInversion, resetView, fitToCanvas, zoomIn, zoomOut, zoomReset } = useImage();
@@ -197,6 +197,7 @@ const AppContent: React.FC = () => {
       detections.forEach(detection => {
         const bbox = convertApiBboxToPixels(detection.bbox);
         const classId = mapApiClassToDefectClassId(detection.class);
+        const apiColor = convertApiColorToHex(detection.color);
         
         addBoundingBox({
           x: bbox.x,
@@ -205,7 +206,9 @@ const AppContent: React.FC = () => {
           height: bbox.height,
           classId,
           confidence: detection.confidence,
-          apiClassName: detection.class
+          apiClassName: detection.class,
+          isApiClass: true,
+          apiColor: apiColor
         });
       });
 
