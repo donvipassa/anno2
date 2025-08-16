@@ -1,6 +1,7 @@
 import React from 'react';
 import { DEFECT_CLASSES } from '../types';
 import { useAnnotations } from '../core/AnnotationManager';
+import { useImage } from '../core/ImageProvider';
 import { Tooltip } from './Tooltip';
 
 interface SidebarProps {
@@ -15,6 +16,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   disabled
 }) => {
   const { annotations } = useAnnotations();
+  const { imageState } = useImage();
 
   const getClassCount = (classId: number): number => {
     return annotations.boundingBoxes.filter(bbox => bbox.classId === classId).length;
@@ -48,11 +50,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   ${disabled 
                     ? 'opacity-50 pointer-events-none bg-gray-50 border-gray-200 text-gray-400'
                     : `
-                      bg-white hover:bg-gray-50 border-gray-200 text-black
+                      ${isActive ? 'bg-blue-50' : 'bg-white hover:bg-gray-50'} border-gray-200 text-black
                       hover:border-opacity-80
                     `
                   }
-                  ${isActive && !disabled ? 'border-4 ring-2 ring-gray-400 ring-opacity-50' : ''}
+                  ${isActive && !disabled ? 'border-4 ring-2 ring-blue-400 ring-opacity-50' : ''}
                 `}
                 style={{
                   borderColor: disabled ? undefined : getClassColor(defectClass.id),
@@ -64,7 +66,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <span className="text-sm font-medium text-black">
                   {defectClass.name}
                 </span>
-                <span className="text-sm font-medium text-black">
+                <span className={`text-sm font-medium ${isActive ? 'text-blue-700' : 'text-black'}`}>
                   ({count})
                 </span>
               </button>
