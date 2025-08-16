@@ -1,4 +1,5 @@
 // Вспомогательные функции для масштабирования и позиционирования
+import { DEFECT_CLASSES } from '../types';
 
 // Функция для масштабирования от центра
 export function scaleFromCenter(
@@ -149,10 +150,9 @@ export function drawBoundingBox(
   ctx: CanvasRenderingContext2D,
   box: any,
   isSelected: boolean,
-  scale: number,
-  defectClasses: any[]
+  scale: number
 ) {
-  const defectClass = defectClasses.find(c => c.id === box.classId);
+  const defectClass = DEFECT_CLASSES.find(c => c.id === box.classId);
   if (!defectClass) return;
 
   // Рамка
