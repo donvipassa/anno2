@@ -186,6 +186,10 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     if (!layerVisible) return;
 
     // Отрисовка bounding boxes
+    ctx.save();
+    ctx.translate(imageState.offsetX, imageState.offsetY);
+    ctx.scale(imageState.scale, imageState.scale);
+    
     annotations.boundingBoxes.forEach(bbox => {
       if (filterActive && activeClassId !== bbox.classId) return;
 
@@ -193,10 +197,12 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
         ctx,
         bbox,
         annotations.selectedObjectId === bbox.id,
-        1, // scale для координат изображения
+        imageState.scale,
         DEFECT_CLASSES
       );
     });
+    
+    ctx.restore();
 
     // Отрисовка линеек
     annotations.rulers.forEach(ruler => {
@@ -338,11 +344,17 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     if (isDrawing && currentBox && activeTool === 'bbox') {
       const defectClass = DEFECT_CLASSES.find(c => c.id === activeClassId);
       if (defectClass) {
+        ctx.save();
+        ctx.translate(imageState.offsetX, imageState.offsetY);
+        ctx.scale(imageState.scale, imageState.scale);
+        
         ctx.strokeStyle = defectClass.color;
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 2 / imageState.scale;
         ctx.setLineDash([5, 5]);
         ctx.strokeRect(currentBox.x, currentBox.y, currentBox.width, currentBox.height);
         ctx.setLineDash([]);
+        
+        ctx.restore();
       }
     }
 
@@ -470,14 +482,11 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
 
       // Инструменты рисования
       if (activeTool === 'bbox' && activeClassId >= 0) {
-        const rect = canvasRef.current!.getBoundingClientRect();
-        const canvasX = e.clientX - rect.left;
-        const canvasY = e.clientY - rect.top;
         setIsDrawing(true);
         setStartPoint(coords);
         setCurrentBox({
-          x: canvasX,
-          y: canvasY,
+          x: coords.x,
+          y: coords.y,
           width: 0,
           height: 0
         });
@@ -574,14 +583,11 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     }
 
     if (isDrawing && activeTool === 'bbox' && currentBox) {
-      const startCanvasX = imageState.offsetX + startPoint.x * imageState.scale;
-      const startCanvasY = imageState.offsetY + startPoint.y * imageState.scale;
-
       setCurrentBox({
-        x: Math.min(startCanvasX, canvasX),
-        y: Math.min(startCanvasY, canvasY),
-        width: Math.abs(canvasX - startCanvasX),
-        height: Math.abs(canvasY - startCanvasY)
+        x: Math.min(startPoint.x, coords.x),
+        y: Math.min(startPoint.y, coords.y),
+        width: Math.abs(coords.x - startPoint.x),
+        height: Math.abs(coords.y - startPoint.y)
       });
     } else if (isDrawing && (activeTool === 'ruler' || activeTool === 'calibration') && currentLine) {
       setCurrentLine({
