@@ -50,6 +50,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
   const [currentLine, setCurrentLine] = useState<any>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [resizeHandle, setResizeHandle] = useState<string>('');
   const [showCalibrationModal, setShowCalibrationModal] = useState(false);
@@ -421,11 +422,14 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (!imageState.imageElement) return;
 
-    // Подавляем контекстное меню для ПКМ
     if (e.button === 2) {
-      e.preventDefault();
-      e.stopPropagation();
+      // Правая кнопка мыши - начинаем панорамирование
+      setIsPanning(true);
+      setDragStart({ x: e.clientX, y: e.clientY });
+      return; // Предотвращаем дальнейшую обработку для ПКМ
     }
+
+    if (e.button !== 0) return; // Только левая кнопка
 
     // Проверка на инструмент измерения плотности (приоритет над выделением bbox)
     if (e.button === 0 && activeTool === 'density') {
@@ -550,19 +554,6 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
         // Сброс выделения
         selectObject(null, null);
       }
-    } else if (e.button === 2) { // ПКМ
-      e.preventDefault();
-      
-      // Сброс активного инструмента рисования при ПКМ
-      if (isDrawing) {
-        setIsDrawing(false);
-        setCurrentBox(null);
-        setCurrentLine(null);
-      }
-      
-      // Начало панорамирования
-      setIsDragging(true);
-      setDragStart({ x: e.clientX, y: e.clientY });
     }
   }, [
     imageState.imageElement, 
@@ -588,6 +579,20 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     const canvasX = e.clientX - rect.left;
     const canvasY = e.clientY - rect.top;
     const coords = getImageCoords(e.clientX, e.clientY);
+
+    if (isPanning) {
+      // Панорамирование изображения
+      const deltaX = e.clientX - dragStart.x;
+      const deltaY = e.clientY - dragStart.y;
+      
+      setOffset(
+        imageState.offsetX + deltaX,
+        imageState.offsetY + deltaY
+      );
+      
+      setDragStart({ x: e.clientX, y: e.clientY });
+      return;
+    }
 
     if (isDrawing && activeTool === 'bbox' && currentBox) {
       const startCanvasX = imageState.offsetX + startPoint.x * imageState.scale;
@@ -699,16 +704,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
           setDragStart({ x: e.clientX, y: e.clientY });
         }
       } else {
-        // Панорамирование изображения
-        const deltaX = e.clientX - dragStart.x;
-        const deltaY = e.clientY - dragStart.y;
-        
-        setOffset(
-          imageState.offsetX + deltaX,
-          imageState.offsetY + deltaY
-        );
-        
-        setDragStart({ x: e.clientX, y: e.clientY });
+        // Обычное перетаскивание объектов (уже обработано выше)
       }
     }
   }, [
@@ -732,9 +728,26 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     setOffset
   ]);
 
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault(); // Подавляем стандартное контекстное меню браузера
+    
+    if (isPanning) {
+      // Если было панорамирование, не показываем пользовательское контекстное меню
+      return;
+    }
+
+    // Показываем пользовательское контекстное меню
+    onShowContextMenu(e.clientX, e.clientY);
+  }, [isPanning, onShowContextMenu]);
+
   const handleMouseUp = useCallback((e: React.MouseEvent) => {
     const coords = getImageCoords(e.clientX, e.clientY);
     
+    if (isPanning) {
+      setIsPanning(false);
+      return; // Предотвращаем дальнейшую обработку для ПКМ
+    }
+
     // Ограничение координат в пределах изображения
     const clampedStartPoint = {
       x: Math.max(0, Math.min(startPoint.x, imageState.width)),
@@ -786,18 +799,6 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
           });
           setShowCalibrationModal(true);
         }
-      }
-    }
-
-    if (e.button === 2) {
-      // Проверяем, было ли перетаскивание (панорамирование)
-      const dragDistance = Math.sqrt(
-        (e.clientX - dragStart.x) ** 2 + (e.clientY - dragStart.y) ** 2
-      );
-      
-      // Если перетаскивания не было (расстояние меньше 5 пикселей), показываем контекстное меню
-      if (dragDistance < 5) {
-        onShowContextMenu(e.clientX, e.clientY);
       }
     }
 
@@ -956,6 +957,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
 
   // Курсор
   const getCursor = () => {
+    if (isPanning) return 'grabbing';
     if (isDragging && !isResizing) return 'grabbing';
     if (activeTool === 'bbox' && activeClassId >= 0) return 'crosshair';
     if (activeTool === 'ruler' || activeTool === 'calibration') return 'crosshair';
@@ -984,12 +986,8 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
+          onContextMenu={handleContextMenu}
           onWheel={handleWheel}
-          onContextMenu={(e) => e.preventDefault()}
-          onContextMenuCapture={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          }}
         />
       )}
 
