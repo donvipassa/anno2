@@ -9,10 +9,6 @@ interface ToolbarProps {
   onToolChange: (tool: string) => void;
   onOpenFile: () => void;
   onSaveMarkup: () => void;
-  onZoomIn: () => void;
-  onZoomOut: () => void;
-  onZoomFit: () => void;
-  onZoomReset: () => void;
   onInvertColors: () => void;
   onHelp: () => void;
   layerVisible: boolean;
@@ -28,10 +24,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onToolChange,
   onOpenFile,
   onSaveMarkup,
-  onZoomIn,
-  onZoomOut,
-  onZoomFit,
-  onZoomReset,
   onInvertColors,
   onHelp,
   layerVisible,
@@ -41,7 +33,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   calibrationSet,
   onEditCalibration
 }) => {
-  const { imageState } = useImage();
+  const { imageState, zoomIn, zoomOut, zoomReset, fitToCanvas } = useImage();
   const { annotations } = useAnnotations();
   
   const hasImage = !!imageState.src;
@@ -95,25 +87,30 @@ export const Toolbar: React.FC<ToolbarProps> = ({
       <ToolButton
         icon={<ZoomIn size={24} />}
         tooltip="Увеличить масштаб (Ctrl++)"
-        onClick={onZoomIn}
+        onClick={() => zoomIn()}
         disabled={!hasImage}
       />
       <ToolButton
         icon={<span className="text-sm font-medium">100%</span>}
         tooltip="Масштаб 1:1 (Ctrl+1)"
-        onClick={onZoomReset}
+        onClick={() => zoomReset()}
         disabled={!hasImage}
       />
       <ToolButton
         icon={<Maximize size={24} />}
         tooltip="Подобрать масштаб (F)"
-        onClick={onZoomFit}
+        onClick={() => {
+          const canvas = document.querySelector('canvas');
+          if (canvas) {
+            fitToCanvas(canvas.clientWidth, canvas.clientHeight);
+          }
+        }}
         disabled={!hasImage}
       />
       <ToolButton
         icon={<ZoomOut size={24} />}
         tooltip="Уменьшить масштаб (Ctrl+-)"
-        onClick={onZoomOut}
+        onClick={() => zoomOut()}
         disabled={!hasImage}
       />
 

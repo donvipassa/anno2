@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 import { ImageState } from '../types';
+import { scaleFromCenter, fitImageToCanvas, scaleFromPoint } from '../utils/canvas';
 
 interface ImageContextType {
   imageState: ImageState;
@@ -9,6 +10,10 @@ interface ImageContextType {
   toggleInversion: () => void;
   resetView: () => void;
   fitToCanvas: (canvasWidth: number, canvasHeight: number) => void;
+  zoomIn: (canvasWidth?: number, canvasHeight?: number) => void;
+  zoomOut: (canvasWidth?: number, canvasHeight?: number) => void;
+  zoomReset: (canvasWidth?: number, canvasHeight?: number) => void;
+  zoomToPoint: (pointX: number, pointY: number, zoomIn: boolean, canvasWidth: number, canvasHeight: number) => void;
 }
 
 const ImageContext = createContext<ImageContextType | null>(null);
@@ -91,26 +96,147 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   const fitToCanvas = useCallback((canvasWidth: number, canvasHeight: number) => {
-    if (!imageState.width || !imageState.height) return;
+    if (!imageState.width || !imageState.height || !canvasWidth || !canvasHeight) return;
 
-    const padding = 20; // Отступы от краев
-    const availableWidth = canvasWidth - padding * 2;
-    const availableHeight = canvasHeight - padding * 2;
-    
-    const scaleX = availableWidth / imageState.width;
-    const scaleY = availableHeight / imageState.height;
-    const scale = Math.min(scaleX, scaleY);
-    
-    const scaledWidth = imageState.width * scale;
-    const scaledHeight = imageState.height * scale;
+    const { scale, offsetX, offsetY } = fitImageToCanvas(
+      imageState.width,
+      imageState.height,
+      canvasWidth,
+      canvasHeight
+    );
 
     setImageState(prev => ({
       ...prev,
       scale,
-      offsetX: (canvasWidth - scaledWidth) / 2,
-      offsetY: (canvasHeight - scaledHeight) / 2
+      offsetX,
+      offsetY
     }));
   }, [imageState.width, imageState.height]);
+
+  const zoomIn = useCallback((canvasWidth?: number, canvasHeight?: number) => {
+    if (!imageState.width || !imageState.height) return;
+    
+    // Если размеры canvas не переданы, пытаемся получить их из DOM
+    let cWidth = canvasWidth;
+    let cHeight = canvasHeight;
+    
+    if (!cWidth || !cHeight) {
+      const canvas = document.querySelector('canvas');
+      if (!canvas) return;
+      cWidth = canvas.clientWidth;
+      cHeight = canvas.clientHeight;
+    }
+    
+    const newScale = Math.min(10, imageState.scale * 1.2);
+    const { offsetX: newOffsetX, offsetY: newOffsetY } = scaleFromCenter(
+      imageState.scale,
+      newScale,
+      imageState.offsetX,
+      imageState.offsetY,
+      cWidth,
+      cHeight,
+      imageState.width,
+      imageState.height
+    );
+    
+    setImageState(prev => ({
+      ...prev,
+      scale: newScale,
+      offsetX: newOffsetX,
+      offsetY: newOffsetY
+    }));
+  }, [imageState]);
+
+  const zoomOut = useCallback((canvasWidth?: number, canvasHeight?: number) => {
+    if (!imageState.width || !imageState.height) return;
+    
+    // Если размеры canvas не переданы, пытаемся получить их из DOM
+    let cWidth = canvasWidth;
+    let cHeight = canvasHeight;
+    
+    if (!cWidth || !cHeight) {
+      const canvas = document.querySelector('canvas');
+      if (!canvas) return;
+      cWidth = canvas.clientWidth;
+      cHeight = canvas.clientHeight;
+    }
+    
+    const newScale = Math.max(0.1, imageState.scale / 1.2);
+    const { offsetX: newOffsetX, offsetY: newOffsetY } = scaleFromCenter(
+      imageState.scale,
+      newScale,
+      imageState.offsetX,
+      imageState.offsetY,
+      cWidth,
+      cHeight,
+      imageState.width,
+      imageState.height
+    );
+    
+    setImageState(prev => ({
+      ...prev,
+      scale: newScale,
+      offsetX: newOffsetX,
+      offsetY: newOffsetY
+    }));
+  }, [imageState]);
+
+  const zoomReset = useCallback((canvasWidth?: number, canvasHeight?: number) => {
+    if (!imageState.width || !imageState.height) return;
+    
+    // Если размеры canvas не переданы, пытаемся получить их из DOM
+    let cWidth = canvasWidth;
+    let cHeight = canvasHeight;
+    
+    if (!cWidth || !cHeight) {
+      const canvas = document.querySelector('canvas');
+      if (!canvas) return;
+      cWidth = canvas.clientWidth;
+      cHeight = canvas.clientHeight;
+    }
+    
+    const newScale = 1;
+    const { offsetX: newOffsetX, offsetY: newOffsetY } = scaleFromCenter(
+      imageState.scale,
+      newScale,
+      imageState.offsetX,
+      imageState.offsetY,
+      cWidth,
+      cHeight,
+      imageState.width,
+      imageState.height
+    );
+    
+    setImageState(prev => ({
+      ...prev,
+      scale: newScale,
+      offsetX: newOffsetX,
+      offsetY: newOffsetY
+    }));
+  }, [imageState]);
+
+  const zoomToPoint = useCallback((pointX: number, pointY: number, zoomIn: boolean, canvasWidth: number, canvasHeight: number) => {
+    if (!imageState.width || !imageState.height) return;
+    
+    const delta = zoomIn ? 1.1 : 0.9;
+    const newScale = Math.max(0.1, Math.min(10, imageState.scale * delta));
+    
+    const { offsetX: newOffsetX, offsetY: newOffsetY } = scaleFromPoint(
+      imageState.scale,
+      newScale,
+      imageState.offsetX,
+      imageState.offsetY,
+      pointX,
+      pointY
+    );
+    
+    setImageState(prev => ({
+      ...prev,
+      scale: newScale,
+      offsetX: newOffsetX,
+      offsetY: newOffsetY
+    }));
+  }, [imageState]);
 
   return (
     <ImageContext.Provider
@@ -121,7 +247,11 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setOffset,
         toggleInversion,
         resetView,
-        fitToCanvas
+        fitToCanvas,
+        zoomIn,
+        zoomOut,
+        zoomReset,
+        zoomToPoint
       }}
     >
       {children}

@@ -64,16 +64,23 @@ const AppContent: React.FC = () => {
         handleSaveMarkup();
       } else if (ctrl && (key === '+' || key === '=')) {
         e.preventDefault();
-        handleZoomIn();
+        const { zoomIn } = useImage();
+        zoomIn();
       } else if (ctrl && key === '-') {
         e.preventDefault();
-        handleZoomOut();
+        const { zoomOut } = useImage();
+        zoomOut();
       } else if (ctrl && key === '1') {
         e.preventDefault();
-        handleZoomReset();
+        const { zoomReset } = useImage();
+        zoomReset();
       } else if (key === 'f') {
         e.preventDefault();
-        handleZoomFit();
+        const { fitToCanvas } = useImage();
+        const canvas = document.querySelector('canvas');
+        if (canvas) {
+          fitToCanvas(canvas.clientWidth, canvas.clientHeight);
+        }
       } else if (key === 'i') {
         e.preventDefault();
         toggleInversion();
@@ -250,26 +257,6 @@ const AppContent: React.FC = () => {
     setMarkupModified(false);
   };
 
-  const handleZoomIn = () => {
-    setScale(imageState.scale * 1.2);
-  };
-
-  const handleZoomOut = () => {
-    setScale(imageState.scale / 1.2);
-  };
-
-  const handleZoomReset = () => {
-    resetView();
-  };
-
-  const handleZoomFit = () => {
-    // Получение размеров canvas области через более надежный способ
-    const canvasElement = document.querySelector('canvas') as HTMLCanvasElement;
-    if (canvasElement) {
-      fitToCanvas(canvasElement.clientWidth, canvasElement.clientHeight);
-    }
-  };
-
   const handleClassSelect = (classId: number) => {
     if (!imageState.src) return;
     
@@ -316,10 +303,6 @@ const AppContent: React.FC = () => {
         onToolChange={setActiveTool}
         onOpenFile={handleOpenFile}
         onSaveMarkup={handleSaveMarkup}
-        onZoomIn={handleZoomIn}
-        onZoomOut={handleZoomOut}
-        onZoomFit={handleZoomFit}
-        onZoomReset={handleZoomReset}
         onInvertColors={toggleInversion}
         onHelp={handleHelp}
         layerVisible={layerVisible}

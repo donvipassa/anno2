@@ -25,7 +25,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const { imageState, setOffset, setScale, fitToCanvas } = useImage();
+  const { imageState, setOffset, zoomToPoint } = useImage();
   const { 
     annotations, 
     addBoundingBox, 
@@ -51,6 +51,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
+  const [lastPanPosition, setLastPanPosition] = useState({ x: 0, y: 0 });
   const [isResizing, setIsResizing] = useState(false);
   const [resizeHandle, setResizeHandle] = useState<string>('');
   const [showCalibrationModal, setShowCalibrationModal] = useState(false);
@@ -425,7 +426,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     if (e.button === 2) {
       // Правая кнопка мыши - начинаем панорамирование
       setIsPanning(true);
-      setDragStart({ x: e.clientX, y: e.clientY });
+      setLastPanPosition({ x: e.clientX, y: e.clientY });
       return; // Предотвращаем дальнейшую обработку для ПКМ
     }
 
@@ -582,15 +583,15 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
 
     if (isPanning) {
       // Панорамирование изображения
-      const deltaX = e.clientX - dragStart.x;
-      const deltaY = e.clientY - dragStart.y;
+      const deltaX = e.clientX - lastPanPosition.x;
+      const deltaY = e.clientY - lastPanPosition.y;
       
       setOffset(
         imageState.offsetX + deltaX,
         imageState.offsetY + deltaY
       );
       
-      setDragStart({ x: e.clientX, y: e.clientY });
+      setLastPanPosition({ x: e.clientX, y: e.clientY });
       return;
     }
 
@@ -745,6 +746,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     
     if (isPanning) {
       setIsPanning(false);
+      setLastPanPosition({ x: 0, y: 0 });
       return; // Предотвращаем дальнейшую обработку для ПКМ
     }
 
@@ -841,29 +843,18 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
     
+    if (!imageState.imageElement) return;
+    
     const canvas = canvasRef.current;
     if (!canvas) return;
     
-    const canvasWidth = canvas.width;
-    const canvasHeight = canvas.height;
+    const rect = canvas.getBoundingClientRect();
+    const pointX = e.clientX - rect.left;
+    const pointY = e.clientY - rect.top;
     
-    // Центр canvas для центрирования масштабирования
-    const centerX = canvasWidth / 2;
-    const centerY = canvasHeight / 2;
-    
-    const scaleFactor = e.deltaY > 0 ? 0.9 : 1.1;
-    const newScale = Math.max(0.1, Math.min(10, imageState.scale * scaleFactor));
-    
-    // Расчет смещений для центрирования относительно центра canvas
-    const scaledImageWidth = imageState.width * newScale;
-    const scaledImageHeight = imageState.height * newScale;
-    
-    const newOffsetX = (canvasWidth - scaledImageWidth) / 2;
-    const newOffsetY = (canvasHeight - scaledImageHeight) / 2;
-    
-    setScale(newScale);
-    setOffset(newOffsetX, newOffsetY);
-  }, [imageState, setScale, setOffset]);
+    const zoomIn = e.deltaY < 0;
+    zoomToPoint(pointX, pointY, zoomIn, canvas.clientWidth, canvas.clientHeight);
+  }, [imageState.imageElement, zoomToPoint]);
 
   // Обработка модального окна калибровки
   const handleCalibrationSubmit = () => {
@@ -986,6 +977,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
           onContextMenu={handleContextMenu}
           onWheel={handleWheel}
         />
