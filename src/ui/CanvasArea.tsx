@@ -3,7 +3,7 @@ import { useImage } from '../core/ImageProvider';
 import { useAnnotations } from '../core/AnnotationManager';
 import { useCalibration } from '../core/CalibrationManager';
 import { DEFECT_CLASSES } from '../types';
-import { drawBoundingBox, getResizeHandle } from '../utils/canvas';
+import { drawBoundingBox, getResizeHandle, getCursorForHandle } from '../utils/canvas';
 
 interface CanvasAreaProps {
   activeTool: string;
@@ -59,7 +59,6 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
   const [showCalibrationModal, setShowCalibrationModal] = useState(false);
   const [calibrationLength, setCalibrationLength] = useState('');
   const [pendingCalibrationLine, setPendingCalibrationLine] = useState<any>(null);
-  const [hoveredHandle, setHoveredHandle] = useState<string | null>(null);
 
   // Получение координат изображения из координат мыши
   const getImageCoords = useCallback((clientX: number, clientY: number) => {
@@ -191,7 +190,9 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     // Отрисовка bounding boxes
     annotations.boundingBoxes.forEach(bbox => {
       if (filterActive && activeClassId !== bbox.classId) return;
-
+      
+      const isSelected = annotations.selectedObjectId === bbox.id;
+      drawBoundingBox(ctx, bbox, isSelected, imageState.scale);
       const defectClass = DEFECT_CLASSES.find(c => c.id === bbox.classId);
       if (!defectClass) return;
 
@@ -704,6 +705,37 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
       } else {
         // Обычное перетаскивание объектов (уже обработано выше)
       }
+    } else {
+      // Обновить курсор динамически
+      const canvas = canvasRef.current;
+      if (canvas) {
+        let cursor = 'default';
+        
+        if (activeTool === 'bbox' && activeClassId >= 0) {
+          cursor = 'crosshair';
+        } else if (activeTool === 'ruler' || activeTool === 'calibration') {
+          cursor = 'crosshair';
+        } else if (activeTool === 'density') {
+          cursor = 'crosshair';
+        } else if (annotations.selectedObjectId && annotations.selectedObjectType === 'bbox') {
+          // Проверить наведение на маркеры выделенной рамки
+          const selectedBbox = annotations.boundingBoxes.find(bbox => bbox.id === annotations.selectedObjectId);
+          if (selectedBbox) {
+            const handle = getResizeHandle(coords.x, coords.y, selectedBbox, imageState.scale);
+            if (handle) {
+              cursor = getCursorForHandle(handle);
+            }
+          }
+        } else {
+          // Проверить наведение на рамки
+          const clickedBbox = getBboxAtPoint(coords.x, coords.y);
+          if (clickedBbox) {
+            cursor = 'pointer';
+          }
+        }
+        
+        canvas.style.cursor = cursor;
+      }
     }
   }, [
     imageState.imageElement,
@@ -945,28 +977,8 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
 
   // Курсор
   const getCursor = () => {
+    // Курсор устанавливается динамически в handleMouseMove
     if (isPanning) return 'grabbing';
-    
-    // Курсор для маркеров изменения размера при наведении
-    if (hoveredHandle && !isResizing && !isDragging) {
-      switch (hoveredHandle) {
-        case 'nw':
-        case 'se':
-          return 'nw-resize';
-        case 'ne':
-        case 'sw':
-          return 'ne-resize';
-        case 'n':
-        case 's':
-          return 'n-resize';
-        case 'e':
-        case 'w':
-          return 'e-resize';
-        default:
-          return 'default';
-      }
-    }
-    
     if (isResizing) {
       switch (resizeHandle) {
         case 'nw':
@@ -986,14 +998,6 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
       }
     }
     if (isDragging && !isResizing) return 'grabbing';
-    if (activeTool === 'bbox' && activeClassId >= 0) return 'crosshair';
-    if (activeTool === 'ruler' || activeTool === 'calibration') return 'crosshair';
-    if (activeTool === 'density') return 'crosshair';
-    
-    // Проверяем, наведен ли курсор на handle выделенного bbox
-    if (annotations.selectedObjectId && annotations.selectedObjectType === 'bbox') {
-      // Здесь можно добавить логику для изменения курсора при наведении на handles
-    }
     
     return 'default';
   };
