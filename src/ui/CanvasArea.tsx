@@ -192,7 +192,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
       if (filterActive && activeClassId !== bbox.classId) return;
       
       const isSelected = annotations.selectedObjectId === bbox.id;
-      drawBoundingBox(ctx, bbox, isSelected, imageState.scale);
+      drawBoundingBox(ctx, bbox, isSelected, imageState.scale, DEFECT_CLASSES);
       const defectClass = DEFECT_CLASSES.find(c => c.id === bbox.classId);
       if (!defectClass) return;
 
