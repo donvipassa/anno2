@@ -65,6 +65,67 @@ export const Sidebar: React.FC<SidebarProps> = ({
           );
         })}
       </div>
+      
+      {/* Секция API классов */}
+      {getApiClassesCount() > 0 && (
+        <>
+          <div className="mt-6 pt-4 border-t border-gray-200">
+            <h3 className="text-sm font-semibold text-gray-700 mb-4">
+              Обнаруженные объекты ({getApiClassesCount()})
+            </h3>
+            
+            <div className="space-y-2">
+              {annotations.boundingBoxes
+                .filter(bbox => bbox.isApiClass)
+                .map((bbox) => (
+                  <div
+                    key={bbox.id}
+                    className={`
+                      w-full p-3 rounded border-2 transition-all duration-200
+                      ${disabled 
+                        ? 'opacity-50 pointer-events-none bg-gray-50 border-gray-200'
+                        : 'bg-white hover:bg-gray-50 border-gray-200'
+                      }
+                      ${annotations.selectedObjectId === bbox.id && !disabled ? 'border-4 ring-2 ring-gray-400 ring-opacity-50' : ''}
+                    `}
+                    style={{
+                      borderColor: disabled ? undefined : bbox.apiColor,
+                      borderWidth: annotations.selectedObjectId === bbox.id && !disabled ? '4px' : '2px'
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-black">
+                        {bbox.apiClassName}
+                      </span>
+                      <span className="text-sm text-gray-600">
+                        {bbox.confidence ? `${Math.round(bbox.confidence * 100)}%` : ''}
+                      </span>
+                    </div>
+                    
+                    <select
+                      className="w-full text-xs border border-gray-300 rounded px-2 py-1"
+                      onChange={(e) => {
+                        const newClassId = parseInt(e.target.value);
+                        if (newClassId >= 0) {
+                          handleApiClassConvert(bbox.id, newClassId);
+                        }
+                      }}
+                      defaultValue="-1"
+                      disabled={disabled}
+                    >
+                      <option value="-1">Выберите класс дефекта...</option>
+                      {DEFECT_CLASSES.map((defectClass) => (
+                        <option key={defectClass.id} value={defectClass.id}>
+                          {defectClass.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

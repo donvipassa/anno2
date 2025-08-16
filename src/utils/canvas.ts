@@ -137,32 +137,41 @@ export function drawBoundingBox(
   scale: number,
   defectClasses: any[]
 ) {
-  const defectClass = defectClasses.find(c => c.id === box.classId);
-  if (!defectClass) return;
+  let color: string;
+  let labelText: string;
+  
+  if (box.isApiClass) {
+    // Для API классов используем цвет и название из API
+    color = box.apiColor || '#808080';
+    labelText = box.apiClassName || 'Unknown';
+    
+    // Добавляем уверенность, если она есть
+    if (box.confidence !== undefined) {
+      labelText += ` (${Math.round(box.confidence * 100)}%)`;
+    }
+  } else {
+    // Для стандартных классов дефектов
+    const defectClass = defectClasses.find(c => c.id === box.classId);
+    if (!defectClass) return;
+    
+    color = defectClass.color;
+    labelText = defectClass.name;
+    
+    // Добавляем уверенность, если она есть
+    if (box.confidence !== undefined) {
+      labelText += ` (${Math.round(box.confidence * 100)}%)`;
+    }
+  }
 
   // Рамка
-  ctx.strokeStyle = defectClass.color;
+  ctx.strokeStyle = color;
   ctx.lineWidth = (isSelected ? 4 : 2) / scale;
   ctx.setLineDash([]);
   ctx.strokeRect(box.x, box.y, box.width, box.height);
 
   // Подпись
-  ctx.fillStyle = defectClass.color;
+  ctx.fillStyle = color;
   ctx.font = `${Math.max(16 / scale, 12)}px Arial`;
-  
-  // Формируем текст подписи
-  let labelText = defectClass.name;
-  
-  // Если есть оригинальное название класса от API, используем его
-  if (box.apiClassName && box.apiClassName.toLowerCase() !== defectClass.name.toLowerCase()) {
-    labelText = box.apiClassName;
-  }
-  
-  // Добавляем уверенность, если она есть
-  if (box.confidence !== undefined) {
-    labelText += ` (${Math.round(box.confidence * 100)}%)`;
-  }
-  
   ctx.fillText(labelText, box.x, box.y - 5 / scale);
 
   // Хэндлы для выделенного объекта
