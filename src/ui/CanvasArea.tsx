@@ -4,7 +4,6 @@ import { useAnnotations } from '../core/AnnotationManager';
 import { useCalibration } from '../core/CalibrationManager';
 import { DEFECT_CLASSES } from '../types';
 import { drawBoundingBox, getResizeHandle, getCursorForHandle } from '../utils/canvas';
-import { clampToImageBounds } from '../utils/geometry';
 
 interface CanvasAreaProps {
   activeTool: string;
@@ -194,6 +193,41 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
       
       const isSelected = annotations.selectedObjectId === bbox.id;
       drawBoundingBox(ctx, bbox, isSelected, imageState.scale);
+      const defectClass = DEFECT_CLASSES.find(c => c.id === bbox.classId);
+      if (!defectClass) return;
+
+      const canvasCoords = getCanvasCoords(bbox.x, bbox.y);
+      const width = bbox.width * imageState.scale;
+      const height = bbox.height * imageState.scale;
+
+      ctx.strokeStyle = defectClass.color;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(canvasCoords.x, canvasCoords.y, width, height);
+
+      // Подпись
+      ctx.fillStyle = defectClass.color;
+      ctx.font = '12px Arial';
+      ctx.fillText(defectClass.name, canvasCoords.x, canvasCoords.y - 5);
+
+      // Handles для выделенного объекта
+      if (annotations.selectedObjectId === bbox.id) {
+        ctx.fillStyle = 'white';
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 1;
+
+        const handleSize = 6;
+        const handles = [
+          { x: canvasCoords.x - handleSize/2, y: canvasCoords.y - handleSize/2 },
+          { x: canvasCoords.x + width - handleSize/2, y: canvasCoords.y - handleSize/2 },
+          { x: canvasCoords.x + width - handleSize/2, y: canvasCoords.y + height - handleSize/2 },
+          { x: canvasCoords.x - handleSize/2, y: canvasCoords.y + height - handleSize/2 },
+        ];
+
+        handles.forEach(handle => {
+          ctx.fillRect(handle.x, handle.y, handleSize, handleSize);
+          ctx.strokeRect(handle.x, handle.y, handleSize, handleSize);
+        });
+      }
     });
 
     // Отрисовка линеек
@@ -608,16 +642,6 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
 
         // Ограничения
         if (newBbox.width >= 10 && newBbox.height >= 10) {
-          // Применяем ограничения по границам изображения
-          const clampedBbox = clampToImageBounds(
-            newBbox.x, 
-            newBbox.y, 
-            newBbox.width, 
-            newBbox.height,
-            imageState.width,
-            imageState.height
-          );
-          
           updateBoundingBox(selectedBbox.id, newBbox);
           setDragStart({ x: e.clientX, y: e.clientY });
         }
@@ -630,22 +654,10 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
           const deltaX = (e.clientX - dragStart.x) / imageState.scale;
           const deltaY = (e.clientY - dragStart.y) / imageState.scale;
 
-          const newBbox = {
+          updateBoundingBox(selectedBbox.id, {
             x: selectedBbox.x + deltaX,
             y: selectedBbox.y + deltaY
-          };
-          
-          // Применяем ограничения по границам изображения
-          const clampedBbox = clampToImageBounds(
-            newBbox.x,
-            newBbox.y,
-            selectedBbox.width,
-            selectedBbox.height,
-            imageState.width,
-            imageState.height
-          );
-          
-          updateBoundingBox(selectedBbox.id, clampedBbox);
+          });
           setDragStart({ x: e.clientX, y: e.clientY });
         }
       } else if (annotations.selectedObjectId && annotations.selectedObjectType === 'density') {
@@ -699,41 +711,26 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
       if (canvas) {
         let cursor = 'default';
         
-        // Проверяем маркеры изменения размера выделенной рамки (приоритет)
-        if (annotations.selectedObjectId && annotations.selectedObjectType === 'bbox') {
+        if (activeTool === 'bbox' && activeClassId >= 0) {
+          cursor = 'crosshair';
+        } else if (activeTool === 'ruler' || activeTool === 'calibration') {
+          cursor = 'crosshair';
+        } else if (activeTool === 'density') {
+          cursor = 'crosshair';
+        } else if (annotations.selectedObjectId && annotations.selectedObjectType === 'bbox') {
           // Проверить наведение на маркеры выделенной рамки
           const selectedBbox = annotations.boundingBoxes.find(bbox => bbox.id === annotations.selectedObjectId);
           if (selectedBbox) {
             const handle = getResizeHandle(coords.x, coords.y, selectedBbox, imageState.scale);
             if (handle) {
               cursor = getCursorForHandle(handle);
-            } else {
-              // Если не на маркере, но внутри выделенной рамки - курсор перемещения
-              const clickedBbox = getBboxAtPoint(coords.x, coords.y);
-              if (clickedBbox && clickedBbox.id === annotations.selectedObjectId) {
-                cursor = 'move';
-              }
             }
           }
-        }
-        
-        // Если курсор еще не определен, проверяем другие рамки
-        if (cursor === 'default') {
+        } else {
           // Проверить наведение на рамки
           const clickedBbox = getBboxAtPoint(coords.x, coords.y);
           if (clickedBbox) {
             cursor = 'pointer';
-          }
-        }
-        
-        // Если курсор еще не определен, проверяем активные инструменты
-        if (cursor === 'default') {
-          if (activeTool === 'bbox' && activeClassId >= 0) {
-            cursor = 'crosshair';
-          } else if (activeTool === 'ruler' || activeTool === 'calibration') {
-            cursor = 'crosshair';
-          } else if (activeTool === 'density') {
-            cursor = 'crosshair';
           }
         }
         
