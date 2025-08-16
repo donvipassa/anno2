@@ -26,6 +26,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const { imageState, setOffset, zoomToPoint } = useImage();
+  const { fitToCanvas } = useImage();
   const { 
     annotations, 
     addBoundingBox, 
