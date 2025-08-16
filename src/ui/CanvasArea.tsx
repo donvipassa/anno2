@@ -50,11 +50,11 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
   const [currentBox, setCurrentBox] = useState<any>(null);
   const [currentLine, setCurrentLine] = useState<any>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const [resizeHandle, setResizeHandle] = useState<string>('');
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [lastPanPosition, setLastPanPosition] = useState({ x: 0, y: 0 });
-  const [isResizing, setIsResizing] = useState(false);
-  const [resizeHandle, setResizeHandle] = useState<string>('');
   const [showCalibrationModal, setShowCalibrationModal] = useState(false);
   const [calibrationLength, setCalibrationLength] = useState('');
   const [pendingCalibrationLine, setPendingCalibrationLine] = useState<any>(null);
@@ -474,7 +474,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
       // Проверка на выделенный bbox и его handles
       const selectedBbox = annotations.boundingBoxes.find(bbox => bbox.id === annotations.selectedObjectId);
       if (selectedBbox) {
-        const handle = getResizeHandle(canvasX, canvasY, selectedBbox);
+        const handle = getResizeHandleAtPoint(coords.x, coords.y, selectedBbox);
         if (handle) {
           setIsResizing(true);
           setResizeHandle(handle);
@@ -482,7 +482,6 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
           return;
         }
       }
-      // Проверка на выделенный bbox и его handles
       // Проверка клика по точке плотности
       const clickedDensityPoint = getDensityPointAtPoint(coords.x, coords.y);
       if (clickedDensityPoint) {
@@ -632,14 +631,28 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
             newBbox.width += deltaX;
             newBbox.height -= deltaY;
             break;
+          case 'n':
+            newBbox.y += deltaY;
+            newBbox.height -= deltaY;
+            break;
+          case 'e':
+            newBbox.width += deltaX;
+            break;
           case 'se':
             newBbox.width += deltaX;
+            newBbox.height += deltaY;
+            break;
+          case 's':
             newBbox.height += deltaY;
             break;
           case 'sw':
             newBbox.x += deltaX;
             newBbox.width -= deltaX;
             newBbox.height += deltaY;
+            break;
+          case 'w':
+            newBbox.x += deltaX;
+            newBbox.width -= deltaX;
             break;
         }
 
@@ -950,10 +963,34 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
   // Курсор
   const getCursor = () => {
     if (isPanning) return 'grabbing';
+    if (isResizing) {
+      switch (resizeHandle) {
+        case 'nw':
+        case 'se':
+          return 'nw-resize';
+        case 'ne':
+        case 'sw':
+          return 'ne-resize';
+        case 'n':
+        case 's':
+          return 'n-resize';
+        case 'e':
+        case 'w':
+          return 'e-resize';
+        default:
+          return 'default';
+      }
+    }
     if (isDragging && !isResizing) return 'grabbing';
     if (activeTool === 'bbox' && activeClassId >= 0) return 'crosshair';
     if (activeTool === 'ruler' || activeTool === 'calibration') return 'crosshair';
     if (activeTool === 'density') return 'crosshair';
+    
+    // Проверяем, наведен ли курсор на handle выделенного bbox
+    if (annotations.selectedObjectId && annotations.selectedObjectType === 'bbox') {
+      // Здесь можно добавить логику для изменения курсора при наведении на handles
+    }
+    
     return 'default';
   };
 

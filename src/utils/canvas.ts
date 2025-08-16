@@ -65,3 +65,94 @@ export function scaleFromPoint(
   
   return { offsetX: newOffsetX, offsetY: newOffsetY };
 }
+
+// Константы для работы с bbox
+export const HANDLE_SIZE_HOVER = 8;
+export const HANDLE_SIZE_VISUAL = 6;
+
+// Проверка попадания точки в рамку
+export function isPointInBox(x: number, y: number, box: any): boolean {
+  return x >= box.x && x <= box.x + box.width && y >= box.y && y <= box.y + box.height;
+}
+
+// Определение маркера изменения размера
+export function getResizeHandle(
+  x: number,
+  y: number,
+  box: any,
+  scale: number
+): 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'move' | null {
+  const handleSize = HANDLE_SIZE_HOVER / scale;
+  const centerX = box.x + box.width / 2;
+  const centerY = box.y + box.height / 2;
+
+  // Углы
+  if (Math.abs(x - box.x) <= handleSize && Math.abs(y - box.y) <= handleSize) return 'nw';
+  if (Math.abs(x - (box.x + box.width)) <= handleSize && Math.abs(y - box.y) <= handleSize) return 'ne';
+  if (Math.abs(x - (box.x + box.width)) <= handleSize && Math.abs(y - (box.y + box.height)) <= handleSize) return 'se';
+  if (Math.abs(x - box.x) <= handleSize && Math.abs(y - (box.y + box.height)) <= handleSize) return 'sw';
+
+  // Стороны
+  if (Math.abs(x - centerX) <= handleSize && Math.abs(y - box.y) <= handleSize) return 'n';
+  if (Math.abs(x - (box.x + box.width)) <= handleSize && Math.abs(y - centerY) <= handleSize) return 'e';
+  if (Math.abs(x - centerX) <= handleSize && Math.abs(y - (box.y + box.height)) <= handleSize) return 's';
+  if (Math.abs(x - box.x) <= handleSize && Math.abs(y - centerY) <= handleSize) return 'w';
+
+  // Внутри box - перемещение
+  if (isPointInBox(x, y, box)) return 'move';
+
+  return null;
+}
+
+// Отрисовка маркеров изменения размера
+export function drawResizeHandles(ctx: CanvasRenderingContext2D, box: any, scale: number) {
+  const handleSize = HANDLE_SIZE_VISUAL / scale;
+  
+  ctx.fillStyle = 'white';
+  ctx.strokeStyle = 'black';
+  ctx.lineWidth = 1 / scale;
+
+  const handles = [
+    { x: box.x - handleSize/2, y: box.y - handleSize/2 }, // nw
+    { x: box.x + box.width/2 - handleSize/2, y: box.y - handleSize/2 }, // n
+    { x: box.x + box.width - handleSize/2, y: box.y - handleSize/2 }, // ne
+    { x: box.x + box.width - handleSize/2, y: box.y + box.height/2 - handleSize/2 }, // e
+    { x: box.x + box.width - handleSize/2, y: box.y + box.height - handleSize/2 }, // se
+    { x: box.x + box.width/2 - handleSize/2, y: box.y + box.height - handleSize/2 }, // s
+    { x: box.x - handleSize/2, y: box.y + box.height - handleSize/2 }, // sw
+    { x: box.x - handleSize/2, y: box.y + box.height/2 - handleSize/2 }, // w
+  ];
+
+  handles.forEach(handle => {
+    ctx.fillRect(handle.x, handle.y, handleSize, handleSize);
+    ctx.strokeRect(handle.x, handle.y, handleSize, handleSize);
+  });
+}
+
+// Отрисовка ограничивающей рамки
+export function drawBoundingBox(
+  ctx: CanvasRenderingContext2D,
+  box: any,
+  isSelected: boolean,
+  scale: number,
+  defectClasses: any[]
+) {
+  const defectClass = defectClasses.find(c => c.id === box.classId);
+  if (!defectClass) return;
+
+  // Рамка
+  ctx.strokeStyle = defectClass.color;
+  ctx.lineWidth = (isSelected ? 3 : 2) / scale;
+  ctx.setLineDash([]);
+  ctx.strokeRect(box.x, box.y, box.width, box.height);
+
+  // Подпись
+  ctx.fillStyle = defectClass.color;
+  ctx.font = `${Math.max(12 / scale, 8)}px Arial`;
+  ctx.fillText(defectClass.name, box.x, box.y - 5 / scale);
+
+  // Хэндлы для выделенного объекта
+  if (isSelected) {
+    drawResizeHandles(ctx, box, scale);
+  }
+}
