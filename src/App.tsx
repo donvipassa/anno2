@@ -310,6 +310,14 @@ const AppContent: React.FC = () => {
         { text: 'Ок', action: closeModal }
       ]);
     } catch (error) {
+      showModal('error', 'Ошибка', 'Не удалось выполнить автоматическую аннотацию', [
+        { text: 'Ок', action: closeModal }
+      ]);
+    } finally {
+      setIsProcessingAutoAnnotation(false);
+    }
+  }, [imageState.file, addBoundingBox, setMarkupModified, showModal, closeModal]);
+
   const handleHelp = () => {
     showModal('help', 'О программе', 'Автор и разработчик Алексей Сотников\nТехнопарк "Университетские технологии"', [
       { text: 'Ок', action: closeModal }
@@ -338,7 +346,6 @@ const AppContent: React.FC = () => {
         onToolChange={setActiveTool}
         onOpenFile={handleOpenFile}
         onSaveMarkup={handleSaveMarkup}
-        onAutoAnnotate={handleAutoAnnotate}
         onInvertColors={toggleInversion}
         onHelp={handleHelp}
         layerVisible={layerVisible}
