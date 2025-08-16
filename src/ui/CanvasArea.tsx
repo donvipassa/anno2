@@ -473,24 +473,11 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
       // Проверка клика по существующему bbox
       const clickedBbox = getBboxAtPoint(coords.x, coords.y);
       if (clickedBbox) {
-        // Если активен инструмент bbox, позволяем рисовать поверх существующих рамок
-        if (activeTool === 'bbox' && activeClassId >= 0) {
-          // Начинаем рисование новой рамки
-          setIsDrawing(true);
-          setStartPoint(coords);
-          setCurrentBox({
-            x: coords.x,
-            y: coords.y,
-            width: 0,
-            height: 0
-          });
-        } else {
-          // Выделяем существующую рамку для перемещения
-          selectObject(clickedBbox.id, 'bbox');
-          onSelectClass(clickedBbox.classId);
-          setIsDragging(true);
-          setDragStart({ x: e.clientX, y: e.clientY });
-        }
+        // Выделяем существующую рамку для перемещения
+        selectObject(clickedBbox.id, 'bbox');
+        onSelectClass(clickedBbox.classId);
+        setIsDragging(true);
+        setDragStart({ x: e.clientX, y: e.clientY });
         return;
       }
 
@@ -668,16 +655,9 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
           const deltaX = (e.clientX - dragStart.x) / imageState.scale;
           const deltaY = (e.clientY - dragStart.y) / imageState.scale;
 
-          const newX = selectedBbox.x + deltaX;
-          const newY = selectedBbox.y + deltaY;
-          
-          // Ограничиваем перемещение границами изображения
-          const clampedX = Math.max(0, Math.min(newX, imageState.width - selectedBbox.width));
-          const clampedY = Math.max(0, Math.min(newY, imageState.height - selectedBbox.height));
-          
           updateBoundingBox(selectedBbox.id, {
-            x: clampedX,
-            y: clampedY
+            x: selectedBbox.x + deltaX,
+            y: selectedBbox.y + deltaY
           });
           setDragStart({ x: e.clientX, y: e.clientY });
         }
