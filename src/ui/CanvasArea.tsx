@@ -946,6 +946,27 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
   // Курсор
   const getCursor = () => {
     if (isPanning) return 'grabbing';
+    
+    // Курсор для маркеров изменения размера при наведении
+    if (hoveredHandle && !isResizing && !isDragging) {
+      switch (hoveredHandle) {
+        case 'nw':
+        case 'se':
+          return 'nw-resize';
+        case 'ne':
+        case 'sw':
+          return 'ne-resize';
+        case 'n':
+        case 's':
+          return 'n-resize';
+        case 'e':
+        case 'w':
+          return 'e-resize';
+        default:
+          return 'default';
+      }
+    }
+    
     if (isResizing) {
       switch (resizeHandle) {
         case 'nw':
