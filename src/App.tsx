@@ -46,102 +46,6 @@ const AppContent: React.FC = () => {
     y: number;
   }>({ visible: false, x: 0, y: 0 });
 
-  // Горячие клавиши
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-      // Проверяем, находится ли фокус на элементе ввода
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
-        return;
-      }
-
-      const key = e.key.toLowerCase();
-      const ctrl = e.ctrlKey;
-
-      if (ctrl && key === 'o') {
-        e.preventDefault();
-        handleOpenFile();
-      } else if (ctrl && key === 's') {
-        e.preventDefault();
-        handleSaveMarkup();
-      } else if (ctrl && (key === '+' || key === '=')) {
-        e.preventDefault();
-        zoomIn();
-      } else if (ctrl && key === '-') {
-        e.preventDefault();
-        zoomOut();
-      } else if (ctrl && key === '1') {
-        e.preventDefault();
-        zoomReset();
-      } else if (key === 'f') {
-        e.preventDefault();
-        const canvas = document.querySelector('canvas');
-        if (canvas) {
-          fitToCanvas(canvas.clientWidth, canvas.clientHeight);
-        }
-      } else if (key === 'i') {
-        e.preventDefault();
-        toggleInversion();
-      } else if (key === 'd') {
-        e.preventDefault();
-        setActiveTool('density');
-      } else if (key === 'r') {
-        e.preventDefault();
-        setActiveTool('ruler');
-      } else if (key === 'c') {
-        e.preventDefault();
-        setActiveTool('calibration');
-      } else if (key === 'l') {
-        e.preventDefault();
-        setLayerVisible(!layerVisible);
-      } else if (ctrl && key === 'l') {
-        e.preventDefault();
-        setFilterActive(!filterActive);
-      } else if (key === 'f1' || (ctrl && key === 'h')) {
-        e.preventDefault();
-        handleHelp();
-      } else if (key === 'escape') {
-        e.preventDefault();
-        setActiveTool('');
-        setActiveClassId(-1);
-        // Сброс выделения объектов
-        selectObject(null, null);
-      } else if (key === 'delete') {
-        e.preventDefault();
-        handleDeleteSelected();
-      } else if ('0123456789'.includes(key)) {
-        e.preventDefault();
-        const classId = parseInt(key);
-        handleClassSelect(classId);
-      } else if (key === '-') {
-        e.preventDefault();
-        handleClassSelect(10);
-      }
-  }, [
-    handleOpenFile, handleSaveMarkup, zoomIn, zoomOut, zoomReset, fitToCanvas, 
-    toggleInversion, setActiveTool, layerVisible, setLayerVisible, filterActive, 
-    setFilterActive, handleHelp, selectObject, handleDeleteSelected, handleClassSelect
-  ]);
-
-  useEffect(() => {
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleKeyDown]);
-
-  // Предупреждение при закрытии страницы
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (markupModified) {
-        e.preventDefault();
-        e.returnValue = '';
-        return '';
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [markupModified]);
-
   const closeModal = () => {
     setModalState({ type: null, title: '', message: '' });
   };
@@ -260,12 +164,12 @@ const AppContent: React.FC = () => {
     setMarkupModified(false);
   };
 
-  const handleClassSelect = (classId: number) => {
+  const handleClassSelect = useCallback((classId: number) => {
     if (!imageState.src) return;
     
     setActiveClassId(classId);
     setActiveTool('bbox');
-  };
+  }, [imageState.src]);
 
   const handleDeleteSelected = useCallback(() => {
     // Реализация удаления выделенного объекта
@@ -316,7 +220,7 @@ const AppContent: React.FC = () => {
     } finally {
       setIsProcessingAutoAnnotation(false);
     }
-  }, [imageState.file, addBoundingBox, setMarkupModified, showModal, closeModal]);
+  }, [imageState.file, addBoundingBox, setMarkupModified]);
 
   const handleHelp = () => {
     showModal('help', 'О программе', 'Автор и разработчик Алексей Сотников\nТехнопарк "Университетские технологии"', [
@@ -337,6 +241,102 @@ const AppContent: React.FC = () => {
   const handleCloseContextMenu = () => {
     setContextMenu({ visible: false, x: 0, y: 0 });
   };
+
+  // Горячие клавиши
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+      // Проверяем, находится ли фокус на элементе ввода
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        return;
+      }
+
+      const key = e.key.toLowerCase();
+      const ctrl = e.ctrlKey;
+
+      if (ctrl && key === 'o') {
+        e.preventDefault();
+        handleOpenFile();
+      } else if (ctrl && key === 's') {
+        e.preventDefault();
+        handleSaveMarkup();
+      } else if (ctrl && (key === '+' || key === '=')) {
+        e.preventDefault();
+        zoomIn();
+      } else if (ctrl && key === '-') {
+        e.preventDefault();
+        zoomOut();
+      } else if (ctrl && key === '1') {
+        e.preventDefault();
+        zoomReset();
+      } else if (key === 'f') {
+        e.preventDefault();
+        const canvas = document.querySelector('canvas');
+        if (canvas) {
+          fitToCanvas(canvas.clientWidth, canvas.clientHeight);
+        }
+      } else if (key === 'i') {
+        e.preventDefault();
+        toggleInversion();
+      } else if (key === 'd') {
+        e.preventDefault();
+        setActiveTool('density');
+      } else if (key === 'r') {
+        e.preventDefault();
+        setActiveTool('ruler');
+      } else if (key === 'c') {
+        e.preventDefault();
+        setActiveTool('calibration');
+      } else if (key === 'l') {
+        e.preventDefault();
+        setLayerVisible(!layerVisible);
+      } else if (ctrl && key === 'l') {
+        e.preventDefault();
+        setFilterActive(!filterActive);
+      } else if (key === 'f1' || (ctrl && key === 'h')) {
+        e.preventDefault();
+        handleHelp();
+      } else if (key === 'escape') {
+        e.preventDefault();
+        setActiveTool('');
+        setActiveClassId(-1);
+        // Сброс выделения объектов
+        selectObject(null, null);
+      } else if (key === 'delete') {
+        e.preventDefault();
+        handleDeleteSelected();
+      } else if ('0123456789'.includes(key)) {
+        e.preventDefault();
+        const classId = parseInt(key);
+        handleClassSelect(classId);
+      } else if (key === '-') {
+        e.preventDefault();
+        handleClassSelect(10);
+      }
+  }, [
+    handleOpenFile, handleSaveMarkup, zoomIn, zoomOut, zoomReset, fitToCanvas, 
+    toggleInversion, setActiveTool, layerVisible, setLayerVisible, filterActive, 
+    setFilterActive, handleHelp, selectObject, handleDeleteSelected, handleClassSelect
+  ]);
+
+  useEffect(() => {
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
+
+  // Предупреждение при закрытии страницы
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (markupModified) {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [markupModified]);
   return (
     <div className="h-screen flex flex-col bg-gray-100">
       <Header />
