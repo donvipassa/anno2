@@ -1,5 +1,3 @@
-// Утилиты для работы с аннотациями от API
-
 export const API_CLASS_TO_DEFECT_CLASS_ID_MAP: { [key: string]: number } = {
   "defect": 0, // Трещины
   "crack": 0, // Трещины
@@ -15,10 +13,22 @@ export const API_CLASS_TO_DEFECT_CLASS_ID_MAP: { [key: string]: number } = {
   "welding seam": 10, // Сопоставляется с 'Другое'
 };
 
-// Не используем сопоставление - все API классы рассматриваем как дополнительные
 export const mapApiClassToDefectClassId = (apiClassName: string): number => {
-  // Возвращаем -1 для обозначения API класса (не из стандартных классов дефектов)
-  return -1;
+  const normalizedClassName = apiClassName.toLowerCase().trim();
+  const classId = API_CLASS_TO_DEFECT_CLASS_ID_MAP[normalizedClassName];
+  
+  // Если точного совпадения нет, пытаемся найти частичное совпадение
+  if (classId === undefined) {
+    for (const [key, value] of Object.entries(API_CLASS_TO_DEFECT_CLASS_ID_MAP)) {
+      if (normalizedClassName.includes(key) || key.includes(normalizedClassName)) {
+        return value;
+      }
+    }
+    // Если ничего не найдено, возвращаем 'Другое'
+    return 10;
+  }
+  
+  return classId;
 };
 
 export const convertApiBboxToPixels = (
@@ -31,9 +41,4 @@ export const convertApiBboxToPixels = (
     width: x2 - x1,
     height: y2 - y1
   };
-};
-
-export const convertApiColorToHex = (apiColor: [number, number, number]): string => {
-  const [r, g, b] = apiColor;
-  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
 };

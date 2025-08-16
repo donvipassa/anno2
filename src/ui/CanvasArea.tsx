@@ -502,9 +502,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
         if (clickedBbox) {
           // Выделяем существующую рамку для перемещения
           selectObject(clickedBbox.id, 'bbox');
-          if (!clickedBbox.isApiClass) {
-            onSelectClass(clickedBbox.classId);
-          }
+          onSelectClass(clickedBbox.classId);
           setIsDragging(true);
           setDragStart({ x: e.clientX, y: e.clientY });
           return;
