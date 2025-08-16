@@ -1,0 +1,456 @@
+import React, { useState, useCallback, useEffect } from 'react';
+import { ImageProvider } from './core/ImageProvider';
+import { AnnotationProvider } from './core/AnnotationManager';
+import { Header } from './ui/Header';
+import { Toolbar } from './ui/Toolbar';
+import { Sidebar } from './ui/Sidebar';
+import { CanvasArea } from './ui/CanvasArea';
+import { StatusBar } from './ui/StatusBar';
+import { Modal, ModalButtons, ModalButton } from './ui/Modal';
+import { useImage } from './core/ImageProvider';
+import { useAnnotations } from './core/AnnotationManager';
+import { useCalibration } from './core/CalibrationManager';
+import { validateImageFile, saveImageAsFile } from './utils/imageUtils';
+import { downloadFile, readFileAsText, getMarkupFileName, validateMarkupFileName, parseYOLOData, convertYOLOToPixels } from './utils/fileUtils';
+
+const AppContent: React.FC = () => {
+  const { imageState, loadImage, setScale, toggleInversion, resetView, fitToCanvas } = useImage();
+  const { annotations, getYOLOExport, clearAllRulers, clearAllDensityPoints, loadAnnotations, clearAll, selectObject } = useAnnotations();
+  const { calibration, setScale: setCalibrationScale } = useCalibration();
+
+  const [activeTool, setActiveTool] = useState<string>('');
+  const [activeClassId, setActiveClassId] = useState<number>(-1);
+  const [layerVisible, setLayerVisible] = useState<boolean>(true);
+  const [filterActive, setFilterActive] = useState<boolean>(false);
+  const [markupModified, setMarkupModified] = useState<boolean>(false);
+  const [markupFileName, setMarkupFileName] = useState<string | null>(null);
+
+  // Модальные окна
+  const [modalState, setModalState] = useState<{
+    type: string | null;
+    title: string;
+    message: string;
+    buttons?: Array<{ text: string; action: () => void; primary?: boolean }>;
+    input?: { label: string; value: string; onChange: (value: string) => void };
+  }>({
+    type: null,
+    title: '',
+    message: ''
+  });
+
+  const [contextMenu, setContextMenu] = useState<{
+    visible: boolean;
+    x: number;
+    y: number;
+  }>({ visible: false, x: 0, y: 0 });
+
+  // Горячие клавиши
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Проверяем, находится ли фокус на элементе ввода
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        return;
+      }
+
+      const key = e.key.toLowerCase();
+      const ctrl = e.ctrlKey;
+
+      if (ctrl && key === 'o') {
+        e.preventDefault();
+        handleOpenFile();
+      } else if (ctrl && key === 's') {
+        e.preventDefault();
+        handleSaveMarkup();
+      } else if (ctrl && (key === '+' || key === '=')) {
+        e.preventDefault();
+        handleZoomIn();
+      } else if (ctrl && key === '-') {
+        e.preventDefault();
+        handleZoomOut();
+      } else if (ctrl && key === '1') {
+        e.preventDefault();
+        handleZoomReset();
+      } else if (key === 'f') {
+        e.preventDefault();
+        handleZoomFit();
+      } else if (key === 'i') {
+        e.preventDefault();
+        toggleInversion();
+      } else if (key === 'd') {
+        e.preventDefault();
+        setActiveTool('density');
+      } else if (key === 'r') {
+        e.preventDefault();
+        setActiveTool('ruler');
+      } else if (key === 'c') {
+        e.preventDefault();
+        setActiveTool('calibration');
+      } else if (key === 'l') {
+        e.preventDefault();
+        setLayerVisible(!layerVisible);
+      } else if (ctrl && key === 'l') {
+        e.preventDefault();
+        setFilterActive(!filterActive);
+      } else if (key === 'f1' || (ctrl && key === 'h')) {
+        e.preventDefault();
+        handleHelp();
+      } else if (key === 'escape') {
+        e.preventDefault();
+        setActiveTool('');
+        setActiveClassId(-1);
+        // Сброс выделения объектов
+        selectObject(null, null);
+      } else if (key === 'delete') {
+        e.preventDefault();
+        handleDeleteSelected();
+      } else if ('0123456789'.includes(key)) {
+        e.preventDefault();
+        const classId = parseInt(key);
+        handleClassSelect(classId);
+      } else if (key === '-') {
+        e.preventDefault();
+        handleClassSelect(10);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [layerVisible, filterActive]);
+
+  // Предупреждение при закрытии страницы
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (markupModified) {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [markupModified]);
+
+  const closeModal = () => {
+    setModalState({ type: null, title: '', message: '' });
+  };
+
+  const showModal = (type: string, title: string, message: string, buttons?: any[], input?: any) => {
+    setModalState({ type, title, message, buttons, input });
+  };
+
+  const handleOpenFile = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      const validation = validateImageFile(file);
+      if (!validation.valid) {
+        if (validation.error === 'FILE_TOO_LARGE') {
+          showModal('error', 'Ошибка', 'Файл слишком большой. Максимум — 20 МБ', [
+            { text: 'Ок', action: closeModal }
+          ]);
+        } else if (validation.error === 'INVALID_FORMAT') {
+          showModal('error', 'Ошибка', 'Недопустимый формат. Поддерживаются форматы: JPG, PNG, TIFF, BMP', [
+            { text: 'Ок', action: closeModal }
+          ]);
+        }
+        return;
+      }
+
+      try {
+        await loadImage(file);
+        
+        // Предложение загрузить разметку
+        showModal('confirm', 'Загрузка разметки', 'Открыть файл разметки для данного изображения?', [
+          { text: 'Да', action: () => { closeModal(); handleOpenMarkup(file.name); } },
+          { text: 'Нет', action: closeModal }
+        ]);
+        
+        // Очистка существующих аннотаций
+        clearAll();
+        setMarkupModified(false);
+        setMarkupFileName(null);
+      } catch (error) {
+        showModal('error', 'Ошибка', 'Не удалось загрузить изображение', [
+          { text: 'Ок', action: closeModal }
+        ]);
+      }
+    };
+    input.click();
+  };
+
+  const handleOpenMarkup = (imageFileName: string) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.txt';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      const expectedFileName = getMarkupFileName(imageFileName);
+      if (!validateMarkupFileName(file.name, imageFileName)) {
+        showModal('error', 'Ошибка', 'Файл разметки не соответствует файлу изображения. Загрузка отменена', [
+          { text: 'Ок', action: closeModal }
+        ]);
+        return;
+      }
+
+      try {
+        const content = await readFileAsText(file);
+        const yoloData = parseYOLOData(content);
+        
+        if (yoloData.length === 0) {
+          // Пустой файл разметки - это нормально
+          setMarkupFileName(file.name);
+          setMarkupModified(false);
+          showModal('info', 'Успех', 'Файл разметки соответствует файлу изображения. Загрузка подтверждена', [
+            { text: 'Ок', action: closeModal }
+          ]);
+        } else {
+          // Проверяем, что изображение загружено
+          if (!imageState.width || !imageState.height) {
+            showModal('error', 'Ошибка', 'Не удалось загрузить файл разметки. Сначала загрузите изображение', [
+              { text: 'Ок', action: closeModal }
+            ]);
+            return;
+          }
+
+          // Конвертация YOLO в пиксельные координаты
+          const boundingBoxes = yoloData.map(data => convertYOLOToPixels(data, imageState.width, imageState.height));
+          loadAnnotations({ boundingBoxes });
+          setMarkupFileName(file.name);
+          setMarkupModified(false);
+
+          showModal('info', 'Успех', 'Файл разметки соответствует файлу изображения. Загрузка подтверждена', [
+            { text: 'Ок', action: closeModal }
+          ]);
+        }
+      } catch (error) {
+        showModal('error', 'Ошибка', 'Не удалось загрузить файл разметки. Файл повреждён или имеет неверный формат', [
+          { text: 'Ок', action: closeModal }
+        ]);
+      }
+    };
+    input.click();
+  };
+
+  const handleSaveMarkup = () => {
+    if (annotations.boundingBoxes.length === 0) return;
+
+    const yoloContent = getYOLOExport(imageState.width, imageState.height);
+    const fileName = getMarkupFileName(imageState.file?.name || 'markup');
+    
+    downloadFile(yoloContent, fileName);
+    setMarkupFileName(fileName);
+    setMarkupModified(false);
+  };
+
+  const handleZoomIn = () => {
+    setScale(imageState.scale * 1.2);
+  };
+
+  const handleZoomOut = () => {
+    setScale(imageState.scale / 1.2);
+  };
+
+  const handleZoomReset = () => {
+    resetView();
+  };
+
+  const handleZoomFit = () => {
+    // Получение размеров canvas области через более надежный способ
+    const canvasElement = document.querySelector('canvas') as HTMLCanvasElement;
+    if (canvasElement) {
+      fitToCanvas(canvasElement.clientWidth, canvasElement.clientHeight);
+    }
+  };
+
+  const handleClassSelect = (classId: number) => {
+    if (!imageState.src) return;
+    
+    setActiveClassId(classId);
+    setActiveTool('bbox');
+  };
+
+  const handleDeleteSelected = () => {
+    // Реализация удаления выделенного объекта
+    if (annotations.selectedObjectId) {
+      // Удаление через соответствующий менеджер
+      setMarkupModified(true);
+    }
+  };
+
+  const handleHelp = () => {
+    showModal('help', 'О программе', 'Автор и разработчик Алексей Сотников\nТехнопарк "Университетские технологии"', [
+      { text: 'Ок', action: closeModal }
+    ]);
+  };
+
+  const handleEditCalibration = () => {
+    if (annotations.calibrationLine) {
+      setActiveTool('calibration');
+      setCalibrationLength(annotations.calibrationLine.realLength.toString());
+      setShowCalibrationModal(true);
+      setPendingCalibrationLine(annotations.calibrationLine);
+    }
+  };
+
+  const handleShowContextMenu = (x: number, y: number) => {
+    setContextMenu({ visible: true, x, y });
+  };
+
+  const handleCloseContextMenu = () => {
+    setContextMenu({ visible: false, x: 0, y: 0 });
+  };
+  return (
+    <div className="h-screen flex flex-col bg-gray-100">
+      <Header />
+      
+      <Toolbar
+        activeTool={activeTool}
+        onToolChange={setActiveTool}
+        onOpenFile={handleOpenFile}
+        onSaveMarkup={handleSaveMarkup}
+        onZoomIn={handleZoomIn}
+        onZoomOut={handleZoomOut}
+        onZoomFit={handleZoomFit}
+        onZoomReset={handleZoomReset}
+        onInvertColors={toggleInversion}
+        onHelp={handleHelp}
+        layerVisible={layerVisible}
+        onToggleLayer={() => setLayerVisible(!layerVisible)}
+        filterActive={filterActive}
+        onToggleFilter={() => setFilterActive(!filterActive)}
+        calibrationSet={calibration.isSet}
+        onEditCalibration={handleEditCalibration}
+      />
+
+      <div className="flex-1 flex overflow-hidden">
+        <Sidebar
+          activeClassId={activeClassId}
+          onClassSelect={handleClassSelect}
+          disabled={!imageState.src}
+        />
+        
+        <CanvasArea
+          activeTool={activeTool}
+          activeClassId={activeClassId}
+          layerVisible={layerVisible}
+          filterActive={filterActive}
+          onToolChange={setActiveTool}
+          onSelectClass={setActiveClassId}
+          onShowContextMenu={handleShowContextMenu}
+        />
+      </div>
+
+      <StatusBar markupFileName={markupFileName} />
+
+      {/* Модальные окна */}
+      <Modal
+        isOpen={modalState.type !== null}
+        title={modalState.title}
+        onClose={closeModal}
+      >
+        <p className="whitespace-pre-line">{modalState.message}</p>
+        
+        {modalState.input && (
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              {modalState.input.label}
+            </label>
+            <input
+              type="text"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={modalState.input.value}
+              onChange={(e) => modalState.input!.onChange(e.target.value)}
+            />
+          </div>
+        )}
+        
+        <ModalButtons>
+          {modalState.buttons?.map((button, index) => (
+            <ModalButton
+              key={index}
+              onClick={button.action}
+              primary={button.primary}
+            >
+              {button.text}
+            </ModalButton>
+          ))}
+        </ModalButtons>
+      </Modal>
+
+      {/* Контекстное меню */}
+      {contextMenu.visible && (
+        <div
+          className="fixed bg-white border border-gray-200 rounded shadow-lg z-50"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+        >
+          <button
+            className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+            onClick={() => {
+              clearAllDensityPoints();
+              handleCloseContextMenu();
+            }}
+            disabled={annotations.densityPoints.length === 0}
+          >
+            Очистить все измерения плотности
+          </button>
+          <button
+            className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+            onClick={() => {
+              clearAllRulers();
+              handleCloseContextMenu();
+            }}
+            disabled={annotations.rulers.length === 0}
+          >
+            Очистить все линейки
+          </button>
+          <button
+            className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+            onClick={() => {
+              if (imageState.imageElement && imageState.file) {
+                saveImageAsFile(
+                  imageState.imageElement, 
+                  imageState.width, 
+                  imageState.height, 
+                  annotations, 
+                  `annotated_${imageState.file.name}`
+                );
+              }
+              handleCloseContextMenu();
+            }}
+            disabled={!imageState.src}
+          >
+            Сохранить изображение
+          </button>
+        </div>
+      )}
+
+      {/* Закрытие контекстного меню при клике вне */}
+      {contextMenu.visible && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={handleCloseContextMenu}
+        />
+      )}
+    </div>
+  );
+};
+
+function App() {
+  return (
+    <ImageProvider>
+      <AnnotationProvider>
+        <AppContent />
+      </AnnotationProvider>
+    </ImageProvider>
+  );
+}
+
+export default App;
