@@ -105,6 +105,7 @@ export const DEFECT_CLASSES: DefectClass[] = [
   { id: 8, name: 'Подрез', color: '#008000', hotkey: '8' },
   { id: 9, name: 'Смещение кромок', color: '#800000', hotkey: '9' },
   { id: 10, name: 'Другое', color: '#808080', hotkey: '-' }
+]
 
 export interface ApiDetection {
   class: string;

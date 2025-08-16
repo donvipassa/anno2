@@ -334,7 +334,7 @@ const AppContent: React.FC = () => {
 
       {/* Модальные окна */}
       <Modal
-        isOpen={modalState.type !== null}
+        isOpen={modalState.type !== null || isProcessingAutoAnnotation}
         title={modalState.title}
         onClose={closeModal}
       >
