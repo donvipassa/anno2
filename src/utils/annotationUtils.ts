@@ -1,6 +1,5 @@
 export const API_CLASS_TO_DEFECT_CLASS_ID_MAP: { [key: string]: number } = {
-  "Defect": 0, // Сопоставляется с 'Трещины'
-  "welding seam": 10, // Сопоставляется с 'Другое'
+  "defect": 0, // Трещины
   "crack": 0, // Трещины
   "porosity": 2, // Поры
   "inclusion": 3, // Шлаковые включения
@@ -11,11 +10,25 @@ export const API_CLASS_TO_DEFECT_CLASS_ID_MAP: { [key: string]: number } = {
   "misalignment": 9, // Смещение кромок
   "tungsten inclusion": 4, // Вольфрамовые включения
   "oxide inclusion": 5, // Окисные включения
+  "welding seam": 10, // Сопоставляется с 'Другое'
 };
 
 export const mapApiClassToDefectClassId = (apiClassName: string): number => {
-  const classId = API_CLASS_TO_DEFECT_CLASS_ID_MAP[apiClassName.toLowerCase()];
-  return classId !== undefined ? classId : 10; // По умолчанию 'Другое'
+  const normalizedClassName = apiClassName.toLowerCase().trim();
+  const classId = API_CLASS_TO_DEFECT_CLASS_ID_MAP[normalizedClassName];
+  
+  // Если точного совпадения нет, пытаемся найти частичное совпадение
+  if (classId === undefined) {
+    for (const [key, value] of Object.entries(API_CLASS_TO_DEFECT_CLASS_ID_MAP)) {
+      if (normalizedClassName.includes(key) || key.includes(normalizedClassName)) {
+        return value;
+      }
+    }
+    // Если ничего не найдено, возвращаем 'Другое'
+    return 10;
+  }
+  
+  return classId;
 };
 
 export const convertApiBboxToPixels = (

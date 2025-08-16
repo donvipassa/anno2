@@ -199,13 +199,13 @@ const AppContent: React.FC = () => {
         const classId = mapApiClassToDefectClassId(detection.class);
         
         addBoundingBox({
-          id: `auto_${Date.now()}_${Math.random()}`,
           x: bbox.x,
           y: bbox.y,
           width: bbox.width,
           height: bbox.height,
           classId,
-          confidence: detection.confidence
+          confidence: detection.confidence,
+          apiClassName: detection.class
         });
       });
 

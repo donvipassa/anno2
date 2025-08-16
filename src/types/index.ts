@@ -15,6 +15,8 @@ export interface BoundingBox {
   width: number;
   height: number;
   selected?: boolean;
+  confidence?: number;
+  apiClassName?: string;
 }
 
 export interface Ruler {

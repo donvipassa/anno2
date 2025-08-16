@@ -149,7 +149,21 @@ export function drawBoundingBox(
   // Подпись
   ctx.fillStyle = defectClass.color;
   ctx.font = `${Math.max(16 / scale, 12)}px Arial`;
-  ctx.fillText(defectClass.name, box.x, box.y - 5 / scale);
+  
+  // Формируем текст подписи
+  let labelText = defectClass.name;
+  
+  // Если есть оригинальное название класса от API, используем его
+  if (box.apiClassName && box.apiClassName.toLowerCase() !== defectClass.name.toLowerCase()) {
+    labelText = box.apiClassName;
+  }
+  
+  // Добавляем уверенность, если она есть
+  if (box.confidence !== undefined) {
+    labelText += ` (${Math.round(box.confidence * 100)}%)`;
+  }
+  
+  ctx.fillText(labelText, box.x, box.y - 5 / scale);
 
   // Хэндлы для выделенного объекта
   if (isSelected) {
