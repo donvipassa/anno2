@@ -430,15 +430,17 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     }
 
     if (e.button === 0) { // ЛКМ
-      // Проверка на выделенный bbox и его handles
-      const selectedBbox = annotations.boundingBoxes.find(bbox => bbox.id === annotations.selectedObjectId);
-      if (selectedBbox) {
-        const handle = getResizeHandle(coords.x, coords.y, selectedBbox, imageState.scale);
-        if (handle) {
-          setIsResizing(true);
-          setResizeHandle(handle);
-          setDragStart({ x: e.clientX, y: e.clientY });
-          return;
+      // Проверка на выделенный bbox и его handles (только если не активен инструмент bbox)
+      if (activeTool !== 'bbox') {
+        const selectedBbox = annotations.boundingBoxes.find(bbox => bbox.id === annotations.selectedObjectId);
+        if (selectedBbox) {
+          const handle = getResizeHandle(coords.x, coords.y, selectedBbox, imageState.scale);
+          if (handle) {
+            setIsResizing(true);
+            setResizeHandle(handle);
+            setDragStart({ x: e.clientX, y: e.clientY });
+            return;
+          }
         }
       }
 
@@ -583,20 +585,17 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     if (!isDrawing && !isDragging && !isResizing && !isPanning) {
       let newHandle = null;
       
-      // Если активен инструмент bbox, не показываем курсор перемещения
-      if (activeTool !== 'bbox') {
-        // Проверка наведения на handles выделенного bbox
-        const selectedBbox = annotations.boundingBoxes.find(bbox => bbox.id === annotations.selectedObjectId);
-        if (selectedBbox) {
-          newHandle = getResizeHandle(coords.x, coords.y, selectedBbox, imageState.scale);
-        }
-        
-        // Если не на handle, проверяем наведение на bbox
-        if (!newHandle) {
-          const hoveredBbox = getBboxAtPoint(coords.x, coords.y);
-          if (hoveredBbox) {
-            newHandle = 'move';
-          }
+      // Проверка наведения на handles выделенного bbox
+      const selectedBbox = annotations.boundingBoxes.find(bbox => bbox.id === annotations.selectedObjectId);
+      if (selectedBbox) {
+        newHandle = getResizeHandle(coords.x, coords.y, selectedBbox, imageState.scale);
+      }
+      
+      // Если не на handle, проверяем наведение на bbox
+      if (!newHandle) {
+        const hoveredBbox = getBboxAtPoint(coords.x, coords.y);
+        if (hoveredBbox) {
+          newHandle = 'move';
         }
       }
       
@@ -995,9 +994,6 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     }
     if (isDragging && !isResizing) return 'grabbing';
     
-    // Приоритет для активного инструмента bbox
-    if (activeTool === 'bbox' && activeClassId >= 0) return 'crosshair';
-    
     // Курсоры при наведении
     if (currentResizeHandle) {
       switch (currentResizeHandle) {
@@ -1020,6 +1016,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
       }
     }
     
+    if (activeTool === 'bbox' && activeClassId >= 0) return 'crosshair';
     if (activeTool === 'ruler' || activeTool === 'calibration') return 'crosshair';
     if (activeTool === 'density') return 'crosshair';
 
