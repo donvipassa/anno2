@@ -17,6 +17,7 @@ export interface BoundingBox {
   selected?: boolean;
   confidence?: number;
   apiClassName?: string;
+  apiColor?: [number, number, number]; // RGB цвет от API для неизвестных классов
 }
 
 export interface Ruler {

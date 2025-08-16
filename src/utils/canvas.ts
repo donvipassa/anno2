@@ -140,14 +140,21 @@ export function drawBoundingBox(
   const defectClass = defectClasses.find(c => c.id === box.classId);
   if (!defectClass) return;
 
+  // Определяем цвет рамки
+  let strokeColor = defectClass.color;
+  if (box.classId === 10 && box.apiColor) {
+    // Для класса "Другое" используем оригинальный цвет от API, если он есть
+    const [r, g, b] = box.apiColor;
+    strokeColor = `rgb(${r}, ${g}, ${b})`;
+  }
   // Рамка
-  ctx.strokeStyle = defectClass.color;
+  ctx.strokeStyle = strokeColor;
   ctx.lineWidth = (isSelected ? 4 : 2) / scale;
   ctx.setLineDash([]);
   ctx.strokeRect(box.x, box.y, box.width, box.height);
 
   // Подпись
-  ctx.fillStyle = defectClass.color;
+  ctx.fillStyle = strokeColor;
   ctx.font = `${Math.max(16 / scale, 12)}px Arial`;
   
   // Формируем текст подписи

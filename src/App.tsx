@@ -205,7 +205,8 @@ const AppContent: React.FC = () => {
           height: bbox.height,
           classId,
           confidence: detection.confidence,
-          apiClassName: detection.class
+          apiClassName: detection.class,
+          apiColor: classId === 10 ? detection.color : undefined // Сохраняем цвет только для неизвестных классов
         });
       });
 

@@ -51,14 +51,32 @@ export const saveImageAsFile = (
     const defectClass = DEFECT_CLASSES.find(c => c.id === bbox.classId);
     if (!defectClass) return;
 
-    ctx.strokeStyle = defectClass.color;
+    // Определяем цвет рамки
+    let strokeColor = defectClass.color;
+    if (bbox.classId === 10 && bbox.apiColor) {
+      // Для класса "Другое" используем оригинальный цвет от API, если он есть
+      const [r, g, b] = bbox.apiColor;
+      strokeColor = `rgb(${r}, ${g}, ${b})`;
+    }
+
+    ctx.strokeStyle = strokeColor;
     ctx.lineWidth = 3;
     ctx.strokeRect(bbox.x, bbox.y, bbox.width, bbox.height);
 
     // Подпись
-    ctx.fillStyle = defectClass.color;
+    ctx.fillStyle = strokeColor;
     ctx.font = '16px Arial';
-    ctx.fillText(defectClass.name, bbox.x, bbox.y - 5);
+    
+    // Формируем текст подписи
+    let labelText = defectClass.name;
+    if (bbox.apiClassName && bbox.apiClassName.toLowerCase() !== defectClass.name.toLowerCase()) {
+      labelText = bbox.apiClassName;
+    }
+    if (bbox.confidence !== undefined) {
+      labelText += ` (${Math.round(bbox.confidence * 100)}%)`;
+    }
+    
+    ctx.fillText(labelText, bbox.x, bbox.y - 5);
   });
 
   // Рисуем линейки

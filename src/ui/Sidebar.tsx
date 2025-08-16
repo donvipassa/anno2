@@ -20,6 +20,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
     return annotations.boundingBoxes.filter(bbox => bbox.classId === classId).length;
   };
 
+  const getClassColor = (classId: number): string => {
+    const defectClass = DEFECT_CLASSES.find(c => c.id === classId);
+    if (!defectClass) return '#808080';
+    
+    // Для класса "Другое" показываем стандартный цвет в боковой панели
+    return defectClass.color;
+  };
   return (
     <div className="w-64 bg-white border-r border-gray-200 p-4 overflow-y-auto">
       <h2 className="text-sm font-semibold text-gray-700 mb-4">Классы дефектов</h2>
@@ -48,7 +55,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   ${isActive && !disabled ? 'border-4 ring-2 ring-gray-400 ring-opacity-50' : ''}
                 `}
                 style={{
-                  borderColor: disabled ? undefined : defectClass.color,
+                  borderColor: disabled ? undefined : getClassColor(defectClass.id),
                   borderWidth: isActive && !disabled ? '4px' : '2px'
                 }}
                 onClick={() => !disabled && onClassSelect(defectClass.id)}
@@ -65,6 +72,40 @@ export const Sidebar: React.FC<SidebarProps> = ({
           );
         })}
       </div>
+      
+      {/* Показываем информацию о неизвестных классах */}
+      {annotations.boundingBoxes.some(bbox => bbox.classId === 10 && bbox.apiClassName) && (
+        <div className="mt-6 pt-4 border-t border-gray-200">
+          <h3 className="text-sm font-semibold text-gray-700 mb-2">Обнаруженные классы:</h3>
+          <div className="space-y-1 text-xs text-gray-600">
+            {Array.from(new Set(
+              annotations.boundingBoxes
+                .filter(bbox => bbox.classId === 10 && bbox.apiClassName)
+                .map(bbox => bbox.apiClassName)
+            )).map(className => (
+              <div key={className} className="flex items-center space-x-2">
+                <div 
+                  className="w-3 h-3 border rounded"
+                  style={{
+                    backgroundColor: (() => {
+                      const bbox = annotations.boundingBoxes.find(b => b.apiClassName === className && b.apiColor);
+                      if (bbox?.apiColor) {
+                        const [r, g, b] = bbox.apiColor;
+                        return `rgb(${r}, ${g}, ${b})`;
+                      }
+                      return '#808080';
+                    })()
+                  }}
+                />
+                <span>{className}</span>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            Выберите объект и измените класс вручную
+          </p>
+        </div>
+      )}
     </div>
   );
 };
