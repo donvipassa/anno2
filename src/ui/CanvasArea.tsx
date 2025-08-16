@@ -53,6 +53,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
   const [isResizing, setIsResizing] = useState(false);
   const [resizeHandle, setResizeHandle] = useState<string>('');
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [currentResizeHandle, setCurrentResizeHandle] = useState<string | null>(null);
   const [isPanning, setIsPanning] = useState(false);
   const [lastPanPosition, setLastPanPosition] = useState({ x: 0, y: 0 });
   const [showCalibrationModal, setShowCalibrationModal] = useState(false);
@@ -83,28 +84,6 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
   }, [imageState]);
 
   // Проверка попадания в handle
-  const getResizeHandle = useCallback((x: number, y: number, bbox: any) => {
-    const canvasCoords = getCanvasCoords(bbox.x, bbox.y);
-    const width = bbox.width * imageState.scale;
-    const height = bbox.height * imageState.scale;
-    const handleSize = 6;
-    const tolerance = 3;
-
-    const handles = [
-      { name: 'nw', x: canvasCoords.x - handleSize/2, y: canvasCoords.y - handleSize/2 },
-      { name: 'ne', x: canvasCoords.x + width - handleSize/2, y: canvasCoords.y - handleSize/2 },
-      { name: 'se', x: canvasCoords.x + width - handleSize/2, y: canvasCoords.y + height - handleSize/2 },
-      { name: 'sw', x: canvasCoords.x - handleSize/2, y: canvasCoords.y + height - handleSize/2 },
-    ];
-
-    for (const handle of handles) {
-      if (x >= handle.x - tolerance && x <= handle.x + handleSize + tolerance &&
-          y >= handle.y - tolerance && y <= handle.y + handleSize + tolerance) {
-        return handle.name;
-      }
-    }
-    return null;
-  }, [getCanvasCoords, imageState.scale]);
 
   // Проверка попадания в bbox
   const getBboxAtPoint = useCallback((imageX: number, imageY: number) => {
@@ -209,41 +188,13 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     annotations.boundingBoxes.forEach(bbox => {
       if (filterActive && activeClassId !== bbox.classId) return;
 
-      const defectClass = DEFECT_CLASSES.find(c => c.id === bbox.classId);
-      if (!defectClass) return;
-
-      const canvasCoords = getCanvasCoords(bbox.x, bbox.y);
-      const width = bbox.width * imageState.scale;
-      const height = bbox.height * imageState.scale;
-
-      ctx.strokeStyle = defectClass.color;
-      ctx.lineWidth = 2;
-      ctx.strokeRect(canvasCoords.x, canvasCoords.y, width, height);
-
-      // Подпись
-      ctx.fillStyle = defectClass.color;
-      ctx.font = '12px Arial';
-      ctx.fillText(defectClass.name, canvasCoords.x, canvasCoords.y - 5);
-
-      // Handles для выделенного объекта
-      if (annotations.selectedObjectId === bbox.id) {
-        ctx.fillStyle = 'white';
-        ctx.strokeStyle = 'black';
-        ctx.lineWidth = 1;
-
-        const handleSize = 6;
-        const handles = [
-          { x: canvasCoords.x - handleSize/2, y: canvasCoords.y - handleSize/2 },
-          { x: canvasCoords.x + width - handleSize/2, y: canvasCoords.y - handleSize/2 },
-          { x: canvasCoords.x + width - handleSize/2, y: canvasCoords.y + height - handleSize/2 },
-          { x: canvasCoords.x - handleSize/2, y: canvasCoords.y + height - handleSize/2 },
-        ];
-
-        handles.forEach(handle => {
-          ctx.fillRect(handle.x, handle.y, handleSize, handleSize);
-          ctx.strokeRect(handle.x, handle.y, handleSize, handleSize);
-        });
-      }
+      drawBoundingBox(
+        ctx,
+        bbox,
+        annotations.selectedObjectId === bbox.id,
+        1, // scale для координат изображения
+        DEFECT_CLASSES
+      );
     });
 
     // Отрисовка линеек
@@ -433,12 +384,13 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
 
     if (e.button !== 0) return; // Только левая кнопка
 
-    // Проверка на инструмент измерения плотности (приоритет над выделением bbox)
+    const coords = getImageCoords(e.clientX, e.clientY);
+
+    // Проверка на инструмент измерения плотности
     if (e.button === 0 && activeTool === 'density') {
       const rect = canvasRef.current!.getBoundingClientRect();
       const canvasX = e.clientX - rect.left;
       const canvasY = e.clientY - rect.top;
-      const coords = getImageCoords(e.clientX, e.clientY);
       
       // Проверка, что клик внутри изображения
       if (coords.x >= 0 && coords.x <= imageState.width && 
@@ -465,11 +417,6 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
       return;
     }
 
-    const rect = canvasRef.current!.getBoundingClientRect();
-    const canvasX = e.clientX - rect.left;
-    const canvasY = e.clientY - rect.top;
-    const coords = getImageCoords(e.clientX, e.clientY);
-    
     if (e.button === 0) { // ЛКМ
       // Проверка на выделенный bbox и его handles
       const selectedBbox = annotations.boundingBoxes.find(bbox => bbox.id === annotations.selectedObjectId);
@@ -482,6 +429,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
           return;
         }
       }
+
       // Проверка клика по точке плотности
       const clickedDensityPoint = getDensityPointAtPoint(coords.x, coords.y);
       if (clickedDensityPoint) {
@@ -521,6 +469,9 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
 
       // Инструменты рисования
       if (activeTool === 'bbox' && activeClassId >= 0) {
+        const rect = canvasRef.current!.getBoundingClientRect();
+        const canvasX = e.clientX - rect.left;
+        const canvasY = e.clientY - rect.top;
         setIsDrawing(true);
         setStartPoint(coords);
         setCurrentBox({
@@ -530,6 +481,9 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
           height: 0
         });
       } else if (activeTool === 'ruler') {
+        const rect = canvasRef.current!.getBoundingClientRect();
+        const canvasX = e.clientX - rect.left;
+        const canvasY = e.clientY - rect.top;
         setIsDrawing(true);
         setStartPoint(coords);
         setCurrentLine({
@@ -543,6 +497,9 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
         if (annotations.calibrationLine) {
           return;
         }
+        const rect = canvasRef.current!.getBoundingClientRect();
+        const canvasX = e.clientX - rect.left;
+        const canvasY = e.clientY - rect.top;
         setIsDrawing(true);
         setStartPoint(coords);
         setCurrentLine({
@@ -563,7 +520,6 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     getImageCoords, 
     annotations, 
     getBboxAtPoint,
-    getResizeHandle,
     selectObject,
     onSelectClass,
     addDensityPoint,
@@ -593,6 +549,27 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
       
       setLastPanPosition({ x: e.clientX, y: e.clientY });
       return;
+    }
+
+    // Обновление курсора при наведении на элементы
+    if (!isDrawing && !isDragging && !isResizing && !isPanning) {
+      let newHandle = null;
+      
+      // Проверка наведения на handles выделенного bbox
+      const selectedBbox = annotations.boundingBoxes.find(bbox => bbox.id === annotations.selectedObjectId);
+      if (selectedBbox) {
+        newHandle = getResizeHandle(coords.x, coords.y, selectedBbox, imageState.scale);
+      }
+      
+      // Если не на handle, проверяем наведение на bbox
+      if (!newHandle) {
+        const hoveredBbox = getBboxAtPoint(coords.x, coords.y);
+        if (hoveredBbox) {
+          newHandle = 'move';
+        }
+      }
+      
+      setCurrentResizeHandle(newHandle);
     }
 
     if (isDrawing && activeTool === 'bbox' && currentBox) {
@@ -739,6 +716,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     updateBoundingBox,
     updateDensityPoint,
     updateRuler,
+    getBboxAtPoint,
     updateCalibrationLine,
     setOffset
   ]);
@@ -982,15 +960,33 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
       }
     }
     if (isDragging && !isResizing) return 'grabbing';
+    
+    // Курсоры при наведении
+    if (currentResizeHandle) {
+      switch (currentResizeHandle) {
+        case 'nw':
+        case 'se':
+          return 'nw-resize';
+        case 'ne':
+        case 'sw':
+          return 'ne-resize';
+        case 'n':
+        case 's':
+          return 'n-resize';
+        case 'e':
+        case 'w':
+          return 'e-resize';
+        case 'move':
+          return 'pointer';
+        default:
+          return 'default';
+      }
+    }
+    
     if (activeTool === 'bbox' && activeClassId >= 0) return 'crosshair';
     if (activeTool === 'ruler' || activeTool === 'calibration') return 'crosshair';
     if (activeTool === 'density') return 'crosshair';
-    
-    // Проверяем, наведен ли курсор на handle выделенного bbox
-    if (annotations.selectedObjectId && annotations.selectedObjectType === 'bbox') {
-      // Здесь можно добавить логику для изменения курсора при наведении на handles
-    }
-    
+
     return 'default';
   };
 

@@ -142,13 +142,13 @@ export function drawBoundingBox(
 
   // Рамка
   ctx.strokeStyle = defectClass.color;
-  ctx.lineWidth = (isSelected ? 3 : 2) / scale;
+  ctx.lineWidth = (isSelected ? 4 : 2) / scale;
   ctx.setLineDash([]);
   ctx.strokeRect(box.x, box.y, box.width, box.height);
 
   // Подпись
   ctx.fillStyle = defectClass.color;
-  ctx.font = `${Math.max(12 / scale, 8)}px Arial`;
+  ctx.font = `${Math.max(16 / scale, 12)}px Arial`;
   ctx.fillText(defectClass.name, box.x, box.y - 5 / scale);
 
   // Хэндлы для выделенного объекта
