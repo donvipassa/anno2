@@ -11,10 +11,12 @@ import { useImage } from './core/ImageProvider';
 import { useAnnotations } from './core/AnnotationManager';
 import { useCalibration } from './core/CalibrationManager';
 import { validateImageFile, saveImageAsFile } from './utils/imageUtils';
+import { detectObjects } from './utils/api';
+import { mapApiClassToDefectClassId, convertBboxToPixels } from './utils/annotationUtils';
 
 const AppContent: React.FC = () => {
-  const { imageState, loadImage, setScale, toggleInversion, resetView, fitToCanvas } = useImage();
-  const { annotations, getYOLOExport, clearAllRulers, clearAllDensityPoints, loadAnnotations, clearAll, selectObject } = useAnnotations();
+  const { imageState, loadImage, setScale, toggleInversion, resetView, fitToCanvas, zoomIn, zoomOut, zoomReset } = useImage();
+  const { annotations, getYOLOExport, clearAllRulers, clearAllDensityPoints, loadAnnotations, clearAll, selectObject, addBoundingBox } = useAnnotations();
   const { calibration, setScale: setCalibrationScale } = useCalibration();
 
   const [activeTool, setActiveTool] = useState<string>('');
@@ -23,6 +25,7 @@ const AppContent: React.FC = () => {
   const [filterActive, setFilterActive] = useState<boolean>(false);
   const [markupModified, setMarkupModified] = useState<boolean>(false);
   const [markupFileName, setMarkupFileName] = useState<string | null>(null);
+  const [isProcessingAutoAnnotation, setIsProcessingAutoAnnotation] = useState<boolean>(false);
 
   // Модальные окна
   const [modalState, setModalState] = useState<{
@@ -44,8 +47,7 @@ const AppContent: React.FC = () => {
   }>({ visible: false, x: 0, y: 0 });
 
   // Горячие клавиши
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
       // Проверяем, находится ли фокус на элементе ввода
       const target = e.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
@@ -63,19 +65,15 @@ const AppContent: React.FC = () => {
         handleSaveMarkup();
       } else if (ctrl && (key === '+' || key === '=')) {
         e.preventDefault();
-        const { zoomIn } = useImage();
         zoomIn();
       } else if (ctrl && key === '-') {
         e.preventDefault();
-        const { zoomOut } = useImage();
         zoomOut();
       } else if (ctrl && key === '1') {
         e.preventDefault();
-        const { zoomReset } = useImage();
         zoomReset();
       } else if (key === 'f') {
         e.preventDefault();
-        const { fitToCanvas } = useImage();
         const canvas = document.querySelector('canvas');
         if (canvas) {
           fitToCanvas(canvas.clientWidth, canvas.clientHeight);
@@ -118,11 +116,17 @@ const AppContent: React.FC = () => {
         e.preventDefault();
         handleClassSelect(10);
       }
-    };
+  }, [
+    handleOpenFile, handleSaveMarkup, zoomIn, zoomOut, zoomReset, fitToCanvas, 
+    toggleInversion, setActiveTool, layerVisible, setLayerVisible, filterActive, 
+    setFilterActive, handleHelp, selectObject, handleDeleteSelected, handleClassSelect
+  ]);
+
+  useEffect(() => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [layerVisible, filterActive]);
+  }, [handleKeyDown]);
 
   // Предупреждение при закрытии страницы
   useEffect(() => {
@@ -263,14 +267,49 @@ const AppContent: React.FC = () => {
     setActiveTool('bbox');
   };
 
-  const handleDeleteSelected = () => {
+  const handleDeleteSelected = useCallback(() => {
     // Реализация удаления выделенного объекта
     if (annotations.selectedObjectId) {
       // Удаление через соответствующий менеджер
       setMarkupModified(true);
     }
-  };
+  }, [annotations.selectedObjectId]);
 
+  const handleAutoAnnotate = useCallback(async () => {
+    if (!imageState.file) {
+      showModal('error', 'Ошибка', 'Сначала загрузите изображение', [
+        { text: 'Ок', action: closeModal }
+      ]);
+      return;
+    }
+
+    setIsProcessingAutoAnnotation(true);
+    showModal('info', 'Обработка', 'Обработка изображения...');
+
+    try {
+      const detections = await detectObjects(imageState.file);
+      
+      // Добавляем обнаруженные объекты как новые bounding boxes
+      detections.forEach(detection => {
+        const bbox = convertBboxToPixels(detection.bbox);
+        const classId = mapApiClassToDefectClassId(detection.class);
+        
+        addBoundingBox({
+          id: `auto_${Date.now()}_${Math.random()}`,
+          x: bbox.x,
+          y: bbox.y,
+          width: bbox.width,
+          height: bbox.height,
+          classId,
+          confidence: detection.confidence
+        });
+      });
+
+      setMarkupModified(true);
+      showModal('info', 'Успех', `Обнаружено объектов: ${detections.length}`, [
+        { text: 'Ок', action: closeModal }
+      ]);
+    } catch (error) {
   const handleHelp = () => {
     showModal('help', 'О программе', 'Автор и разработчик Алексей Сотников\nТехнопарк "Университетские технологии"', [
       { text: 'Ок', action: closeModal }
@@ -280,9 +319,6 @@ const AppContent: React.FC = () => {
   const handleEditCalibration = () => {
     if (annotations.calibrationLine) {
       setActiveTool('calibration');
-      setCalibrationLength(annotations.calibrationLine.realLength.toString());
-      setShowCalibrationModal(true);
-      setPendingCalibrationLine(annotations.calibrationLine);
     }
   };
 
@@ -302,6 +338,7 @@ const AppContent: React.FC = () => {
         onToolChange={setActiveTool}
         onOpenFile={handleOpenFile}
         onSaveMarkup={handleSaveMarkup}
+        onAutoAnnotate={handleAutoAnnotate}
         onInvertColors={toggleInversion}
         onHelp={handleHelp}
         layerVisible={layerVisible}
