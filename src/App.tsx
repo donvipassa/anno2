@@ -11,7 +11,6 @@ import { useImage } from './core/ImageProvider';
 import { useAnnotations } from './core/AnnotationManager';
 import { useCalibration } from './core/CalibrationManager';
 import { validateImageFile, saveImageAsFile } from './utils/imageUtils';
-import { downloadFile, readFileAsText, getMarkupFileName, validateMarkupFileName, parseYOLOData, convertYOLOToPixels } from './utils/fileUtils';
 
 const AppContent: React.FC = () => {
   const { imageState, loadImage, setScale, toggleInversion, resetView, fitToCanvas } = useImage();

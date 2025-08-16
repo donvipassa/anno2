@@ -1,5 +1,5 @@
 import React from 'react';
-import { FolderOpen, Save, ZoomIn, ZoomOut, RotateCcw, Palette, Ruler, Trash2, Eye, EyeOff, Filter, BadgeHelp as Help, Maximize } from 'lucide-react';
+import { FolderOpen, Save, ZoomIn, ZoomOut, RotateCcw, Palette, Ruler, Trash2, Eye, EyeOff, Filter, BadgeHelp as Help, Maximize, Sparkles } from 'lucide-react';
 import { useImage } from '../core/ImageProvider';
 import { useAnnotations } from '../core/AnnotationManager';
 import { Tooltip } from './Tooltip';
@@ -11,6 +11,7 @@ interface ToolbarProps {
   onSaveMarkup: () => void;
   onInvertColors: () => void;
   onHelp: () => void;
+  onAutoAnnotate: () => void;
   layerVisible: boolean;
   onToggleLayer: () => void;
   filterActive: boolean;
@@ -26,6 +27,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onSaveMarkup,
   onInvertColors,
   onHelp,
+  onAutoAnnotate,
   layerVisible,
   onToggleLayer,
   filterActive,
@@ -79,6 +81,13 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         tooltip="Сохранить разметку (Ctrl+S)"
         onClick={onSaveMarkup}
         disabled={!hasAnnotations}
+      />
+
+      <ToolButton
+        icon={<Sparkles size={24} />}
+        tooltip="Авто-разметка"
+        onClick={onAutoAnnotate}
+        disabled={!hasImage}
       />
 
       <div className="w-px h-6 bg-gray-300 mx-2" />
