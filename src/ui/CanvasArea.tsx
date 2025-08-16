@@ -3,6 +3,7 @@ import { useImage } from '../core/ImageProvider';
 import { useAnnotations } from '../core/AnnotationManager';
 import { useCalibration } from '../core/CalibrationManager';
 import { DEFECT_CLASSES } from '../types';
+import { drawBoundingBox, isPointInBox, getResizeHandle } from '../utils/canvas';
 
 interface CanvasAreaProps {
   activeTool: string;
