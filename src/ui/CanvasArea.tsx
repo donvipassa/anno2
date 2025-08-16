@@ -3,6 +3,7 @@ import { useImage } from '../core/ImageProvider';
 import { useAnnotations } from '../core/AnnotationManager';
 import { useCalibration } from '../core/CalibrationManager';
 import { DEFECT_CLASSES } from '../types';
+import { drawBoundingBox, getResizeHandle } from '../utils/canvas';
 
 interface CanvasAreaProps {
   activeTool: string;
@@ -58,6 +59,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
   const [showCalibrationModal, setShowCalibrationModal] = useState(false);
   const [calibrationLength, setCalibrationLength] = useState('');
   const [pendingCalibrationLine, setPendingCalibrationLine] = useState<any>(null);
+  const [hoveredHandle, setHoveredHandle] = useState<string | null>(null);
 
   // Получение координат изображения из координат мыши
   const getImageCoords = useCallback((clientX: number, clientY: number) => {
@@ -83,28 +85,9 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
   }, [imageState]);
 
   // Проверка попадания в handle
-  const getResizeHandle = useCallback((x: number, y: number, bbox: any) => {
-    const canvasCoords = getCanvasCoords(bbox.x, bbox.y);
-    const width = bbox.width * imageState.scale;
-    const height = bbox.height * imageState.scale;
-    const handleSize = 6;
-    const tolerance = 3;
-
-    const handles = [
-      { name: 'nw', x: canvasCoords.x - handleSize/2, y: canvasCoords.y - handleSize/2 },
-      { name: 'ne', x: canvasCoords.x + width - handleSize/2, y: canvasCoords.y - handleSize/2 },
-      { name: 'se', x: canvasCoords.x + width - handleSize/2, y: canvasCoords.y + height - handleSize/2 },
-      { name: 'sw', x: canvasCoords.x - handleSize/2, y: canvasCoords.y + height - handleSize/2 },
-    ];
-
-    for (const handle of handles) {
-      if (x >= handle.x - tolerance && x <= handle.x + handleSize + tolerance &&
-          y >= handle.y - tolerance && y <= handle.y + handleSize + tolerance) {
-        return handle.name;
-      }
-    }
-    return null;
-  }, [getCanvasCoords, imageState.scale]);
+  const getResizeHandleAtPoint = useCallback((x: number, y: number, bbox: any) => {
+    return getResizeHandle(x, y, bbox, imageState.scale);
+  }, [imageState.scale]);
 
   // Проверка попадания в bbox
   const getBboxAtPoint = useCallback((imageX: number, imageY: number) => {
@@ -474,7 +457,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
       // Проверка на выделенный bbox и его handles
       const selectedBbox = annotations.boundingBoxes.find(bbox => bbox.id === annotations.selectedObjectId);
       if (selectedBbox) {
-        const handle = getResizeHandle(coords.x, coords.y, selectedBbox, imageState.scale);
+        const handle = getResizeHandleAtPoint(coords.x, coords.y, selectedBbox);
         if (handle) {
           setIsResizing(true);
           setResizeHandle(handle);
@@ -563,7 +546,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     getImageCoords, 
     annotations, 
     getBboxAtPoint,
-    getResizeHandle,
+    getResizeHandleAtPoint,
     selectObject,
     onSelectClass,
     addDensityPoint,
