@@ -424,6 +424,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     // Подавляем контекстное меню для ПКМ
     if (e.button === 2) {
       e.preventDefault();
+      e.stopPropagation();
     }
 
     // Проверка на инструмент измерения плотности (приоритет над выделением bbox)
@@ -966,6 +967,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     <div 
       ref={containerRef} 
       className="flex-1 bg-gray-100 relative overflow-hidden"
+      onContextMenu={(e) => e.preventDefault()}
     >
       {!imageState.src ? (
         <div className="absolute inset-0 flex items-center justify-center">
@@ -983,10 +985,10 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onWheel={handleWheel}
-          onContextMenu={(e) => {
+          onContextMenu={(e) => e.preventDefault()}
+          onContextMenuCapture={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            return false;
           }}
         />
       )}
