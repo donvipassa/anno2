@@ -346,6 +346,7 @@ const AppContent: React.FC = () => {
         onToolChange={setActiveTool}
         onOpenFile={handleOpenFile}
         onSaveMarkup={handleSaveMarkup}
+        onAutoAnnotate={handleAutoAnnotate}
         onInvertColors={toggleInversion}
         onHelp={handleHelp}
         layerVisible={layerVisible}
