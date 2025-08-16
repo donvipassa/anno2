@@ -431,15 +431,30 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     }
 
     if (e.button === 0) { // ЛКМ
-      // Проверка на выделенный bbox и его handles
-      const selectedBbox = annotations.boundingBoxes.find(bbox => bbox.id === annotations.selectedObjectId);
-      if (selectedBbox) {
-        const handle = getResizeHandle(coords.x, coords.y, selectedBbox, imageState.scale);
-        if (handle) {
-          setIsResizing(true);
-          setResizeHandle(handle);
-          setDragStart({ x: e.clientX, y: e.clientY });
-          return;
+      // Если активен инструмент bbox, всегда начинаем рисование новой рамки
+      if (activeTool === 'bbox' && activeClassId >= 0) {
+        setIsDrawing(true);
+        setStartPoint(coords);
+        setCurrentBox({
+          x: coords.x,
+          y: coords.y,
+          width: 0,
+          height: 0
+        });
+        return;
+      }
+
+      // Проверка на выделенный bbox и его handles (только если не активен инструмент bbox)
+      if (activeTool !== 'bbox') {
+        const selectedBbox = annotations.boundingBoxes.find(bbox => bbox.id === annotations.selectedObjectId);
+        if (selectedBbox) {
+          const handle = getResizeHandle(coords.x, coords.y, selectedBbox, imageState.scale);
+          if (handle) {
+            setIsResizing(true);
+            setResizeHandle(handle);
+            setDragStart({ x: e.clientX, y: e.clientY });
+            return;
+          }
         }
       }
 
@@ -470,28 +485,21 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
         return;
       }
 
-      // Проверка клика по существующему bbox
-      const clickedBbox = getBboxAtPoint(coords.x, coords.y);
-      if (clickedBbox) {
-        // Выделяем существующую рамку для перемещения
-        selectObject(clickedBbox.id, 'bbox');
-        onSelectClass(clickedBbox.classId);
-        setIsDragging(true);
-        setDragStart({ x: e.clientX, y: e.clientY });
-        return;
+      // Проверка клика по существующему bbox (только если не активен инструмент bbox)
+      if (activeTool !== 'bbox') {
+        const clickedBbox = getBboxAtPoint(coords.x, coords.y);
+        if (clickedBbox) {
+          // Выделяем существующую рамку для перемещения
+          selectObject(clickedBbox.id, 'bbox');
+          onSelectClass(clickedBbox.classId);
+          setIsDragging(true);
+          setDragStart({ x: e.clientX, y: e.clientY });
+          return;
+        }
       }
 
       // Инструменты рисования
-      if (activeTool === 'bbox' && activeClassId >= 0) {
-        setIsDrawing(true);
-        setStartPoint(coords);
-        setCurrentBox({
-          x: coords.x,
-          y: coords.y,
-          width: 0,
-          height: 0
-        });
-      } else if (activeTool === 'ruler') {
+      if (activeTool === 'ruler') {
         const rect = canvasRef.current!.getBoundingClientRect();
         const canvasX = e.clientX - rect.left;
         const canvasY = e.clientY - rect.top;
@@ -655,9 +663,12 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
           const deltaX = (e.clientX - dragStart.x) / imageState.scale;
           const deltaY = (e.clientY - dragStart.y) / imageState.scale;
 
+          const newX = selectedBbox.x + deltaX;
+          const newY = selectedBbox.y + deltaY;
+
           updateBoundingBox(selectedBbox.id, {
-            x: selectedBbox.x + deltaX,
-            y: selectedBbox.y + deltaY
+            x: newX,
+            y: newY
           });
           setDragStart({ x: e.clientX, y: e.clientY });
         }
