@@ -75,6 +75,18 @@ export function isPointInBox(x: number, y: number, box: any): boolean {
   return x >= box.x && x <= box.x + box.width && y >= box.y && y <= box.y + box.height;
 }
 
+// Проверка попадания точки на границу рамки (не внутрь)
+export function isPointOnBoxBorder(x: number, y: number, box: any, tolerance: number = 5): boolean {
+  const { x: bx, y: by, width: bw, height: bh } = box;
+  
+  // Проверяем, находится ли точка рядом с границами
+  const nearLeft = Math.abs(x - bx) <= tolerance && y >= by - tolerance && y <= by + bh + tolerance;
+  const nearRight = Math.abs(x - (bx + bw)) <= tolerance && y >= by - tolerance && y <= by + bh + tolerance;
+  const nearTop = Math.abs(y - by) <= tolerance && x >= bx - tolerance && x <= bx + bw + tolerance;
+  const nearBottom = Math.abs(y - (by + bh)) <= tolerance && x >= bx - tolerance && x <= bx + bw + tolerance;
+  
+  return nearLeft || nearRight || nearTop || nearBottom;
+}
 // Определение маркера изменения размера
 export function getResizeHandle(
   x: number,
