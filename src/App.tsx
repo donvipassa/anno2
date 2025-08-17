@@ -18,13 +18,15 @@ const AppContent: React.FC = () => {
   const { imageState, loadImage, setScale, toggleInversion, resetView, fitToCanvas, zoomIn, zoomOut, zoomReset } = useImage();
   const { annotations, getYOLOExport, clearAllRulers, clearAllDensityPoints, loadAnnotations, clearAll, selectObject, addBoundingBox } = useAnnotations();
   const { calibration, setScale: setCalibrationScale } = useCalibration();
-
-  const [activeTool, setActiveTool] = useState<string>('');
-  const [activeClassId, setActiveClassId] = useState<number>(-1);
-
-  const [layerVisible, setLayerVisible] = useState<boolean>(true);
-  const [filterActive, setFilterActive] = useState<boolean>(false);
-  const [markupModified, setMarkupModified] = useState<boolean>(false);
+    getYOLOExport,
+    clearAllRulers,
+    clearAllDensityPoints,
+    loadAnnotations,
+    clearAll,
+    selectObject,
+    addBoundingBox,
+    markupModified, // Get from context
+  // const [markupModified, setMarkupModified] = useState<boolean>(false); // REMOVE THIS
   const [markupFileName, setMarkupFileName] = useState<string | null>(null);
   const [isProcessingAutoAnnotation, setIsProcessingAutoAnnotation] = useState<boolean>(false);
 
@@ -87,7 +89,7 @@ const AppContent: React.FC = () => {
         ]);
         
         // Очистка существующих аннотаций
-        clearAll();
+        clearAll(); // This will call setMarkupModifiedState(false)
         setMarkupModified(false);
         setMarkupFileName(null);
       } catch (error) {
@@ -162,7 +164,7 @@ const AppContent: React.FC = () => {
     
     downloadFile(yoloContent, fileName);
     setMarkupFileName(fileName);
-    setMarkupModified(false);
+    setMarkupModifiedState(false); // Use setMarkupModifiedState
   };
 
   const handleClassSelect = useCallback((classId: number) => {
@@ -175,7 +177,7 @@ const AppContent: React.FC = () => {
   const handleDeleteSelected = useCallback(() => {
     // Реализация удаления выделенного объекта
     if (annotations.selectedObjectId) {
-      // Удаление через соответствующий менеджер
+      // The delete functions in AnnotationManager will call setMarkupModified(true)
       setMarkupModified(true);
     }
   }, [annotations.selectedObjectId]);
@@ -212,7 +214,7 @@ const AppContent: React.FC = () => {
         });
       });
 
-      setMarkupModified(true);
+      // setMarkupModified(true); // REMOVE THIS, addBoundingBox already does it
       showModal('info', 'Успех', `Обнаружено объектов: ${detections.length}`, [
         { text: 'Ок', action: closeModal }
       ]);
@@ -330,7 +332,7 @@ const AppContent: React.FC = () => {
   // Предупреждение при закрытии страницы
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (markupModified) {
+      if (markupModified) { // Use markupModified from context
         e.preventDefault();
         e.returnValue = '';
         return '';
@@ -339,7 +341,7 @@ const AppContent: React.FC = () => {
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [markupModified]);
+  }, [markupModified]); // Use markupModified from context
   return (
     <div className="h-screen flex flex-col bg-gray-100">
       <Header />

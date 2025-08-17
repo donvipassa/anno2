@@ -4,6 +4,8 @@ import { v4 as uuidv4 } from 'uuid';
 
 interface AnnotationContextType {
   annotations: AnnotationState;
+  markupModified: boolean;
+  setMarkupModifiedState: (modified: boolean) => void;
   addBoundingBox: (bbox: Omit<BoundingBox, 'id'>) => string;
   updateBoundingBox: (id: string, updates: Partial<BoundingBox>) => void;
   deleteBoundingBox: (id: string) => void;
@@ -43,6 +45,11 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     selectedObjectId: null,
     selectedObjectType: null
   });
+  const [markupModified, setMarkupModified] = useState<boolean>(false);
+
+  const setMarkupModifiedState = useCallback((modified: boolean) => {
+    setMarkupModified(modified);
+  }, []);
 
   const addBoundingBox = useCallback((bbox: Omit<BoundingBox, 'id'>): string => {
     const id = uuidv4();
@@ -50,6 +57,7 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       ...prev,
       boundingBoxes: [...prev.boundingBoxes, { ...bbox, id }]
     }));
+    setMarkupModified(true);
     return id;
   }, []);
 
@@ -59,7 +67,8 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       boundingBoxes: prev.boundingBoxes.map(box =>
         box.id === id ? { ...box, ...updates } : box
       )
-    }));
+    })); 
+    setMarkupModified(true);
   }, []);
 
   const deleteBoundingBox = useCallback((id: string) => {
@@ -68,7 +77,8 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       boundingBoxes: prev.boundingBoxes.filter(box => box.id !== id),
       selectedObjectId: prev.selectedObjectId === id ? null : prev.selectedObjectId,
       selectedObjectType: prev.selectedObjectId === id ? null : prev.selectedObjectType
-    }));
+    })); 
+    setMarkupModified(true);
   }, []);
 
   const addRuler = useCallback((ruler: Omit<Ruler, 'id'>): string => {
@@ -77,6 +87,7 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       ...prev,
       rulers: [...prev.rulers, { ...ruler, id }]
     }));
+    setMarkupModified(true);
     return id;
   }, []);
 
@@ -86,7 +97,8 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       rulers: prev.rulers.map(ruler =>
         ruler.id === id ? { ...ruler, ...updates } : ruler
       )
-    }));
+    })); 
+    setMarkupModified(true);
   }, []);
 
   const deleteRuler = useCallback((id: string) => {
@@ -95,7 +107,8 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       rulers: prev.rulers.filter(ruler => ruler.id !== id),
       selectedObjectId: prev.selectedObjectId === id ? null : prev.selectedObjectId,
       selectedObjectType: prev.selectedObjectId === id ? null : prev.selectedObjectType
-    }));
+    })); 
+    setMarkupModified(true);
   }, []);
 
   const setCalibrationLine = useCallback((line: Omit<CalibrationLine, 'id'> | null) => {
@@ -111,6 +124,8 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         calibrationLine: null
       }));
     }
+    setMarkupModified(true);
+    }
   }, []);
 
   const updateCalibrationLine = useCallback((updates: Partial<CalibrationLine>) => {
@@ -119,7 +134,8 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       calibrationLine: prev.calibrationLine 
         ? { ...prev.calibrationLine, ...updates }
         : null
-    }));
+    })); 
+    setMarkupModified(true);
   }, []);
 
   const deleteCalibrationLine = useCallback(() => {
@@ -128,7 +144,8 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       calibrationLine: null,
       selectedObjectId: prev.calibrationLine?.id === prev.selectedObjectId ? null : prev.selectedObjectId,
       selectedObjectType: prev.calibrationLine?.id === prev.selectedObjectId ? null : prev.selectedObjectType
-    }));
+    })); 
+    setMarkupModified(true);
   }, []);
 
   const addDensityPoint = useCallback((point: Omit<DensityPoint, 'id'>): string => {
@@ -137,6 +154,7 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       ...prev,
       densityPoints: [...prev.densityPoints, { ...point, id }]
     }));
+    setMarkupModified(true);
     return id;
   }, []);
 
@@ -146,7 +164,8 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       densityPoints: prev.densityPoints.map(point =>
         point.id === id ? { ...point, ...updates } : point
       )
-    }));
+    })); 
+    setMarkupModified(true);
   }, []);
 
   const deleteDensityPoint = useCallback((id: string) => {
@@ -155,7 +174,8 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       densityPoints: prev.densityPoints.filter(point => point.id !== id),
       selectedObjectId: prev.selectedObjectId === id ? null : prev.selectedObjectId,
       selectedObjectType: prev.selectedObjectId === id ? null : prev.selectedObjectType
-    }));
+    })); 
+    setMarkupModified(true);
   }, []);
 
   const selectObject = useCallback((id: string | null, type: AnnotationState['selectedObjectType']) => {
@@ -174,7 +194,8 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       densityPoints: [],
       selectedObjectId: null,
       selectedObjectType: null
-    });
+    }); 
+    setMarkupModified(false);
   }, []);
 
   const clearAllRulers = useCallback(() => {
@@ -183,7 +204,8 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       rulers: [],
       selectedObjectId: prev.selectedObjectType === 'ruler' ? null : prev.selectedObjectId,
       selectedObjectType: prev.selectedObjectType === 'ruler' ? null : prev.selectedObjectType
-    }));
+    })); 
+    setMarkupModified(true);
   }, []);
 
   const clearAllDensityPoints = useCallback(() => {
@@ -192,7 +214,8 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       densityPoints: [],
       selectedObjectId: prev.selectedObjectType === 'density' ? null : prev.selectedObjectId,
       selectedObjectType: prev.selectedObjectType === 'density' ? null : prev.selectedObjectType
-    }));
+    })); 
+    setMarkupModified(true);
   }, []);
 
   const loadAnnotations = useCallback((data: any) => {
@@ -208,7 +231,8 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         boundingBoxes,
         selectedObjectId: null,
         selectedObjectType: null
-      }));
+      })); 
+      setMarkupModified(false);
     }
   }, []);
 
@@ -228,6 +252,8 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   return (
     <AnnotationContext.Provider
       value={{
+        markupModified,
+        setMarkupModifiedState,
         annotations,
         addBoundingBox,
         updateBoundingBox,
