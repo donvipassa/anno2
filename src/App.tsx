@@ -327,7 +327,7 @@ const AppContent: React.FC = () => {
     }
     
     showModal('calibration', 'Калибровка масштаба', 
-      isNew ? 'Укажите реальный размер эталона для установки масштаба.' : 'Длина эталона изменилась.\nУкажите реальный размер для пересчёта масштаба.',
+      'Укажите реальный размер эталона для установки масштаба (мм):',
       [
         { 
           text: 'Отмена', 
@@ -339,7 +339,8 @@ const AppContent: React.FC = () => {
         { 
           text: 'Применить', 
           action: () => {
-            const realLength = parseFloat(modalState.input?.value || '0');
+            const inputValue = modalState.input?.value || '0';
+            const realLength = parseFloat(inputValue);
             if (realLength > 0) {
               let pixelLength;
               
@@ -378,7 +379,7 @@ const AppContent: React.FC = () => {
         }
       ],
       {
-        label: 'Реальный размер эталона (мм):',
+        label: '',
         value: defaultLength,
         onChange: (value: string) => {
           setModalState(prev => ({
