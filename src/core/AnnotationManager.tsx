@@ -243,7 +243,13 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       const width = bbox.width / imageWidth;
       const height = bbox.height / imageHeight;
       
-      const className = DEFECT_CLASSES.find(c => c.id === bbox.classId)?.name || 'Неизвестно';
+      // Используем оригинальное название от API, если оно есть, иначе название класса
+      let className: string;
+      if (bbox.apiClassName) {
+        className = bbox.apiClassName;
+      } else {
+        className = DEFECT_CLASSES.find(c => c.id === bbox.classId)?.name || 'Неизвестно';
+      }
       
       // Проверяем, что название класса содержит только корректные символы
       const safeClassName = className.replace(/[^\u0000-\u007F\u0400-\u04FF\s]/g, '?');
