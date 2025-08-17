@@ -11,6 +11,7 @@ import { useImage } from './core/ImageProvider';
 import { useAnnotations } from './core/AnnotationManager';
 import { useCalibration } from './core/CalibrationManager';
 import { validateImageFile, saveImageAsFile } from './utils/imageUtils';
+import { getMarkupFileName, downloadFile, readFileAsText, validateMarkupFileName, parseYOLOData, convertYOLOToPixels } from './utils/fileUtils';
 import { detectObjects } from './utils/api';
 import { mapApiClassToDefectClassId, convertApiBboxToPixels } from './utils/annotationUtils';
 
