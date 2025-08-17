@@ -266,23 +266,31 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       let className: string;
       
       if (bbox.apiId !== undefined && bbox.apiClassName) {
+        console.log('Looking for JSON entry for:', bbox.apiClassName);
         const jsonEntry = jsonData.find(entry => 
-          entry.name.toLowerCase() === bbox.apiClassName!.toLowerCase() ||
-          entry.russian_name.toLowerCase() === bbox.apiClassName!.toLowerCase()
+          entry.name.toLowerCase().trim() === bbox.apiClassName!.toLowerCase().trim() ||
+          entry.russian_name.toLowerCase().trim() === bbox.apiClassName!.toLowerCase().trim()
         );
+        console.log('Found JSON entry:', jsonEntry);
+        
         // Есть данные от API
         if (bbox.classId !== 10) {
           // Класс был изменен пользователем - используем новый classId и название
           console.log('Class was changed by user from', bbox.apiClassName, 'to classId', bbox.classId);
-          exportId = jsonEntry.apiID;
-          className = jsonEntry.russian_name;
           const defectClass = DEFECT_CLASSES.find(c => c.id === bbox.classId);
+          exportId = bbox.classId;
           className = defectClass?.name || 'Неизвестно';
         } else {
-          // Класс не изменен - используем оригинальные данные от API
-          console.log('Using original API data:', bbox.apiId, bbox.apiClassName);
-          exportId = bbox.apiId;
-          className = bbox.apiClassName;
+          // Класс не изменен - используем данные из JSON файла
+          if (jsonEntry) {
+            console.log('Using JSON data:', jsonEntry.apiID, jsonEntry.russian_name);
+            exportId = jsonEntry.apiID;
+            className = jsonEntry.russian_name;
+          } else {
+            console.log('JSON entry not found, using original API data:', bbox.apiId, bbox.apiClassName);
+            exportId = bbox.apiId || bbox.classId;
+            className = bbox.apiClassName;
+          }
         }
       } else {
         // Рамка создана вручную или нет данных от API
