@@ -46,7 +46,8 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     addDensityPoint,
     updateDensityPoint,
     deleteDensityPoint,
-    selectObject 
+    selectObject,
+    updateAllDensityPoints
   } = useAnnotations();
   
   const [isDrawing, setIsDrawing] = useState(false);
@@ -470,15 +471,9 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
             const b = imageData.data[2];
             const gray = 0.299 * r + 0.587 * g + 0.114 * b;
             
-            // Учитываем инверсию цвета при расчете плотности
-            let density;
-            if (imageState.inverted) {
-              // При инверсии: темные области становятся светлыми, поэтому инвертируем расчет
-              density = gray / 255;
-            } else {
-              // Обычный расчет: 0 = белый, 1 = черный
-              density = 1 - (gray / 255);
-            }
+            // Всегда используем стандартный расчет плотности: 0 = белый, 1 = черный
+            // Инверсия учитывается автоматически через фильтр canvas
+            const density = 1 - (gray / 255);
             
             addDensityPoint({
               x: coords.x,
@@ -1049,6 +1044,17 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     draw();
   }, [draw]);
 
+  // Обновление плотности при изменении инверсии
+  useEffect(() => {
+    if (annotations.densityPoints.length > 0 && canvasRef.current) {
+      // Небольшая задержка, чтобы canvas успел обновиться с новым фильтром
+      setTimeout(() => {
+        if (canvasRef.current) {
+          updateAllDensityPoints(canvasRef.current);
+        }
+      }, 100);
+    }
+  }, [imageState.inverted, updateAllDensityPoints, annotations.densityPoints.length]);
   // Автоматическая подгонка изображения при загрузке
   useEffect(() => {
     if (imageState.src && containerRef.current) {
