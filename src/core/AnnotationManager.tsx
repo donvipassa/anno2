@@ -243,8 +243,15 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       const width = bbox.width / imageWidth;
       const height = bbox.height / imageHeight;
       
-      // Используем оригинальный ID от API, если он есть, иначе наш classId
+      // Используем оригинальный ID от API, если он есть (включая 0), иначе наш classId
       const exportId = bbox.apiId !== undefined ? bbox.apiId : bbox.classId;
+      
+      console.log('Exporting bbox:', {
+        apiId: bbox.apiId,
+        classId: bbox.classId,
+        exportId,
+        apiClassName: bbox.apiClassName
+      });
       
       // Используем оригинальное название от API, если оно есть, иначе название класса
       let className: string;

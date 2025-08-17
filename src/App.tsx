@@ -240,6 +240,8 @@ const AppContent: React.FC = () => {
         const bbox = convertApiBboxToPixels(detection.bbox);
         const classId = mapApiClassToDefectClassId(detection.class);
         
+        console.log('Adding bbox with apiId:', detection.id, 'apiClassName:', detection.class);
+        
         addBoundingBox({
           x: bbox.x,
           y: bbox.y,
