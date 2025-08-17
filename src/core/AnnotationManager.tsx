@@ -266,7 +266,6 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       let className: string;
       
       if (bbox.apiId !== undefined && bbox.apiClassName) {
-      }
         const jsonEntry = jsonData.find(entry => 
           entry.name.toLowerCase() === bbox.apiClassName!.toLowerCase() ||
           entry.russian_name.toLowerCase() === bbox.apiClassName!.toLowerCase()
@@ -277,6 +276,7 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           console.log('Class was changed by user from', bbox.apiClassName, 'to classId', bbox.classId);
           exportId = jsonEntry.apiID;
           className = jsonEntry.russian_name;
+          const defectClass = DEFECT_CLASSES.find(c => c.id === bbox.classId);
           className = defectClass?.name || 'Неизвестно';
         } else {
           // Класс не изменен - используем оригинальные данные от API
