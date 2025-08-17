@@ -25,7 +25,6 @@ interface AnnotationContextType {
   clearAllDensityPoints: () => void;
   loadAnnotations: (data: any) => void;
   getYOLOExport: (imageWidth: number, imageHeight: number) => string;
-  recalculateAllDensityPoints: (imageElement: HTMLImageElement, inverted: boolean) => void;
 }
 
 const AnnotationContext = createContext<AnnotationContextType | null>(null);
@@ -293,48 +292,6 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }).join('\n');
   }, [annotations.boundingBoxes]);
 
-  const recalculateAllDensityPoints = useCallback((imageElement: HTMLImageElement, inverted: boolean) => {
-    if (annotations.densityPoints.length === 0 || !imageElement) return;
-
-    // Создаем временный canvas для получения пиксельных данных
-    const tempCanvas = document.createElement('canvas');
-    const tempCtx = tempCanvas.getContext('2d');
-    if (!tempCtx) return;
-
-    tempCanvas.width = imageElement.naturalWidth;
-    tempCanvas.height = imageElement.naturalHeight;
-    
-    // Рисуем оригинальное изображение без инверсии
-    tempCtx.drawImage(imageElement, 0, 0);
-    
-    // Пересчитываем плотность для каждой точки
-    annotations.densityPoints.forEach(point => {
-      try {
-        // Получаем пиксельные данные в точке
-        const imageData = tempCtx.getImageData(Math.floor(point.x), Math.floor(point.y), 1, 1);
-        const r = imageData.data[0];
-        const g = imageData.data[1];
-        const b = imageData.data[2];
-        const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-        
-        // Рассчитываем плотность с учетом инверсии
-        let density;
-        if (inverted) {
-          // При инверсии: темные области становятся светлыми, поэтому инвертируем расчет
-          density = gray / 255;
-        } else {
-          // Обычный расчет: 0 = белый, 1 = черный
-          density = 1 - (gray / 255);
-        }
-        
-        // Обновляем точку с новым значением плотности
-        updateDensityPoint(point.id, { density });
-      } catch (error) {
-        console.warn('Ошибка при пересчете плотности для точки:', point.id, error);
-      }
-    });
-  }, [annotations.densityPoints, updateDensityPoint]);
-
   return (
     <AnnotationContext.Provider
       value={{
@@ -358,8 +315,7 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         clearAllRulers,
         clearAllDensityPoints,
         loadAnnotations,
-        getYOLOExport,
-        recalculateAllDensityPoints
+        getYOLOExport
       }}
     >
       {children}
