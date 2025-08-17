@@ -461,7 +461,6 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
         } else {
           // Клик на существующую рамку - выделяем её
           selectObject(clickedBbox.id, 'bbox');
-          onSelectClass(clickedBbox.classId); // Синхронизируем активный класс
           setIsDragging(true);
           setDragStart({ x: e.clientX, y: e.clientY });
           return;
@@ -502,7 +501,6 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
         if (clickedBbox) {
           // Выделяем существующую рамку для перемещения
           selectObject(clickedBbox.id, 'bbox');
-          onSelectClass(clickedBbox.classId); // Синхронизируем активный класс
           setIsDragging(true);
           setDragStart({ x: e.clientX, y: e.clientY });
           return;

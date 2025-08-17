@@ -37,6 +37,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {DEFECT_CLASSES.map((defectClass) => {
           const count = getClassCount(defectClass.id);
           const isActive = activeClassId === defectClass.id;
+          const selectedBbox = annotations.selectedObjectId && annotations.selectedObjectType === 'bbox' 
+            ? annotations.boundingBoxes.find(bbox => bbox.id === annotations.selectedObjectId)
+            : null;
+          const isSelectedObjectClass = selectedBbox?.classId === defectClass.id;
           
           return (
             <Tooltip
@@ -50,7 +54,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   ${disabled 
                     ? 'opacity-50 pointer-events-none bg-gray-50 border-gray-200 text-gray-400'
                     : `
-                      ${isActive ? 'bg-blue-50' : 'bg-white hover:bg-gray-50'} border-gray-200 text-black
+                      ${isActive ? 'bg-blue-50' : (isSelectedObjectClass ? 'bg-green-50' : 'bg-white hover:bg-gray-50')} border-gray-200 text-black
                       hover:border-opacity-80
                     `
                   }
@@ -66,7 +70,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <span className="text-sm font-medium text-black">
                   {defectClass.name}
                 </span>
-                <span className={`text-sm font-medium ${isActive ? 'text-blue-700' : 'text-black'}`}>
+                <span className={`text-sm font-medium ${
+                  isActive ? 'text-blue-700' : 
+                  (isSelectedObjectClass ? 'text-green-700' : 'text-black')
+                }`}>
                   ({count})
                 </span>
               </button>
