@@ -794,12 +794,20 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
               x1: annotations.calibrationLine.x1 + deltaX,
               y1: annotations.calibrationLine.y1 + deltaY
             });
+            // Открываем модальное окно для пересчета масштаба после изменения линии
+            setTimeout(() => {
+              onCalibrationLineFinished(annotations.calibrationLine, false);
+            }, 100);
           } else if (rulerHandleType === 'end') {
             // Перемещение только конечной точки
             updateCalibrationLine({
               x2: annotations.calibrationLine.x2 + deltaX,
               y2: annotations.calibrationLine.y2 + deltaY
             });
+            // Открываем модальное окно для пересчета масштаба после изменения линии
+            setTimeout(() => {
+              onCalibrationLineFinished(annotations.calibrationLine, false);
+            }, 100);
           } else {
             // Перемещение всей линии
             updateCalibrationLine({

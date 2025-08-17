@@ -316,13 +316,14 @@ const AppContent: React.FC = () => {
 
   const handleEditCalibration = () => {
     if (annotations.calibrationLine) {
+      setCalibrationInputValue(annotations.calibrationLine.realLength.toString());
       handleCalibrationLineFinished(annotations.calibrationLine, false);
     }
   };
 
   const handleCalibrationLineFinished = (lineData: any, isNew: boolean) => {
     console.log('handleCalibrationLineFinished вызвана:', { lineData, isNew });
-    const defaultLength = isNew ? '50' : (annotations.calibrationLine?.realLength?.toString() || '50');
+    const defaultLength = isNew ? '50' : (lineData?.realLength?.toString() || annotations.calibrationLine?.realLength?.toString() || '50');
     
     setCalibrationInputValue(defaultLength);
     
