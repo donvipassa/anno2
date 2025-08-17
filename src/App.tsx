@@ -355,28 +355,31 @@ const AppContent: React.FC = () => {
             }
             
             try {
-              let pixelLength;
+              // Определяем, какую линию использовать для расчетов
+              const lineToCalculateFrom = isNew ? pendingCalibrationLine : annotations.calibrationLine;
+              
+              if (!lineToCalculateFrom) {
+                console.error('Нет данных линии для расчета');
+                alert('Ошибка: нет данных линии для расчета');
+                return;
+              }
+              
+              // Вычисляем пиксельную длину
+              const pixelLength = Math.sqrt(
+                (lineToCalculateFrom.x2 - lineToCalculateFrom.x1) ** 2 + 
+                (lineToCalculateFrom.y2 - lineToCalculateFrom.y1) ** 2
+              );
+              
+              console.log('Пиксельная длина:', pixelLength);
               
               if (isNew && pendingCalibrationLine) {
-                // Новая калибровочная линия
-                pixelLength = Math.sqrt(
-                  (pendingCalibrationLine.x2 - pendingCalibrationLine.x1) ** 2 + 
-                  (pendingCalibrationLine.y2 - pendingCalibrationLine.y1) ** 2
-                );
-                
-               console.log('Создаем новую калибровочную линию:', pendingCalibrationLine);
+                console.log('Создаем новую калибровочную линию:', pendingCalibrationLine);
                 setCalibrationLine({
                   ...pendingCalibrationLine,
                   realLength: realLength
                 });
-               console.log('Создана новая калибровочная линия:', realLength, 'мм, пиксельная длина:', pixelLength);
+                console.log('Создана новая калибровочная линия:', realLength, 'мм, пиксельная длина:', pixelLength);
               } else if (!isNew && annotations.calibrationLine) {
-                // Существующая калибровочная линия
-                pixelLength = Math.sqrt(
-                  (annotations.calibrationLine.x2 - annotations.calibrationLine.x1) ** 2 + 
-                  (annotations.calibrationLine.y2 - annotations.calibrationLine.y1) ** 2
-                );
-                
                 updateCalibrationLine({
                   realLength: realLength
                 });
@@ -384,17 +387,13 @@ const AppContent: React.FC = () => {
               }
               
               // Устанавливаем масштаб
-              if (pixelLength) {
-               const scale = realLength / pixelLength;
-               setCalibrationScale(pixelLength, realLength);
-               console.log('Установлен масштаб:', scale, 'мм/пиксель');
-             } else {
-               console.error('Не удалось вычислить пиксельную длину');
-              }
+              const scale = realLength / pixelLength;
+              setCalibrationScale(pixelLength, realLength);
+              console.log('Установлен масштаб:', scale, 'мм/пиксель');
               
               closeModal();
-             setPendingCalibrationLine(null);
-             setCalibrationInputValue('50');
+              setPendingCalibrationLine(null);
+              setCalibrationInputValue('50');
             } catch (error) {
               console.error('Ошибка при установке калибровки:', error);
               alert('Произошла ошибка при установке калибровки');
