@@ -285,6 +285,17 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           console.log('Not found in JSON, using API data:', { exportId, className });
           return `${exportId} ${centerX.toFixed(6)} ${centerY.toFixed(6)} ${width.toFixed(6)} ${height.toFixed(6)}   # ${safeClassName}`;
         }
+      }
+    }).join('\n');
+  }, [annotations.boundingBoxes]);
+
+  return (
+    <AnnotationContext.Provider
+      value={{
+        annotations,
+        markupModified,
+        setMarkupModifiedState,
+        addBoundingBox,
         updateBoundingBox,
         deleteBoundingBox,
         addRuler,
