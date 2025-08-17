@@ -7,7 +7,6 @@ interface AnnotationContextType {
   annotations: AnnotationState;
   markupModified: boolean;
   setMarkupModifiedState: (modified: boolean) => void;
-  updateAllDensityPoints: (canvas: HTMLCanvasElement) => void;
   addBoundingBox: (bbox: Omit<BoundingBox, 'id'>) => string;
   updateBoundingBox: (id: string, updates: Partial<BoundingBox>) => void;
   deleteBoundingBox: (id: string) => void;
@@ -189,35 +188,6 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setMarkupModified(true);
   }, []);
 
-  const updateAllDensityPoints = useCallback((canvas: HTMLCanvasElement) => {
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    setAnnotations(prev => ({
-      ...prev,
-      densityPoints: prev.densityPoints.map(point => {
-        // Получаем координаты точки на canvas
-        const rect = canvas.getBoundingClientRect();
-        const canvasX = point.x; // Это уже координаты в canvas
-        const canvasY = point.y;
-        
-        try {
-          const imageData = ctx.getImageData(canvasX, canvasY, 1, 1);
-          const r = imageData.data[0];
-          const g = imageData.data[1];
-          const b = imageData.data[2];
-          const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-          const density = 1 - (gray / 255);
-          
-          return { ...point, density };
-        } catch (error) {
-          // Если не удалось получить данные пикселя, оставляем старое значение
-          return point;
-        }
-      })
-    }));
-    setMarkupModified(true);
-  }, []);
   const selectObject = useCallback((id: string | null, type: AnnotationState['selectedObjectType']) => {
     setAnnotations(prev => ({
       ...prev,
@@ -328,7 +298,6 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         annotations,
         markupModified,
         setMarkupModifiedState,
-        updateAllDensityPoints,
         addBoundingBox,
         updateBoundingBox,
         deleteBoundingBox,
