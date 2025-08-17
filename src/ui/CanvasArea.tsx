@@ -384,10 +384,15 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
       ctx.fillStyle = '#FF00FF';
       ctx.font = 'bold 14px Arial';
       const densityText = `${point.density.toFixed(2)}`;
+      const densityTextWidth = ctx.measureText(densityText).width;
       
+      // Рисуем фон для текста
       const densityTextX = canvasCoords.x + 15;
       const densityTextY = canvasCoords.y - 5;
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      ctx.fillRect(densityTextX - 2, densityTextY - 16, densityTextWidth + 4, 20);
       
+      // Рисуем текст
       ctx.fillStyle = '#FF00FF';
       ctx.fillText(densityText, densityTextX, densityTextY);
     });
