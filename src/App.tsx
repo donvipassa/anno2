@@ -240,8 +240,6 @@ const AppContent: React.FC = () => {
         const bbox = convertApiBboxToPixels(detection.bbox);
         const classId = mapApiClassToDefectClassId(detection.class);
         
-        console.log('Adding bbox with apiId:', detection.id, 'apiClassName:', detection.class);
-        
         addBoundingBox({
           x: bbox.x,
           y: bbox.y,
@@ -250,7 +248,7 @@ const AppContent: React.FC = () => {
           classId,
           confidence: detection.confidence,
           apiClassName: detection.class,
-          apiColor: classId === 10 ? detection.color : undefined, // Сохраняем цвет только для неизвестных классов
+          apiColor: detection.color, // Всегда сохраняем цвет от API
           apiId: detection.id // Сохраняем оригинальный ID от API
         });
       });

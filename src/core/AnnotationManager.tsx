@@ -243,37 +243,28 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       const width = bbox.width / imageWidth;
       const height = bbox.height / imageHeight;
       
-      // Определяем ID для экспорта
+      // Определяем ID и название для экспорта
       let exportId: number;
       let className: string;
       
-      // Проверяем, был ли класс изменен пользователем
-      const wasClassChanged = bbox.apiClassName && bbox.classId !== 10;
-      
-      if (wasClassChanged) {
-        // Класс был изменен пользователем - используем новый classId и название
-        exportId = bbox.classId;
-        const defectClass = DEFECT_CLASSES.find(c => c.id === bbox.classId);
-        className = defectClass?.name || 'Неизвестно';
-      } else if (bbox.apiId !== undefined && bbox.apiClassName) {
-        // Класс не изменен, используем оригинальные данные от API
-        exportId = bbox.apiId;
-        className = bbox.apiClassName;
+      if (bbox.apiId !== undefined && bbox.apiClassName) {
+        // Есть данные от API
+        if (bbox.classId !== 10) {
+          // Класс был изменен пользователем - используем новый classId и название
+          exportId = bbox.classId;
+          const defectClass = DEFECT_CLASSES.find(c => c.id === bbox.classId);
+          className = defectClass?.name || 'Неизвестно';
+        } else {
+          // Класс не изменен - используем оригинальные данные от API
+          exportId = bbox.apiId;
+          className = bbox.apiClassName;
+        }
       } else {
-        // Обычный случай - рамка создана вручную
+        // Рамка создана вручную - используем наши данные
         exportId = bbox.classId;
         const defectClass = DEFECT_CLASSES.find(c => c.id === bbox.classId);
         className = defectClass?.name || 'Неизвестно';
       }
-      
-      console.log('Exporting bbox:', {
-        apiId: bbox.apiId,
-        classId: bbox.classId,
-        apiClassName: bbox.apiClassName,
-        exportId,
-        className,
-        wasClassChanged
-      });
       
       // Проверяем, что название класса содержит только корректные символы
       const safeClassName = className.replace(/[^\u0000-\u007F\u0400-\u04FF\s]/g, '?');
