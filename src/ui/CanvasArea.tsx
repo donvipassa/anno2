@@ -527,10 +527,16 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
         // Проверка клика по существующему bbox
         const clickedBbox = getBboxAtPoint(coords.x, coords.y);
         if (clickedBbox) {
-          // Выделяем существующую рамку для перемещения
-          selectObject(clickedBbox.id, 'bbox');
-          setIsDragging(true);
-          setDragStart({ x: e.clientX, y: e.clientY });
+          // Если рамка уже выделена, просто начинаем перетаскивание
+          if (annotations.selectedObjectId === clickedBbox.id) {
+            setIsDragging(true);
+            setDragStart({ x: e.clientX, y: e.clientY });
+          } else {
+            // Выделяем новую рамку для перемещения
+            selectObject(clickedBbox.id, 'bbox');
+            setIsDragging(true);
+            setDragStart({ x: e.clientX, y: e.clientY });
+          }
           return;
         }
       }
