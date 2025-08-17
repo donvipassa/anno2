@@ -58,6 +58,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
   const [currentResizeHandle, setCurrentResizeHandle] = useState<string | null>(null);
   const [isPanning, setIsPanning] = useState(false);
   const [lastPanPosition, setLastPanPosition] = useState({ x: 0, y: 0 });
+  const [rulerHandleType, setRulerHandleType] = useState<'start' | 'end' | null>(null);
   const [showCalibrationModal, setShowCalibrationModal] = useState(false);
   const [calibrationLength, setCalibrationLength] = useState('');
   const [pendingCalibrationLine, setPendingCalibrationLine] = useState<any>(null);
@@ -113,10 +114,22 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
 
   // Проверка попадания в линейку
   const getRulerAtPoint = useCallback((imageX: number, imageY: number) => {
-    const tolerance = 20; // Расстояние от линии
+    const tolerance = 15; // Расстояние от линии
     for (let i = annotations.rulers.length - 1; i >= 0; i--) {
       const ruler = annotations.rulers[i];
-      // Расстояние от точки до линии
+      
+      // Проверяем попадание в маркеры на концах (приоритет)
+      const startDistance = Math.sqrt((imageX - ruler.x1) ** 2 + (imageY - ruler.y1) ** 2);
+      const endDistance = Math.sqrt((imageX - ruler.x2) ** 2 + (imageY - ruler.y2) ** 2);
+      
+      if (startDistance <= tolerance) {
+        return { ruler, handleType: 'start' };
+      }
+      if (endDistance <= tolerance) {
+        return { ruler, handleType: 'end' };
+      }
+      
+      // Проверяем попадание в линию
       const A = imageY - ruler.y1;
       const B = ruler.x1 - imageX;
       const C = (imageX - ruler.x1) * (ruler.y2 - ruler.y1) - (imageY - ruler.y1) * (ruler.x2 - ruler.x1);
@@ -127,7 +140,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
       const squaredLength = (ruler.x2 - ruler.x1) ** 2 + (ruler.y2 - ruler.y1) ** 2;
       
       if (dotProduct >= 0 && dotProduct <= squaredLength && distance <= tolerance) {
-        return ruler;
+        return { ruler, handleType: null };
       }
     }
     return null;
@@ -138,8 +151,20 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     if (!annotations.calibrationLine) return null;
     
     const line = annotations.calibrationLine;
-    const tolerance = 20;
+    const tolerance = 15;
     
+    // Проверяем попадание в маркеры на концах (приоритет)
+    const startDistance = Math.sqrt((imageX - line.x1) ** 2 + (imageY - line.y1) ** 2);
+    const endDistance = Math.sqrt((imageX - line.x2) ** 2 + (imageY - line.y2) ** 2);
+    
+    if (startDistance <= tolerance) {
+      return { line, handleType: 'start' };
+    }
+    if (endDistance <= tolerance) {
+      return { line, handleType: 'end' };
+    }
+    
+    // Проверяем попадание в линию
     const A = imageY - line.y1;
     const B = line.x1 - imageX;
     const C = (imageX - line.x1) * (line.y2 - line.y1) - (imageY - line.y1) * (line.x2 - line.x1);
@@ -149,7 +174,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     const squaredLength = (line.x2 - line.x1) ** 2 + (line.y2 - line.y1) ** 2;
     
     if (dotProduct >= 0 && dotProduct <= squaredLength && distance <= tolerance) {
-      return line;
+      return { line, handleType: null };
     }
     return null;
   }, [annotations.calibrationLine]);
@@ -480,18 +505,20 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
         }
 
         // Проверка клика по линейке
-        const clickedRuler = getRulerAtPoint(coords.x, coords.y);
-        if (clickedRuler) {
-          selectObject(clickedRuler.id, 'ruler');
+        const rulerResult = getRulerAtPoint(coords.x, coords.y);
+        if (rulerResult) {
+          selectObject(rulerResult.ruler.id, 'ruler');
+          setRulerHandleType(rulerResult.handleType);
           setIsDragging(true);
           setDragStart({ x: e.clientX, y: e.clientY });
           return;
         }
 
         // Проверка клика по калибровочной линии
-        const clickedCalibrationLine = getCalibrationLineAtPoint(coords.x, coords.y);
-        if (clickedCalibrationLine) {
-          selectObject(clickedCalibrationLine.id, 'calibration');
+        const calibrationResult = getCalibrationLineAtPoint(coords.x, coords.y);
+        if (calibrationResult) {
+          selectObject(calibrationResult.line.id, 'calibration');
+          setRulerHandleType(calibrationResult.handleType);
           setIsDragging(true);
           setDragStart({ x: e.clientX, y: e.clientY });
           return;
@@ -601,16 +628,16 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
       
       if (!newHandle) {
         // Проверка наведения на линейку
-        const hoveredRuler = getRulerAtPoint(coords.x, coords.y);
-        if (hoveredRuler) {
+        const rulerResult = getRulerAtPoint(coords.x, coords.y);
+        if (rulerResult) {
           newHandle = 'pointer';
         }
       }
       
       if (!newHandle) {
         // Проверка наведения на калибровочную линию
-        const hoveredCalibrationLine = getCalibrationLineAtPoint(coords.x, coords.y);
-        if (hoveredCalibrationLine) {
+        const calibrationResult = getCalibrationLineAtPoint(coords.x, coords.y);
+        if (calibrationResult) {
           newHandle = 'pointer';
         }
       }
@@ -727,12 +754,27 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
           const deltaX = (e.clientX - dragStart.x) / imageState.scale;
           const deltaY = (e.clientY - dragStart.y) / imageState.scale;
 
-          updateRuler(selectedRuler.id, {
-            x1: selectedRuler.x1 + deltaX,
-            y1: selectedRuler.y1 + deltaY,
-            x2: selectedRuler.x2 + deltaX,
-            y2: selectedRuler.y2 + deltaY
-          });
+          if (rulerHandleType === 'start') {
+            // Перемещение только начальной точки
+            updateRuler(selectedRuler.id, {
+              x1: selectedRuler.x1 + deltaX,
+              y1: selectedRuler.y1 + deltaY
+            });
+          } else if (rulerHandleType === 'end') {
+            // Перемещение только конечной точки
+            updateRuler(selectedRuler.id, {
+              x2: selectedRuler.x2 + deltaX,
+              y2: selectedRuler.y2 + deltaY
+            });
+          } else {
+            // Перемещение всей линейки
+            updateRuler(selectedRuler.id, {
+              x1: selectedRuler.x1 + deltaX,
+              y1: selectedRuler.y1 + deltaY,
+              x2: selectedRuler.x2 + deltaX,
+              y2: selectedRuler.y2 + deltaY
+            });
+          }
           setDragStart({ x: e.clientX, y: e.clientY });
         }
       } else if (annotations.selectedObjectId && annotations.selectedObjectType === 'calibration') {
@@ -741,12 +783,27 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
           const deltaX = (e.clientX - dragStart.x) / imageState.scale;
           const deltaY = (e.clientY - dragStart.y) / imageState.scale;
 
-          updateCalibrationLine({
-            x1: annotations.calibrationLine.x1 + deltaX,
-            y1: annotations.calibrationLine.y1 + deltaY,
-            x2: annotations.calibrationLine.x2 + deltaX,
-            y2: annotations.calibrationLine.y2 + deltaY
-          });
+          if (rulerHandleType === 'start') {
+            // Перемещение только начальной точки
+            updateCalibrationLine({
+              x1: annotations.calibrationLine.x1 + deltaX,
+              y1: annotations.calibrationLine.y1 + deltaY
+            });
+          } else if (rulerHandleType === 'end') {
+            // Перемещение только конечной точки
+            updateCalibrationLine({
+              x2: annotations.calibrationLine.x2 + deltaX,
+              y2: annotations.calibrationLine.y2 + deltaY
+            });
+          } else {
+            // Перемещение всей линии
+            updateCalibrationLine({
+              x1: annotations.calibrationLine.x1 + deltaX,
+              y1: annotations.calibrationLine.y1 + deltaY,
+              x2: annotations.calibrationLine.x2 + deltaX,
+              y2: annotations.calibrationLine.y2 + deltaY
+            });
+          }
           setDragStart({ x: e.clientX, y: e.clientY });
         }
       } else {
@@ -867,6 +924,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     setIsDragging(false);
     setIsResizing(false);
     setResizeHandle('');
+    setRulerHandleType(null);
   }, [
     isDrawing,
     activeTool,
