@@ -1044,6 +1044,63 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [annotations.selectedObjectId, annotations.selectedObjectType, deleteBoundingBox, deleteRuler, deleteCalibrationLine, deleteDensityPoint]);
 
+  // Пересчет плотности при изменении инверсии
+  useEffect(() => {
+    if (!imageState.imageElement || annotations.densityPoints.length === 0) return;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Перерисовываем изображение с текущими настройками инверсии
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    const scaledWidth = imageState.width * imageState.scale;
+    const scaledHeight = imageState.height * imageState.scale;
+
+    ctx.save();
+    if (imageState.inverted) {
+      ctx.filter = 'invert(1)';
+    }
+    ctx.drawImage(
+      imageState.imageElement,
+      imageState.offsetX,
+      imageState.offsetY,
+      scaledWidth,
+      scaledHeight
+    );
+    ctx.restore();
+
+    // Пересчитываем плотность для всех существующих точек
+    annotations.densityPoints.forEach(point => {
+      const canvasCoords = getCanvasCoords(point.x, point.y);
+      
+      // Проверяем, что точка находится в пределах canvas
+      if (canvasCoords.x >= 0 && canvasCoords.x < canvas.width && 
+          canvasCoords.y >= 0 && canvasCoords.y < canvas.height) {
+        
+        const imageData = ctx.getImageData(canvasCoords.x, canvasCoords.y, 1, 1);
+        const r = imageData.data[0];
+        const g = imageData.data[1];
+        const b = imageData.data[2];
+        const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+        
+        // Расчет плотности с учетом инверсии
+        let density;
+        if (imageState.inverted) {
+          density = gray / 255;
+        } else {
+          density = 1 - (gray / 255);
+        }
+        
+        // Обновляем точку с новым значением плотности
+        updateDensityPoint(point.id, { density });
+      }
+    });
+  }, [imageState.inverted, imageState.imageElement, annotations.densityPoints, getCanvasCoords, updateDensityPoint, imageState.width, imageState.height, imageState.scale, imageState.offsetX, imageState.offsetY]);
+
   // Обновление canvas при изменениях
   useEffect(() => {
     draw();
