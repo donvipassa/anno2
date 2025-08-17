@@ -1062,6 +1062,8 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
         updateAllDensityPoints(imageState);
       }, 100);
     }
+  }, [imageState.inverted, annotations.densityPoints.length, updateAllDensityPoints, imageState]);
+
   // Автоматическая подгонка изображения при загрузке
   useEffect(() => {
     if (imageState.src && containerRef.current) {
