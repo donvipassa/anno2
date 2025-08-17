@@ -17,9 +17,21 @@ export const downloadFile = (content: string, filename: string): void => {
 export const readFileAsText = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = (e) => resolve(e.target?.result as string);
+    reader.onload = (e) => {
+      const result = e.target?.result as string;
+      // Проверяем на наличие некорректных символов кодировки
+      if (result && /[РЎРўРЈРЄРЅРІРЇРЁРЉРЊРЋРЌРЌРЎРџ]/.test(result)) {
+        // Если найдены некорректные символы, пытаемся прочитать как UTF-8
+        const readerUtf8 = new FileReader();
+        readerUtf8.onload = (e2) => resolve(e2.target?.result as string);
+        readerUtf8.onerror = reject;
+        readerUtf8.readAsText(file, 'UTF-8');
+      } else {
+        resolve(result);
+      }
+    };
     reader.onerror = reject;
-    reader.readAsText(file);
+    reader.readAsText(file, 'UTF-8');
   });
 };
 
@@ -32,10 +44,22 @@ export const validateMarkupFileName = (markupFileName: string, imageFileName: st
 };
 
 export const parseYOLOData = (content: string): any[] => {
-  const lines = content.trim().split('\n').filter(line => line.trim());
+  const lines = content.trim().split('\n').filter(line => {
+    const trimmed = line.trim();
+    // Исключаем строки с некорректными символами кодировки
+    if (/[РЎРўРЈРЄРЅРІРЇРЁРЉРЊРЋРЌРЌРЎРџ]/.test(trimmed)) {
+      console.warn('Пропущена строка с некорректной кодировкой:', trimmed);
+      return false;
+    }
+    return trimmed.length > 0;
+  });
   
   return lines.map(line => {
-    const parts = line.split(' ').filter(part => part.trim());
+    // Разделяем по пробелам и берем только числовые части (до комментария #)
+    const commentIndex = line.indexOf('#');
+    const dataLine = commentIndex >= 0 ? line.substring(0, commentIndex) : line;
+    const parts = dataLine.split(' ').filter(part => part.trim());
+    
     if (parts.length < 5) return null;
     
     try {
