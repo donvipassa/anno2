@@ -38,7 +38,6 @@ const AppContent: React.FC = () => {
     deleteBoundingBox,
     deleteRuler,
     deleteCalibrationLine,
-    deleteDensityPoint,
     recalculateAllDensityPoints
   } = useAnnotations();
   const { calibration, setScale: setCalibrationScale } = useCalibration();
