@@ -273,9 +273,21 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
         const calibrationPixelLength = Math.sqrt(
           (annotations.calibrationLine.x2 - annotations.calibrationLine.x1) ** 2 + 
           (annotations.calibrationLine.y2 - annotations.calibrationLine.y1) ** 2
+        );
         const scale = annotations.calibrationLine.realLength / calibrationPixelLength;
         const lengthInMm = pixelLength * scale;
+        lengthText = `${lengthInMm.toFixed(1)} мм`;
+      } else {
         lengthText = `${pixelLength.toFixed(0)} px`;
+      }
+
+      ctx.fillStyle = '#FFFF00';
+      ctx.font = 'bold 14px Arial';
+      const textWidth = ctx.measureText(lengthText).width;
+      
+      const textX = (start.x + end.x) / 2 - textWidth / 2;
+      const textY = (start.y + end.y) / 2 - 5;
+      
       ctx.fillStyle = '#FFFF00';
       ctx.fillText(lengthText, textX, textY);
     });
