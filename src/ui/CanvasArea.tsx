@@ -14,6 +14,7 @@ interface CanvasAreaProps {
   onToolChange: (tool: string) => void;
   onSelectClass: (classId: number) => void;
   onShowContextMenu: (x: number, y: number) => void;
+  onCalibrationLineFinished: (lineData: any, isNew: boolean) => void;
 }
 
 export const CanvasArea: React.FC<CanvasAreaProps> = ({
@@ -23,7 +24,8 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
   filterActive,
   onToolChange,
   onSelectClass,
-  onShowContextMenu
+  onShowContextMenu,
+  onCalibrationLineFinished
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -59,9 +61,6 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
   const [isPanning, setIsPanning] = useState(false);
   const [lastPanPosition, setLastPanPosition] = useState({ x: 0, y: 0 });
   const [rulerHandleType, setRulerHandleType] = useState<'start' | 'end' | null>(null);
-  const [showCalibrationModal, setShowCalibrationModal] = useState(false);
-  const [calibrationLength, setCalibrationLength] = useState('');
-  const [pendingCalibrationLine, setPendingCalibrationLine] = useState<any>(null);
 
   // Получение координат изображения из координат мыши
   const getImageCoords = useCallback((clientX: number, clientY: number) => {
@@ -903,14 +902,13 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
           (clampedCoords.x - clampedStartPoint.x) ** 2 + (clampedCoords.y - clampedStartPoint.y) ** 2
         );
         if (pixelLength >= 5) {
-          setPendingCalibrationLine({
+          onCalibrationLineFinished({
             x1: clampedStartPoint.x,
             y1: clampedStartPoint.y,
             x2: clampedCoords.x,
             y2: clampedCoords.y,
             realLength: 0
-          });
-          setShowCalibrationModal(true);
+          }, true);
         }
       }
     }
@@ -951,7 +949,8 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     onToolChange,
     onSelectClass,
     dragStart,
-    isPanning
+    isPanning,
+    onCalibrationLineFinished
   ]);
 
   // Обработка колеса мыши для масштабирования
@@ -970,34 +969,6 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     const zoomIn = e.deltaY < 0;
     zoomToPoint(pointX, pointY, zoomIn, canvas.clientWidth, canvas.clientHeight);
   }, [imageState.imageElement, zoomToPoint]);
-
-  // Обработка модального окна калибровки
-  const handleCalibrationSubmit = () => {
-    const realLength = parseFloat(calibrationLength);
-    if (realLength > 0 && pendingCalibrationLine) {
-      const pixelLength = Math.sqrt(
-        (pendingCalibrationLine.x2 - pendingCalibrationLine.x1) ** 2 + 
-        (pendingCalibrationLine.y2 - pendingCalibrationLine.y1) ** 2
-      );
-      
-      setCalibrationLine({
-        ...pendingCalibrationLine,
-        realLength: realLength
-      });
-      
-      setCalibrationScale(pixelLength, realLength);
-      
-      setShowCalibrationModal(false);
-      setCalibrationLength('');
-      setPendingCalibrationLine(null);
-    }
-  };
-
-  const handleCalibrationCancel = () => {
-    setShowCalibrationModal(false);
-    setCalibrationLength('');
-    setPendingCalibrationLine(null);
-  };
 
   // Обработка удаления объектов
   useEffect(() => {
@@ -1146,52 +1117,6 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
           onContextMenu={handleContextMenu}
           onWheel={handleWheel}
         />
-      )}
-
-      {/* Модальное окно калибровки */}
-      {showCalibrationModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Калибровка масштаба</h2>
-            </div>
-            
-            <div className="px-6 py-4">
-              <p className="mb-4">Длина эталона изменилась.<br/>Укажите реальный размер для пересчёта масштаба.</p>
-              
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Реальный размер эталона (мм):
-                </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="0.1"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={calibrationLength}
-                  onChange={(e) => setCalibrationLength(e.target.value)}
-                  autoFocus
-                />
-              </div>
-              
-              <div className="flex justify-end space-x-3">
-                <button
-                  className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-900 rounded transition-colors"
-                  onClick={handleCalibrationCancel}
-                >
-                  Отмена
-                </button>
-                <button
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors disabled:bg-gray-300"
-                  onClick={handleCalibrationSubmit}
-                  disabled={!calibrationLength || parseFloat(calibrationLength) <= 0}
-                >
-                  Применить
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );

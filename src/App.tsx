@@ -27,6 +27,8 @@ const AppContent: React.FC = () => {
     clearAll, 
     selectObject, 
     addBoundingBox,
+    setCalibrationLine,
+    updateCalibrationLine,
     markupModified,
     setMarkupModifiedState
   } = useAnnotations();
@@ -38,6 +40,9 @@ const AppContent: React.FC = () => {
   const [layerVisible, setLayerVisible] = useState<boolean>(true);
   const [filterActive, setFilterActive] = useState<boolean>(false);
   const [autoAnnotationPerformed, setAutoAnnotationPerformed] = useState<boolean>(false);
+
+  // Состояние для калибровки
+  const [pendingCalibrationLine, setPendingCalibrationLine] = useState<any>(null);
 
   // Модальные окна
   const [modalState, setModalState] = useState<{
@@ -310,8 +315,79 @@ const AppContent: React.FC = () => {
 
   const handleEditCalibration = () => {
     if (annotations.calibrationLine) {
-      setActiveTool('calibration');
+      handleCalibrationLineFinished(annotations.calibrationLine, false);
     }
+  };
+
+  const handleCalibrationLineFinished = (lineData: any, isNew: boolean) => {
+    const defaultLength = isNew ? '50' : lineData.realLength?.toString() || '50';
+    
+    if (isNew) {
+      setPendingCalibrationLine(lineData);
+    }
+    
+    showModal('calibration', 'Калибровка масштаба', 
+      isNew ? 'Укажите реальный размер эталона для установки масштаба.' : 'Длина эталона изменилась.\nУкажите реальный размер для пересчёта масштаба.',
+      [
+        { 
+          text: 'Отмена', 
+          action: () => {
+            setPendingCalibrationLine(null);
+            closeModal();
+          }
+        },
+        { 
+          text: 'Применить', 
+          action: () => {
+            const realLength = parseFloat(modalState.input?.value || '0');
+            if (realLength > 0) {
+              let pixelLength;
+              
+              if (isNew && pendingCalibrationLine) {
+                // Новая калибровочная линия
+                pixelLength = Math.sqrt(
+                  (pendingCalibrationLine.x2 - pendingCalibrationLine.x1) ** 2 + 
+                  (pendingCalibrationLine.y2 - pendingCalibrationLine.y1) ** 2
+                );
+                
+                setCalibrationLine({
+                  ...pendingCalibrationLine,
+                  realLength: realLength
+                });
+              } else if (!isNew && annotations.calibrationLine) {
+                // Существующая калибровочная линия
+                pixelLength = Math.sqrt(
+                  (annotations.calibrationLine.x2 - annotations.calibrationLine.x1) ** 2 + 
+                  (annotations.calibrationLine.y2 - annotations.calibrationLine.y1) ** 2
+                );
+                
+                updateCalibrationLine({
+                  realLength: realLength
+                });
+              }
+              
+              if (pixelLength) {
+                setCalibrationScale(pixelLength, realLength);
+              }
+              
+              setPendingCalibrationLine(null);
+              closeModal();
+            }
+          },
+          primary: true
+        }
+      ],
+      {
+        label: 'Реальный размер эталона (мм):',
+        value: defaultLength,
+        onChange: (value: string) => {
+          setModalState(prev => ({
+            ...prev,
+            input: prev.input ? { ...prev.input, value } : undefined
+          }));
+        }
+      }
+    );
   };
 
   const handleShowContextMenu = (x: number, y: number) => {
@@ -453,6 +529,7 @@ const AppContent: React.FC = () => {
           onToolChange={handleToolChange}
           onSelectClass={setActiveClassId}
           onShowContextMenu={handleShowContextMenu}
+          onCalibrationLineFinished={handleCalibrationLineFinished}
         />
       </div>
 
