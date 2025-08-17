@@ -167,7 +167,8 @@ export function drawBoundingBox(
   }
   
   // Добавляем уверенность, если она есть
-  if (box.confidence !== undefined) {
+  // Добавляем уверенность только если класс не был изменен пользователем
+  if (box.confidence !== undefined && box.classId === 10 && box.apiClassName) {
     labelText += ` (${Math.round(box.confidence * 100)}%)`;
   }
   
