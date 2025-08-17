@@ -65,6 +65,38 @@ const AppContent: React.FC = () => {
   };
 
   const handleOpenFile = () => {
+    // Проверка на несохраненные изменения
+    if (markupModified) {
+      showModal('confirm', 'Несохраненные изменения', 'У вас есть несохраненные изменения в разметке. Что вы хотите сделать?', [
+        { 
+          text: 'Сохранить', 
+          action: () => {
+            handleSaveMarkup();
+            closeModal();
+            // После сохранения открываем новый файл
+            setTimeout(() => openFileDialog(), 100);
+          },
+          primary: true
+        },
+        { 
+          text: 'Не сохранять', 
+          action: () => {
+            closeModal();
+            openFileDialog();
+          }
+        },
+        { 
+          text: 'Отмена', 
+          action: closeModal
+        }
+      ]);
+      return;
+    }
+    
+    openFileDialog();
+  };
+
+  const openFileDialog = () => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
