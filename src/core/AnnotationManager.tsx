@@ -125,7 +125,6 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }));
     }
     setMarkupModified(true);
-    }
   }, []);
 
   const updateCalibrationLine = useCallback((updates: Partial<CalibrationLine>) => {
