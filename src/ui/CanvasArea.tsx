@@ -1049,38 +1049,12 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     if (annotations.densityPoints.length > 0 && canvasRef.current) {
       // Небольшая задержка, чтобы canvas успел обновиться с новым фильтром
       setTimeout(() => {
-        const canvas = canvasRef.current;
-        if (canvas && imageState.imageElement) {
-          // Пересчитываем плотность для всех точек
-          annotations.densityPoints.forEach(point => {
-            // Преобразуем координаты изображения в координаты canvas
-            const canvasCoords = getCanvasCoords(point.x, point.y);
-            
-            try {
-              const ctx = canvas.getContext('2d');
-              if (ctx) {
-                const imageData = ctx.getImageData(
-                  Math.round(canvasCoords.x), 
-                  Math.round(canvasCoords.y), 
-                  1, 1
-                );
-                const r = imageData.data[0];
-                const g = imageData.data[1];
-                const b = imageData.data[2];
-                const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-                const density = 1 - (gray / 255);
-                
-                updateDensityPoint(point.id, { density });
-              }
-            } catch (error) {
-              console.warn('Не удалось обновить плотность для точки:', point.id);
-            }
-          });
+        if (canvasRef.current) {
+          updateAllDensityPoints(canvasRef.current);
         }
       }, 100);
     }
-  }, [imageState.inverted, annotations.densityPoints, getCanvasCoords, updateDensityPoint]);
-
+  }, [imageState.inverted, updateAllDensityPoints, annotations.densityPoints.length]);
   // Автоматическая подгонка изображения при загрузке
   useEffect(() => {
     if (imageState.src && containerRef.current) {
