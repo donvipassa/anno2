@@ -243,23 +243,37 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       const width = bbox.width / imageWidth;
       const height = bbox.height / imageHeight;
       
-      // Используем оригинальный ID от API, если он есть (включая 0), иначе наш classId
-      const exportId = bbox.apiId !== undefined ? bbox.apiId : bbox.classId;
+      // Определяем ID для экспорта
+      let exportId: number;
+      let className: string;
+      
+      // Проверяем, был ли класс изменен пользователем
+      const wasClassChanged = bbox.apiClassName && bbox.classId !== 10;
+      
+      if (wasClassChanged) {
+        // Класс был изменен пользователем - используем новый classId и название
+        exportId = bbox.classId;
+        const defectClass = DEFECT_CLASSES.find(c => c.id === bbox.classId);
+        className = defectClass?.name || 'Неизвестно';
+      } else if (bbox.apiId !== undefined && bbox.apiClassName) {
+        // Класс не изменен, используем оригинальные данные от API
+        exportId = bbox.apiId;
+        className = bbox.apiClassName;
+      } else {
+        // Обычный случай - рамка создана вручную
+        exportId = bbox.classId;
+        const defectClass = DEFECT_CLASSES.find(c => c.id === bbox.classId);
+        className = defectClass?.name || 'Неизвестно';
+      }
       
       console.log('Exporting bbox:', {
         apiId: bbox.apiId,
         classId: bbox.classId,
+        apiClassName: bbox.apiClassName,
         exportId,
-        apiClassName: bbox.apiClassName
+        className,
+        wasClassChanged
       });
-      
-      // Используем оригинальное название от API, если оно есть, иначе название класса
-      let className: string;
-      if (bbox.apiClassName) {
-        className = bbox.apiClassName;
-      } else {
-        className = DEFECT_CLASSES.find(c => c.id === bbox.classId)?.name || 'Неизвестно';
-      }
       
       // Проверяем, что название класса содержит только корректные символы
       const safeClassName = className.replace(/[^\u0000-\u007F\u0400-\u04FF\s]/g, '?');
