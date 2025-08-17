@@ -18,6 +18,7 @@ interface ToolbarProps {
   onToggleFilter: () => void;
   calibrationSet: boolean;
   onEditCalibration: () => void;
+  autoAnnotationPerformed: boolean;
 }
 
 export const Toolbar: React.FC<ToolbarProps> = ({
@@ -33,7 +34,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   filterActive,
   onToggleFilter,
   calibrationSet,
-  onEditCalibration
+  onEditCalibration,
+  autoAnnotationPerformed
 }) => {
   const { imageState, zoomIn, zoomOut, zoomReset, fitToCanvas } = useImage();
   const { annotations } = useAnnotations();
@@ -87,7 +89,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         icon={<Sparkles size={24} />}
         tooltip="Авто-разметка"
         onClick={onAutoAnnotate}
-        disabled={!hasImage}
+        disabled={!hasImage || autoAnnotationPerformed}
       />
 
       <div className="w-px h-6 bg-gray-300 mx-2" />

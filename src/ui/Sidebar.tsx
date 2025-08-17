@@ -3,6 +3,7 @@ import { DEFECT_CLASSES } from '../types';
 import { useAnnotations } from '../core/AnnotationManager';
 import { useImage } from '../core/ImageProvider';
 import { Tooltip } from './Tooltip';
+import jsonData from '../utils/JSON_data.json';
 
 interface SidebarProps {
   activeClassId: number;
@@ -19,7 +20,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { imageState } = useImage();
 
   const getClassCount = (classId: number): number => {
-    return annotations.boundingBoxes.filter(bbox => bbox.classId === classId).length;
+    if (classId === 10) {
+      // Для класса "Другое" считаем только объекты, которые действительно имеют classId = 10
+      return annotations.boundingBoxes.filter(bbox => bbox.classId === 10).length;
+    } else {
+      // Для остальных классов считаем по classId
+      return annotations.boundingBoxes.filter(bbox => bbox.classId === classId).length;
+    }
   };
 
   const handleClassClick = (classId: number) => {
@@ -102,13 +109,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
       
       {/* Показываем информацию о неизвестных классах */}
-      {annotations.boundingBoxes.some(bbox => bbox.classId === 10 && bbox.apiClassName) && (
+      {annotations.boundingBoxes.some(bbox => bbox.apiClassName && !jsonData.find((entry: any) => entry.name.toLowerCase().trim() === bbox.apiClassName!.toLowerCase().trim())) && (
         <div className="mt-6 pt-4 border-t border-gray-200">
           <h3 className="text-sm font-semibold text-gray-700 mb-2">Обнаруженные классы:</h3>
           <div className="space-y-1 text-xs text-gray-600">
             {Array.from(new Set(
               annotations.boundingBoxes
-                .filter(bbox => bbox.classId === 10 && bbox.apiClassName)
+                .filter(bbox => bbox.apiClassName && !jsonData.find((entry: any) => entry.name.toLowerCase().trim() === bbox.apiClassName!.toLowerCase().trim()))
                 .map(bbox => bbox.apiClassName)
             )).map(className => (
               <div key={className} className="flex items-center space-x-2">

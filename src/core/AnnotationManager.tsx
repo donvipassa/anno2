@@ -261,31 +261,24 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         isFromAPI: bbox.apiId !== undefined && bbox.apiClassName !== undefined
       });
       
-      // Для объектов от API используем их данные напрямую
-      if (bbox.apiId !== undefined && bbox.apiClassName) {
-        // Ищем соответствие в JSON файле
-        const jsonEntry = jsonData.find((entry: any) => {
-          const entryName = entry.name.toLowerCase().trim();
-          const detectionClass = bbox.apiClassName!.toLowerCase().trim();
-          return entryName === detectionClass;
-        });
-        
-        if (jsonEntry) {
-          // Найдено в JSON - используем apiID и russian_name из JSON
-          const exportId = (jsonEntry as any).apiID;
-          const className = (jsonEntry as any).russian_name;
-          const safeClassName = className.replace(/[^\u0000-\u007F\u0400-\u04FF\s]/g, '?');
-          console.log('Found in JSON for export:', { exportId, className });
-          return `${exportId} ${centerX.toFixed(6)} ${centerY.toFixed(6)} ${width.toFixed(6)} ${height.toFixed(6)}   # ${safeClassName}`;
-        } else {
-          // Не найдено в JSON - используем оригинальные данные от API
-          const exportId = bbox.apiId;
-          const className = bbox.apiClassName;
-          const safeClassName = className.replace(/[^\u0000-\u007F\u0400-\u04FF\s]/g, '?');
-          console.log('Not found in JSON, using API data:', { exportId, className });
-          return `${exportId} ${centerX.toFixed(6)} ${centerY.toFixed(6)} ${width.toFixed(6)} ${height.toFixed(6)}   # ${safeClassName}`;
-        }
+      // Используем classId как ID для экспорта
+      const exportId = bbox.classId;
+      
+      // Определяем название класса для комментария
+      let className = '';
+      if (bbox.apiClassName) {
+        // Если это объект от API, ищем русское название в JSON
+        const jsonEntry = jsonData.find((entry: any) => entry.apiID === bbox.classId);
+        className = jsonEntry ? jsonEntry.russian_name : bbox.apiClassName;
+      } else {
+        // Если это пользовательский объект, используем название из DEFECT_CLASSES
+        const defectClass = DEFECT_CLASSES.find(c => c.id === bbox.classId);
+        className = defectClass ? defectClass.name : 'Неизвестно';
       }
+      
+      const safeClassName = className.replace(/[^\u0000-\u007F\u0400-\u04FF\s]/g, '?');
+      console.log('Export data:', { exportId, className });
+      return `${exportId} ${centerX.toFixed(6)} ${centerY.toFixed(6)} ${width.toFixed(6)} ${height.toFixed(6)}   # ${safeClassName}`;
     }).join('\n');
   }, [annotations.boundingBoxes]);
 

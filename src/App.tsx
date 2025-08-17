@@ -37,6 +37,7 @@ const AppContent: React.FC = () => {
   const [activeClassId, setActiveClassId] = useState<number>(-1);
   const [layerVisible, setLayerVisible] = useState<boolean>(true);
   const [filterActive, setFilterActive] = useState<boolean>(false);
+  const [autoAnnotationPerformed, setAutoAnnotationPerformed] = useState<boolean>(false);
 
   // Модальные окна
   const [modalState, setModalState] = useState<{
@@ -132,6 +133,7 @@ const AppContent: React.FC = () => {
         clearAll(); // This will call setMarkupModifiedState(false)
         setMarkupModifiedState(false);
         setMarkupFileName(null);
+        setAutoAnnotationPerformed(false);
       } catch (error) {
         showModal('error', 'Ошибка', 'Не удалось загрузить изображение', [
           { text: 'Ок', action: closeModal }
@@ -223,7 +225,7 @@ const AppContent: React.FC = () => {
   }, [annotations.selectedObjectId]);
 
   const handleAutoAnnotate = useCallback(async () => {
-    if (!imageState.file) {
+    if (!imageState.file || autoAnnotationPerformed) {
       showModal('error', 'Ошибка', 'Сначала загрузите изображение', [
         { text: 'Ок', action: closeModal }
       ]);
@@ -240,8 +242,15 @@ const AppContent: React.FC = () => {
       detections.forEach(detection => {
         const bbox = convertApiBboxToPixels(detection.bbox);
         
-        // Всегда используем класс "Другое" для объектов от API
-        const classId = 10;
+        // Ищем соответствие в JSON файле
+        const jsonEntry = jsonData.find((entry: any) => {
+          const entryName = entry.name.toLowerCase().trim();
+          const detectionClass = detection.class.toLowerCase().trim();
+          return entryName === detectionClass;
+        });
+        
+        // Используем apiID из JSON файла как classId
+        const classId = jsonEntry ? (jsonEntry as any).apiID : 10;
         
         addBoundingBox({
           x: bbox.x,
@@ -256,7 +265,7 @@ const AppContent: React.FC = () => {
         });
       });
       
-      // setMarkupModified(true); // REMOVE THIS, addBoundingBox already does it
+      setAutoAnnotationPerformed(true);
       showModal('info', 'Успех', `Обнаружено объектов: ${detections.length}`, [
         { text: 'Ок', action: closeModal }
       ]);
@@ -267,7 +276,7 @@ const AppContent: React.FC = () => {
     } finally {
       setIsProcessingAutoAnnotation(false);
     }
-  }, [imageState.file, addBoundingBox]);
+  }, [imageState.file, addBoundingBox, autoAnnotationPerformed]);
 
   const handleHelp = () => {
     showModal('help', 'О программе', 'Автор и разработчик Алексей Сотников\nТехнопарк "Университетские технологии"', [
@@ -402,6 +411,7 @@ const AppContent: React.FC = () => {
         onToggleFilter={() => setFilterActive(!filterActive)}
         calibrationSet={calibration.isSet}
         onEditCalibration={handleEditCalibration}
+        autoAnnotationPerformed={autoAnnotationPerformed}
       />
 
       <div className="flex-1 flex overflow-hidden">
