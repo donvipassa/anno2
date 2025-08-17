@@ -1,4 +1,5 @@
 // Утилиты для работы с файлами
+import jsonData from './JSON_data.json';
 
 export const downloadFile = (content: string, filename: string): void => {
   const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
@@ -92,8 +93,7 @@ export const convertYOLOToPixels = (
   
   // Если это класс от API (ID >= 12), добавляем информацию из JSON
   if (yoloData.classId >= 12) {
-    const jsonData = await import('./JSON_data.json');
-    const jsonEntry = jsonData.default.find((entry: any) => entry.apiID === yoloData.classId);
+    const jsonEntry = jsonData.find((entry: any) => entry.apiID === yoloData.classId);
     if (jsonEntry) {
       bbox.apiClassName = jsonEntry.name;
       bbox.apiColor = jsonEntry.color;
