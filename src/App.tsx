@@ -16,16 +16,6 @@ import { detectObjects } from './utils/api';
 import { mapApiClassToDefectClassId, convertApiBboxToPixels } from './utils/annotationUtils';
 import jsonData from './utils/JSON_data.json';
 
-function App() {
-  return (
-    <ImageProvider>
-      <AnnotationProvider>
-        <AppContent />
-      </AnnotationProvider>
-    </ImageProvider>
-  );
-}
-
 const AppContent: React.FC = () => {
   const { imageState, loadImage, setScale, toggleInversion, resetView, fitToCanvas, zoomIn, zoomOut, zoomReset } = useImage();
   const { 
@@ -741,5 +731,15 @@ const AppContent: React.FC = () => {
     </div>
   );
 };
+
+function App() {
+  return (
+    <ImageProvider>
+      <AnnotationProvider>
+        <AppContent />
+      </AnnotationProvider>
+    </ImageProvider>
+  );
+}
 
 export default App;
