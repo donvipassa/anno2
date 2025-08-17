@@ -265,6 +265,7 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       let className: string;
       
       if (bbox.apiId !== undefined && bbox.apiClassName) {
+      }
       if (bbox.apiId !== undefined && bbox.apiClassName) {
         // Есть данные от API
         if (bbox.classId !== 10) {
