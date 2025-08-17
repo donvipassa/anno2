@@ -4,7 +4,7 @@ import { useAnnotations } from '../core/AnnotationManager';
 import { useCalibration } from '../core/CalibrationManager';
 import { DEFECT_CLASSES } from '../types';
 import { drawBoundingBox, isPointInBox, isPointOnBoxBorder, getResizeHandle } from '../utils/canvas';
-import jsonData from '../utils/JSON_data.json';
+import jsonData from '../assets/data/defect-classes.json';
 
 interface CanvasAreaProps {
   activeTool: string;
