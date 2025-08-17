@@ -14,6 +14,7 @@ import { validateImageFile, saveImageAsFile } from './utils/imageUtils';
 import { getMarkupFileName, downloadFile, readFileAsText, validateMarkupFileName, parseYOLOData, convertYOLOToPixels } from './utils/fileUtils';
 import { detectObjects } from './utils/api';
 import { mapApiClassToDefectClassId, convertApiBboxToPixels } from './utils/annotationUtils';
+import jsonData from './utils/JSON_data.json';
 
 const AppContent: React.FC = () => {
   const { imageState, loadImage, setScale, toggleInversion, resetView, fitToCanvas, zoomIn, zoomOut, zoomReset } = useImage();
@@ -239,25 +240,25 @@ const AppContent: React.FC = () => {
       detections.forEach(detection => {
         const bbox = convertApiBboxToPixels(detection.bbox);
         
+        let classId: number;
+        
         // Ищем соответствие в JSON файле по названию класса
-        const jsonEntry = jsonData.find(entry => {
+        const jsonEntry = jsonData.find((entry: any) => {
           const entryName = entry.name.toLowerCase().trim();
           const detectionClass = detection.class.toLowerCase().trim();
           return entryName === detectionClass;
         });
         
-        let classId: number;
-        
         if (jsonEntry) {
-          // Найдено в JSON - используем apiID из JSON как classId
-          classId = jsonEntry.apiID;
+          // Найдено в JSON - используем apiID из JSON как classId  
+          classId = (jsonEntry as any).apiID;
           console.log('Found in JSON:', {
             originalClass: detection.class,
             jsonEntry: jsonEntry,
             assignedClassId: classId
           });
         } else {
-          // Не найдено в JSON - используем класс "Другое"
+          // Не найдено в JSON - используем стандартное сопоставление
           classId = mapApiClassToDefectClassId(detection.class);
           console.log('Not found in JSON, using standard mapping:', {
             originalClass: detection.class,
