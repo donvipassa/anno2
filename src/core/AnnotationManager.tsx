@@ -236,6 +236,15 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, []);
 
   const getYOLOExport = useCallback((imageWidth: number, imageHeight: number): string => {
+    console.log('=== YOLO Export Debug ===');
+    console.log('All bounding boxes:', annotations.boundingBoxes.map(bbox => ({
+      id: bbox.id,
+      classId: bbox.classId,
+      apiId: bbox.apiId,
+      apiClassName: bbox.apiClassName,
+      confidence: bbox.confidence
+    })));
+    
     return annotations.boundingBoxes.map(bbox => {
       // Нормализованные координаты YOLO
       const centerX = (bbox.x + bbox.width / 2) / imageWidth;
@@ -243,28 +252,42 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       const width = bbox.width / imageWidth;
       const height = bbox.height / imageHeight;
       
+      console.log('Processing bbox:', {
+        id: bbox.id,
+        classId: bbox.classId,
+        apiId: bbox.apiId,
+        apiClassName: bbox.apiClassName,
+        hasApiData: bbox.apiId !== undefined && bbox.apiClassName !== undefined
+      });
+      
       // Определяем ID и название для экспорта
       let exportId: number;
       let className: string;
       
       if (bbox.apiId !== undefined && bbox.apiClassName) {
+        console.log('Has API data, classId:', bbox.classId);
         // Есть данные от API
         if (bbox.classId !== 10) {
           // Класс был изменен пользователем - используем новый classId и название
+          console.log('Class was changed by user');
           exportId = bbox.classId;
           const defectClass = DEFECT_CLASSES.find(c => c.id === bbox.classId);
           className = defectClass?.name || 'Неизвестно';
         } else {
           // Класс не изменен - используем оригинальные данные от API
+          console.log('Using original API data');
           exportId = bbox.apiId;
           className = bbox.apiClassName;
         }
       } else {
         // Рамка создана вручную - используем наши данные
+        console.log('Manual bbox, no API data');
         exportId = bbox.classId;
         const defectClass = DEFECT_CLASSES.find(c => c.id === bbox.classId);
         className = defectClass?.name || 'Неизвестно';
       }
+      
+      console.log('Final export data:', { exportId, className });
       
       // Проверяем, что название класса содержит только корректные символы
       const safeClassName = className.replace(/[^\u0000-\u007F\u0400-\u04FF\s]/g, '?');

@@ -252,6 +252,13 @@ const AppContent: React.FC = () => {
           apiId: detection.id // Сохраняем оригинальный ID от API
         });
       });
+      
+      console.log('Adding bbox with API data:', {
+        classId,
+        apiClassName: detection.class,
+        apiId: detection.id,
+        confidence: detection.confidence
+      });
 
       // setMarkupModified(true); // REMOVE THIS, addBoundingBox already does it
       showModal('info', 'Успех', `Обнаружено объектов: ${detections.length}`, [
