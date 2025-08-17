@@ -3,7 +3,7 @@ import { DEFECT_CLASSES } from '../types';
 import { useAnnotations } from '../core/AnnotationManager';
 import { useImage } from '../core/ImageProvider';
 import { Tooltip } from './Tooltip';
-import jsonData from '../assets/data/defect-classes.json';
+import jsonData from '../utils/JSON_data.json';
 
 interface SidebarProps {
   activeClassId: number;
