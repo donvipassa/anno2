@@ -1,5 +1,5 @@
 // Утилиты для работы с файлами
-import jsonData from './JSON_data.json';
+import jsonData from '../data/defect-classes.json';
 
 export const downloadFile = (content: string, filename: string): void => {
   const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });

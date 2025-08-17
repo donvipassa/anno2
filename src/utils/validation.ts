@@ -1,4 +1,4 @@
-import { APP_CONFIG, ERROR_MESSAGES } from '../constants';
+import { APP_CONFIG } from '../config';
 
 /**
  * Результат валидации файла

@@ -1,4 +1,4 @@
-import { ERROR_MESSAGES } from '../constants';
+import { ERROR_MESSAGES } from '../config';
 
 /**
  * Класс для обработки ошибок приложения
@@ -61,7 +61,7 @@ export const logError = (error: Error, context?: string): void => {
   });
   
   // В продакшене здесь можно добавить отправку ошибок в сервис мониторинга
-  if (process.env.NODE_ENV === 'production') {
+  if (import.meta.env.PROD) {
     // Отправка в сервис мониторинга (например, Sentry)
   }
 };

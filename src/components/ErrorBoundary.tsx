@@ -50,7 +50,7 @@ export class ErrorBoundary extends Component<Props, State> {
               <p className="text-sm text-gray-600">
                 Приложение столкнулось с неожиданной ошибкой. Пожалуйста, перезагрузите страницу.
               </p>
-              {process.env.NODE_ENV === 'development' && this.state.error && (
+              {import.meta.env.DEV && this.state.error && (
                 <details className="mt-4">
                   <summary className="text-sm text-gray-500 cursor-pointer">
                     Детали ошибки (только в режиме разработки)

@@ -1,4 +1,6 @@
-// Экспорт всех core модулей
+/**
+ * Экспорт всех core модулей
+ */
 
 export { ImageProvider, useImage } from './ImageProvider';
 export { AnnotationProvider, useAnnotations } from './AnnotationManager';

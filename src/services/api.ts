@@ -1,5 +1,5 @@
-import { ApiDetection, ApiResponse, ApiError } from '../types/api';
-import { APP_CONFIG, ERROR_MESSAGES } from '../constants';
+import { ApiDetection, ApiResponse } from '../types/api';
+import { APP_CONFIG, ERROR_MESSAGES } from '../config';
 
 /**
  * Сервис для работы с API автоматической детекции дефектов

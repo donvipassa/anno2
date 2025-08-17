@@ -1,6 +1,20 @@
 // Основные типы данных приложения
 export * from './api';
 
+/**
+ * Интерфейс для JSON данных классов от API
+ */
+export interface ApiClassData {
+  apiID: number;
+  name: string;
+  russian_name: string;
+  color: [number, number, number];
+  description?: string;
+}
+
+/**
+ * Класс дефекта
+ */
 export interface DefectClass {
   id: number;
   name: string;
@@ -8,6 +22,9 @@ export interface DefectClass {
   hotkey: string;
 }
 
+/**
+ * Ограничивающая рамка
+ */
 export interface BoundingBox {
   id: string;
   classId: number;
@@ -22,6 +39,9 @@ export interface BoundingBox {
   apiId?: number; // ID класса от API
 }
 
+/**
+ * Линейка для измерений
+ */
 export interface Ruler {
   id: string;
   x1: number;
@@ -31,6 +51,9 @@ export interface Ruler {
   selected?: boolean;
 }
 
+/**
+ * Калибровочная линия
+ */
 export interface CalibrationLine {
   id: string;
   x1: number;
@@ -41,6 +64,9 @@ export interface CalibrationLine {
   selected?: boolean;
 }
 
+/**
+ * Точка измерения плотности
+ */
 export interface DensityPoint {
   id: string;
   x: number;
@@ -49,6 +75,9 @@ export interface DensityPoint {
   selected?: boolean;
 }
 
+/**
+ * Состояние изображения
+ */
 export interface ImageState {
   file: File | null;
   src: string | null;
@@ -61,6 +90,9 @@ export interface ImageState {
   imageElement: HTMLImageElement | null;
 }
 
+/**
+ * Состояние аннотаций
+ */
 export interface AnnotationState {
   boundingBoxes: BoundingBox[];
   rulers: Ruler[];
@@ -70,6 +102,9 @@ export interface AnnotationState {
   selectedObjectType: 'bbox' | 'ruler' | 'calibration' | 'density' | null;
 }
 
+/**
+ * Общее состояние приложения
+ */
 export interface AppState {
   image: ImageState;
   annotations: AnnotationState;
@@ -82,6 +117,9 @@ export interface AppState {
   markupFileName: string | null;
 }
 
+/**
+ * Состояние модального окна
+ */
 export interface ModalState {
   type: 'info' | 'confirm' | 'error' | 'calibration' | 'help' | 'exit' | null;
   title: string;
@@ -98,6 +136,9 @@ export interface ModalState {
   };
 }
 
+/**
+ * Классы дефектов согласно ГОСТ 7512-82
+ */
 export const DEFECT_CLASSES: DefectClass[] = [
   { id: 0, name: 'Трещины', color: '#FF0000', hotkey: '0' },
   { id: 1, name: 'Непровары', color: '#00FF00', hotkey: '1' },
@@ -110,4 +151,4 @@ export const DEFECT_CLASSES: DefectClass[] = [
   { id: 8, name: 'Подрез', color: '#008000', hotkey: '8' },
   { id: 9, name: 'Смещение кромок', color: '#800000', hotkey: '9' },
   { id: 10, name: 'Другое', color: '#808080', hotkey: '-' }
-]
+];

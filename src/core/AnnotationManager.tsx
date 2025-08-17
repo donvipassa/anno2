@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { AnnotationState, BoundingBox, Ruler, CalibrationLine, DensityPoint, DEFECT_CLASSES } from '../types';
 import { v4 as uuidv4 } from 'uuid';
-import jsonData from '../utils/JSON_data.json';
+import jsonData from '../data/defect-classes.json';
 
 interface AnnotationContextType {
   annotations: AnnotationState;

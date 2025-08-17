@@ -1,4 +1,6 @@
-// Экспорт всех утилит
+/**
+ * Экспорт всех утилит
+ */
 
 export * from './canvas';
 export * from './fileUtils';

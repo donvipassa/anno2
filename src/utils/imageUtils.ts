@@ -1,4 +1,6 @@
 // Утилиты для работы с изображениями
+import jsonData from '../data/defect-classes.json';
+import { APP_CONFIG } from '../config';
 
 export const calculateDensity = (imageData: ImageData, x: number, y: number): number => {
   const index = (y * imageData.width + x) * 4;
@@ -47,62 +49,8 @@ export const saveImageAsFile = (
   ];
 
   // Импортируем JSON данные для классов от API
-  const jsonData = [
-    {
-      "apiID": 12,
-      "name": "Defect",
-      "russian_name": "дефекты",
-      "color": [0, 225, 255]
-    },
-    {
-      "apiID": 13,
-      "name": "Duplex standard",
-      "russian_name": "Эталон Duplex",
-      "color": [24, 8, 253]
-    },
-    {
-      "apiID": 14,
-      "name": "marking mark",
-      "russian_name": "Маркировочные знаки",
-      "color": [255, 163, 158]
-    },
-    {
-      "apiID": 15,
-      "name": "measuring belt",
-      "russian_name": "Мерный пояс",
-      "color": [37, 211, 13]
-    },
-    {
-      "apiID": 16,
-      "name": "sensitivity standard",
-      "russian_name": "Канавочный эталон",
-      "color": [243, 244, 210]
-    },
-    {
-      "apiID": 17,
-      "name": "welding seam",
-      "russian_name": "Линейный сварной шов",
-      "color": [158, 165, 255]
-    },
-    {
-      "apiID": 18,
-      "name": "wire standard",
-      "russian_name": "Проволочный эталон",
-      "color": [255, 5, 234]
-    },
-    {
-      "apiID": 19,
-      "name": "Text",
-      "russian_name": "Текстовые комментарии",
-      "color": [255, 13, 0]
-    },
-    {
-      "apiID": 20,
-      "name": "welding seam - circular",
-      "russian_name": "Круговой сварной шов (на эллипс)",
-      "color": [238, 255, 0]
-    }
-  ];
+  // JSON данные уже импортированы выше
+  
   // Рисуем bounding boxes
   annotations.boundingBoxes?.forEach((bbox: any) => {
     let defectClass = DEFECT_CLASSES.find(c => c.id === bbox.classId);
@@ -222,11 +170,10 @@ export const validateImageFile = (file: File): { valid: boolean; error?: string 
   const maxSize = 20 * 1024 * 1024; // 20 MB
   const validTypes = ['image/jpeg', 'image/png', 'image/tiff', 'image/bmp'];
 
-  if (file.size > maxSize) {
+  if (file.size > APP_CONFIG.MAX_FILE_SIZE) {
     return { valid: false, error: 'FILE_TOO_LARGE' };
   }
-
-  if (!validTypes.includes(file.type)) {
+  if (!APP_CONFIG.SUPPORTED_FORMATS.includes(file.type)) {
     return { valid: false, error: 'INVALID_FORMAT' };
   }
 

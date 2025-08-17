@@ -17,7 +17,7 @@ import { validateMarkupFileName } from './utils/validation';
 import { validateYOLOData } from './utils/validation';
 import { detectObjects } from './services/api';
 import { mapApiClassToDefectClassId, convertApiBboxToPixels } from './utils/annotationUtils';
-import jsonData from './utils/JSON_data.json';
+import jsonData from './data/defect-classes.json';
 
 const AppContent: React.FC = () => {
   const { imageState, loadImage, setScale, toggleInversion, resetView, fitToCanvas, zoomIn, zoomOut, zoomReset } = useImage();
