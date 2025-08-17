@@ -43,6 +43,7 @@ const AppContent: React.FC = () => {
 
   // Состояние для калибровки
   const [pendingCalibrationLine, setPendingCalibrationLine] = useState<any>(null);
+  const [calibrationInputValue, setCalibrationInputValue] = useState<string>('50');
 
   // Модальные окна
   const [modalState, setModalState] = useState<{
@@ -322,6 +323,8 @@ const AppContent: React.FC = () => {
   const handleCalibrationLineFinished = (lineData: any, isNew: boolean) => {
     const defaultLength = isNew ? '50' : lineData.realLength?.toString() || '50';
     
+    setCalibrationInputValue(defaultLength);
+    
     if (isNew) {
       setPendingCalibrationLine(lineData);
     }
@@ -333,13 +336,14 @@ const AppContent: React.FC = () => {
           text: 'Отмена', 
           action: () => {
             setPendingCalibrationLine(null);
+            setCalibrationInputValue('50');
             closeModal();
           }
         },
         { 
           text: 'Применить', 
           action: () => {
-            const inputValue = modalState.input?.value || '0';
+            const inputValue = calibrationInputValue;
             const realLength = parseFloat(inputValue);
             if (realLength > 0) {
               let pixelLength;
@@ -372,6 +376,7 @@ const AppContent: React.FC = () => {
               }
               
               setPendingCalibrationLine(null);
+              setCalibrationInputValue('50');
               closeModal();
             }
           },
@@ -380,13 +385,8 @@ const AppContent: React.FC = () => {
       ],
       {
         label: '',
-        value: defaultLength,
-        onChange: (value: string) => {
-          setModalState(prev => ({
-            ...prev,
-            input: prev.input ? { ...prev.input, value } : undefined
-          }));
-        }
+        value: calibrationInputValue,
+        onChange: setCalibrationInputValue
       }
     );
   };
