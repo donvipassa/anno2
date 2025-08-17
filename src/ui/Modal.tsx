@@ -47,6 +47,9 @@ export const Modal: React.FC<ModalProps> = ({
         
         <div className="px-6 py-4">
           {children}
+          
+          {/* Поле ввода для модального окна */}
+          {/* Это будет передано через children из App.tsx */}
         </div>
       </div>
     </div>

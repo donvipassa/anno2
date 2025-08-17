@@ -329,7 +329,7 @@ const AppContent: React.FC = () => {
       setPendingCalibrationLine(lineData);
     }
     
-    showModal('calibration', 'Калибровка масштаба', '',
+    showModal('calibration', 'Калибровка масштаба', 'Укажите реальный размер эталона для установки масштаба (мм):',
       [
         { 
           text: 'Отмена', 
@@ -347,7 +347,8 @@ const AppContent: React.FC = () => {
         { 
           text: 'Применить', 
           action: () => {
-            const realLength = parseFloat(calibrationInputValue);
+            console.log('Применить нажато, значение:', calibrationInputValue);
+            const realLength = parseFloat(calibrationInputValue.toString());
             if (isNaN(realLength) || realLength <= 0) {
               alert('Пожалуйста, введите корректное положительное число');
               return;
@@ -367,6 +368,7 @@ const AppContent: React.FC = () => {
                   ...pendingCalibrationLine,
                   realLength: realLength
                 });
+                console.log('Создана новая калибровочная линия:', realLength, 'мм');
               } else if (!isNew && annotations.calibrationLine) {
                 // Существующая калибровочная линия
                 pixelLength = Math.sqrt(
@@ -377,11 +379,13 @@ const AppContent: React.FC = () => {
                 updateCalibrationLine({
                   realLength: realLength
                 });
+                console.log('Обновлена калибровочная линия:', realLength, 'мм');
               }
               
               // Устанавливаем масштаб
               if (pixelLength) {
                 setCalibrationScale(pixelLength, realLength);
+                console.log('Установлен масштаб:', realLength / pixelLength, 'мм/пиксель');
               }
               
               setPendingCalibrationLine(null);
@@ -394,12 +398,7 @@ const AppContent: React.FC = () => {
           },
           primary: true
         }
-      ],
-      {
-        label: 'Укажите реальный размер эталона для установки масштаба (мм):',
-        value: calibrationInputValue,
-        onChange: setCalibrationInputValue
-      }
+      ]
     );
   };
 
@@ -554,18 +553,20 @@ const AppContent: React.FC = () => {
         title={modalState.title}
         onClose={closeModal}
       >
-        <p className="whitespace-pre-line">{modalState.message}</p>
+        {modalState.message && (
+          <p className="whitespace-pre-line mb-4">{modalState.message}</p>
+        )}
         
-        {modalState.input && (
+        {modalState.type === 'calibration' && (
           <div className="mt-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              {modalState.input.label}
-            </label>
             <input
-              type="text"
+              type="number"
+              step="0.1"
+              min="0.1"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={modalState.input.value}
-              onChange={(e) => modalState.input!.onChange(e.target.value)}
+              value={calibrationInputValue}
+              onChange={(e) => setCalibrationInputValue(e.target.value)}
+              placeholder="Введите размер в мм"
             />
           </div>
         )}
