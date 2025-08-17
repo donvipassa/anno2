@@ -240,7 +240,7 @@ const AppContent: React.FC = () => {
         const bbox = convertApiBboxToPixels(detection.bbox);
         const classId = mapApiClassToDefectClassId(detection.class);
         
-        addBoundingBox({
+        const id = addBoundingBox({
           x: bbox.x,
           y: bbox.y,
           width: bbox.width,
@@ -251,15 +251,15 @@ const AppContent: React.FC = () => {
           apiColor: detection.color, // Всегда сохраняем цвет от API
           apiId: detection.id // Сохраняем оригинальный ID от API
         });
+        
+        console.log('Added bbox with ID:', id, 'API data:', {
+          apiId: detection.id,
+          apiClassName: detection.class,
+          classId,
+          confidence: detection.confidence
+        });
       });
       
-      console.log('Adding bbox with API data:', {
-        classId,
-        apiClassName: detection.class,
-        apiId: detection.id,
-        confidence: detection.confidence
-      });
-
       // setMarkupModified(true); // REMOVE THIS, addBoundingBox already does it
       showModal('info', 'Успех', `Обнаружено объектов: ${detections.length}`, [
         { text: 'Ок', action: closeModal }
