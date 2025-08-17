@@ -461,26 +461,36 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
       // Проверка, что клик внутри изображения
       if (coords.x >= 0 && coords.x <= imageState.width && 
           coords.y >= 0 && coords.y <= imageState.height) {
-        const canvas = canvasRef.current;
-        if (canvas) {
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            const imageData = ctx.getImageData(canvasX, canvasY, 1, 1);
-            const r = imageData.data[0];
-            const g = imageData.data[1];
-            const b = imageData.data[2];
-            const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-            
-            // Всегда используем стандартный расчет плотности: 0 = белый, 1 = черный
-            // Инверсия учитывается автоматически через фильтр canvas
-            const density = 1 - (gray / 255);
-            
-            addDensityPoint({
-              x: coords.x,
-              y: coords.y,
-              density: density
-            });
+        // Создаем временный canvas для получения правильных данных пикселя
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+        if (tempCtx && imageState.imageElement) {
+          tempCanvas.width = imageState.width;
+          tempCanvas.height = imageState.height;
+          
+          // Применяем инверсию если нужно
+          if (imageState.inverted) {
+            tempCtx.filter = 'invert(1)';
           }
+          
+          // Рисуем изображение
+          tempCtx.drawImage(imageState.imageElement, 0, 0);
+          
+          // Получаем данные пикселя
+          const imageData = tempCtx.getImageData(coords.x, coords.y, 1, 1);
+          const r = imageData.data[0];
+          const g = imageData.data[1];
+          const b = imageData.data[2];
+          const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+          
+          // Плотность: 0 = белый, 1 = черный
+          const density = 1 - (gray / 255);
+          
+          addDensityPoint({
+            x: coords.x,
+            y: coords.y,
+            density: density
+          });
         }
       }
       return;
@@ -1049,12 +1059,9 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     if (annotations.densityPoints.length > 0 && canvasRef.current) {
       // Небольшая задержка, чтобы canvas успел обновиться с новым фильтром
       setTimeout(() => {
-        if (canvasRef.current) {
-          updateAllDensityPoints(canvasRef.current);
-        }
+        updateAllDensityPoints(imageState);
       }, 100);
     }
-  }, [imageState.inverted, updateAllDensityPoints, annotations.densityPoints.length]);
   // Автоматическая подгонка изображения при загрузке
   useEffect(() => {
     if (imageState.src && containerRef.current) {
