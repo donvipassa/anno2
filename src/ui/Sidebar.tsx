@@ -55,21 +55,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <h2 className="text-sm font-semibold text-gray-700 mb-4">Классы дефектов</h2>
       
       <div className="space-y-2">
-        {DEFECT_CLASSES.concat(
-          // Добавляем классы от API, которые есть в аннотациях
-          Array.from(new Set(annotations.boundingBoxes
-            .filter(bbox => bbox.classId >= 12)
-            .map(bbox => bbox.classId)))
-            .map(classId => {
-              const jsonEntry = jsonData.find((entry: any) => entry.apiID === classId);
-              return {
-                id: classId,
-                name: jsonEntry ? jsonEntry.russian_name : 'Неизвестно',
-                color: jsonEntry ? `rgb(${jsonEntry.color.join(',')})` : '#808080',
-                hotkey: ''
-              };
-            })
-        ).map((defectClass) => {
+        {DEFECT_CLASSES.map((defectClass) => {
           const count = getClassCount(defectClass.id);
           const isActive = activeClassId === defectClass.id;
           const selectedBbox = annotations.selectedObjectId && annotations.selectedObjectType === 'bbox' 
@@ -122,37 +108,34 @@ export const Sidebar: React.FC<SidebarProps> = ({
         })}
       </div>
       
-      {/* Показываем информацию о неизвестных классах */}
-      {annotations.boundingBoxes.some(bbox => bbox.apiClassName && !jsonData.find((entry: any) => entry.name.toLowerCase().trim() === bbox.apiClassName!.toLowerCase().trim())) && (
+      {/* Показываем информацию о классах от API */}
+      {annotations.boundingBoxes.some(bbox => bbox.classId >= 12) && (
         <div className="mt-6 pt-4 border-t border-gray-200">
-          <h3 className="text-sm font-semibold text-gray-700 mb-2">Обнаруженные классы:</h3>
+          <h3 className="text-sm font-semibold text-gray-700 mb-2">Обнаружено объектов:</h3>
           <div className="space-y-1 text-xs text-gray-600">
-            {Array.from(new Set(
+            {Array.from(new Map(
               annotations.boundingBoxes
-                .filter(bbox => bbox.apiClassName && !jsonData.find((entry: any) => entry.name.toLowerCase().trim() === bbox.apiClassName!.toLowerCase().trim()))
-                .map(bbox => bbox.apiClassName)
-            )).map(className => (
-              <div key={className} className="flex items-center space-x-2">
+                .filter(bbox => bbox.classId >= 12)
+                .map(bbox => {
+                  const jsonEntry = jsonData.find((entry: any) => entry.apiID === bbox.classId);
+                  return [bbox.classId, {
+                    name: jsonEntry ? jsonEntry.russian_name : 'Неизвестно',
+                    color: jsonEntry ? jsonEntry.color : [128, 128, 128],
+                    count: annotations.boundingBoxes.filter(b => b.classId === bbox.classId).length
+                  }];
+                })
+            ).values()).map((classInfo: any, index) => (
+              <div key={index} className="flex items-center space-x-2">
                 <div 
                   className="w-3 h-3 border rounded"
                   style={{
-                    backgroundColor: (() => {
-                      const bbox = annotations.boundingBoxes.find(b => b.apiClassName === className && b.apiColor);
-                      if (bbox?.apiColor) {
-                        const [r, g, b] = bbox.apiColor;
-                        return `rgb(${r}, ${g}, ${b})`;
-                      }
-                      return '#808080';
-                    })()
+                    backgroundColor: `rgb(${classInfo.color[0]}, ${classInfo.color[1]}, ${classInfo.color[2]})`
                   }}
                 />
-                <span>{className}</span>
+                <span>{classInfo.name} ({classInfo.count})</span>
               </div>
             ))}
           </div>
-          <p className="text-xs text-gray-500 mt-2">
-            Выберите объект и измените класс вручную
-          </p>
         </div>
       )}
     </div>
