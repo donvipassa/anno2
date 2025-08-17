@@ -55,7 +55,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <h2 className="text-sm font-semibold text-gray-700 mb-4">Классы дефектов</h2>
       
       <div className="space-y-2">
-        {DEFECT_CLASSES.map((defectClass) => {
+        {DEFECT_CLASSES.concat(
+          // Добавляем классы от API, которые есть в аннотациях
+          Array.from(new Set(annotations.boundingBoxes
+            .filter(bbox => bbox.classId >= 12)
+            .map(bbox => bbox.classId)))
+            .map(classId => {
+              const jsonEntry = jsonData.find((entry: any) => entry.apiID === classId);
+              return {
+                id: classId,
+                name: jsonEntry ? jsonEntry.russian_name : 'Неизвестно',
+                color: jsonEntry ? `rgb(${jsonEntry.color.join(',')})` : '#808080',
+                hotkey: ''
+              };
+            })
+        ).map((defectClass) => {
           const count = getClassCount(defectClass.id);
           const isActive = activeClassId === defectClass.id;
           const selectedBbox = annotations.selectedObjectId && annotations.selectedObjectType === 'bbox' 
