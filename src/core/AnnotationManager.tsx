@@ -196,10 +196,25 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setAnnotations(prev => ({
       ...prev,
       densityPoints: prev.densityPoints.map(point => {
-        // Получаем координаты точки на canvas
-        const rect = canvas.getBoundingClientRect();
-        const canvasX = point.x; // Это уже координаты в canvas
-        const canvasY = point.y;
+        // Нужно преобразовать координаты изображения в координаты canvas
+        // Получаем текущее состояние изображения из DOM
+        const imageElement = canvas.parentElement?.querySelector('canvas');
+        if (!imageElement) return point;
+        
+        // Получаем текущий масштаб и смещение из стилей canvas или другим способом
+        // Для простоты, попробуем получить пиксель напрямую по координатам изображения
+        const canvasRect = canvas.getBoundingClientRect();
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        
+        // Преобразуем координаты изображения в координаты canvas
+        // Это требует знания текущего масштаба и смещения
+        // Попробуем найти соответствующий пиксель
+        let canvasX = Math.round(point.x);
+        let canvasY = Math.round(point.y);
+        
+        // Ограничиваем координаты размерами canvas
+        canvasX = Math.max(0, Math.min(canvasX, canvas.width - 1));
+        canvasY = Math.max(0, Math.min(canvasY, canvas.height - 1));
         
         try {
           const imageData = ctx.getImageData(canvasX, canvasY, 1, 1);
