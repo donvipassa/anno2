@@ -321,11 +321,13 @@ const AppContent: React.FC = () => {
   };
 
   const handleCalibrationLineFinished = (lineData: any, isNew: boolean) => {
+    console.log('handleCalibrationLineFinished вызвана:', { lineData, isNew });
     const defaultLength = isNew ? '50' : (annotations.calibrationLine?.realLength?.toString() || '50');
     
     setCalibrationInputValue(defaultLength);
     
     if (isNew) {
+      console.log('Сохраняем новую линию в pendingCalibrationLine:', lineData);
       setPendingCalibrationLine(lineData);
     }
     
@@ -336,9 +338,11 @@ const AppContent: React.FC = () => {
           action: () => {
             if (isNew) {
               // Если это новая линия, удаляем её
+              console.log('Отмена: удаляем новую линию');
               setPendingCalibrationLine(null);
             } else {
               // Если редактируем существующую, оставляем как было
+              console.log('Отмена: оставляем существующую линию без изменений');
             }
             setCalibrationInputValue('50');
             closeModal();
@@ -348,6 +352,10 @@ const AppContent: React.FC = () => {
           text: 'Применить', 
           action: () => {
             console.log('Применить нажато, значение:', calibrationInputValue);
+            console.log('isNew:', isNew);
+            console.log('pendingCalibrationLine:', pendingCalibrationLine);
+            console.log('annotations.calibrationLine:', annotations.calibrationLine);
+            
             const realLength = parseFloat(calibrationInputValue.toString());
             if (isNaN(realLength) || realLength <= 0) {
               alert('Пожалуйста, введите корректное положительное число');
@@ -356,11 +364,18 @@ const AppContent: React.FC = () => {
             
             try {
               // Определяем, какую линию использовать для расчетов
-              const lineToCalculateFrom = isNew ? pendingCalibrationLine : annotations.calibrationLine;
+              let lineToCalculateFrom;
+              if (isNew) {
+                lineToCalculateFrom = pendingCalibrationLine;
+                console.log('Используем pendingCalibrationLine для новой линии:', lineToCalculateFrom);
+              } else {
+                lineToCalculateFrom = annotations.calibrationLine;
+                console.log('Используем существующую calibrationLine:', lineToCalculateFrom);
+              }
               
               if (!lineToCalculateFrom) {
-                console.error('Нет данных линии для расчета');
-                alert('Ошибка: нет данных линии для расчета');
+                console.error('Нет данных линии для расчета. isNew:', isNew, 'pendingCalibrationLine:', pendingCalibrationLine, 'calibrationLine:', annotations.calibrationLine);
+                alert('Ошибка: нет данных линии для расчета. Попробуйте нарисовать линию заново.');
                 return;
               }
               
