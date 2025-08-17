@@ -265,23 +265,23 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       let className: string;
       
       if (bbox.apiId !== undefined && bbox.apiClassName) {
-        console.log('Has API data, classId:', bbox.classId);
+      if (bbox.apiId !== undefined && bbox.apiClassName) {
         // Есть данные от API
         if (bbox.classId !== 10) {
           // Класс был изменен пользователем - используем новый classId и название
-          console.log('Class was changed by user');
+          console.log('Class was changed by user from', bbox.apiClassName, 'to classId', bbox.classId);
           exportId = bbox.classId;
           const defectClass = DEFECT_CLASSES.find(c => c.id === bbox.classId);
           className = defectClass?.name || 'Неизвестно';
         } else {
           // Класс не изменен - используем оригинальные данные от API
-          console.log('Using original API data');
+          console.log('Using original API data:', bbox.apiId, bbox.apiClassName);
           exportId = bbox.apiId;
           className = bbox.apiClassName;
         }
       } else {
-        // Рамка создана вручную - используем наши данные
-        console.log('Manual bbox, no API data');
+        // Рамка создана вручную или нет данных от API
+        console.log('Manual bbox or no API data, using classId:', bbox.classId);
         exportId = bbox.classId;
         const defectClass = DEFECT_CLASSES.find(c => c.id === bbox.classId);
         className = defectClass?.name || 'Неизвестно';
