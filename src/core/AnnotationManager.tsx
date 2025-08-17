@@ -263,30 +263,28 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       
       // Для объектов от API используем их данные напрямую
       if (bbox.apiId !== undefined && bbox.apiClassName) {
-        console.log('Using API data:', bbox.apiId, bbox.apiClassName);
-        const exportId = bbox.apiId;
-        const className = bbox.apiClassName;
-        const safeClassName = className.replace(/[^\u0000-\u007F\u0400-\u04FF\s]/g, '?');
-        return `${exportId} ${centerX.toFixed(6)} ${centerY.toFixed(6)} ${width.toFixed(6)} ${height.toFixed(6)}   # ${safeClassName}`;
-      } else {
-        // Рамка создана вручную
-        console.log('Manual bbox or no API data, using classId:', bbox.classId);
-        const exportId = bbox.classId;
-        const defectClass = DEFECT_CLASSES.find(c => c.id === bbox.classId);
-        const className = defectClass?.name || 'Неизвестно';
-        const safeClassName = className.replace(/[^\u0000-\u007F\u0400-\u04FF\s]/g, '?');
-        return `${exportId} ${centerX.toFixed(6)} ${centerY.toFixed(6)} ${width.toFixed(6)} ${height.toFixed(6)}   # ${safeClassName}`;
-      }
-    }).join('\n');
-  }, [annotations.boundingBoxes]);
-
-  return (
-    <AnnotationContext.Provider
-      value={{
-        markupModified,
-        setMarkupModifiedState,
-        annotations,
-        addBoundingBox,
+        // Ищем соответствие в JSON файле
+        const jsonEntry = jsonData.find((entry: any) => {
+          const entryName = entry.name.toLowerCase().trim();
+          const detectionClass = bbox.apiClassName!.toLowerCase().trim();
+          return entryName === detectionClass;
+        });
+        
+        if (jsonEntry) {
+          // Найдено в JSON - используем apiID и russian_name из JSON
+          const exportId = (jsonEntry as any).apiID;
+          const className = (jsonEntry as any).russian_name;
+          const safeClassName = className.replace(/[^\u0000-\u007F\u0400-\u04FF\s]/g, '?');
+          console.log('Found in JSON for export:', { exportId, className });
+          return `${exportId} ${centerX.toFixed(6)} ${centerY.toFixed(6)} ${width.toFixed(6)} ${height.toFixed(6)}   # ${safeClassName}`;
+        } else {
+          // Не найдено в JSON - используем оригинальные данные от API
+          const exportId = bbox.apiId;
+          const className = bbox.apiClassName;
+          const safeClassName = className.replace(/[^\u0000-\u007F\u0400-\u04FF\s]/g, '?');
+          console.log('Not found in JSON, using API data:', { exportId, className });
+          return `${exportId} ${centerX.toFixed(6)} ${centerY.toFixed(6)} ${width.toFixed(6)} ${height.toFixed(6)}   # ${safeClassName}`;
+        }
         updateBoundingBox,
         deleteBoundingBox,
         addRuler,

@@ -240,31 +240,8 @@ const AppContent: React.FC = () => {
       detections.forEach(detection => {
         const bbox = convertApiBboxToPixels(detection.bbox);
         
-        let classId: number;
-        
-        // Ищем соответствие в JSON файле по названию класса
-        const jsonEntry = jsonData.find((entry: any) => {
-          const entryName = entry.name.toLowerCase().trim();
-          const detectionClass = detection.class.toLowerCase().trim();
-          return entryName === detectionClass;
-        });
-        
-        if (jsonEntry) {
-          // Найдено в JSON - используем apiID из JSON как classId  
-          classId = (jsonEntry as any).apiID;
-          console.log('Found in JSON:', {
-            originalClass: detection.class,
-            jsonEntry: jsonEntry,
-            assignedClassId: classId
-          });
-        } else {
-          // Не найдено в JSON - используем стандартное сопоставление
-          classId = mapApiClassToDefectClassId(detection.class);
-          console.log('Not found in JSON, using standard mapping:', {
-            originalClass: detection.class,
-            mappedClassId: classId
-          });
-        }
+        // Всегда используем класс "Другое" для объектов от API
+        const classId = 10;
         
         addBoundingBox({
           x: bbox.x,
@@ -290,7 +267,7 @@ const AppContent: React.FC = () => {
     } finally {
       setIsProcessingAutoAnnotation(false);
     }
-  }, [imageState.file, addBoundingBox, setMarkupModifiedState]);
+  }, [imageState.file, addBoundingBox]);
 
   const handleHelp = () => {
     showModal('help', 'О программе', 'Автор и разработчик Алексей Сотников\nТехнопарк "Университетские технологии"', [

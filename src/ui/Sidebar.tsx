@@ -19,17 +19,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { imageState } = useImage();
 
   const getClassCount = (classId: number): number => {
-    if (classId === 10) {
-      // Для класса "Другое" считаем только те, которые действительно имеют classId = 10
-      // и НЕ имеют данных от API (т.е. созданы вручную)
-      return annotations.boundingBoxes.filter(bbox => 
-        bbox.classId === 10 && (!bbox.apiId || !bbox.apiClassName)
-      ).length;
-    }
-    return annotations.boundingBoxes.filter(bbox => {
-      // Для остальных классов считаем по classId, но исключаем объекты от API
-      return bbox.classId === classId && (!bbox.apiId || !bbox.apiClassName);
-    }).length;
+    return annotations.boundingBoxes.filter(bbox => bbox.classId === classId).length;
   };
 
   const handleClassClick = (classId: number) => {
