@@ -66,7 +66,17 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setAnnotations(prev => ({
       ...prev,
       boundingBoxes: prev.boundingBoxes.map(box =>
-        box.id === id ? { ...box, ...updates } : box
+        box.id === id ? { 
+          ...box, 
+          ...updates,
+          // Если изменяется classId на стандартный класс (0-10), очищаем API данные
+          ...(updates.classId !== undefined && updates.classId <= 10 ? {
+            apiClassName: undefined,
+            apiColor: undefined,
+            apiId: undefined,
+            confidence: undefined
+          } : {})
+        } : box
       )
     })); 
     setMarkupModified(true);
@@ -258,7 +268,7 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         classId: bbox.classId,
         apiId: bbox.apiId,
         apiClassName: bbox.apiClassName,
-        isFromAPI: bbox.apiId !== undefined && bbox.apiClassName !== undefined
+        isFromAPI: bbox.apiClassName !== undefined && bbox.classId >= 12
       });
       
       // Используем classId как ID для экспорта
@@ -266,7 +276,7 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       
       // Определяем название класса для комментария
       let className = '';
-      if (bbox.apiClassName) {
+      if (bbox.apiClassName && bbox.classId >= 12) {
         // Если это объект от API, ищем русское название в JSON
         const jsonEntry = jsonData.find((entry: any) => entry.apiID === bbox.classId);
         className = jsonEntry ? jsonEntry.russian_name : bbox.apiClassName;
