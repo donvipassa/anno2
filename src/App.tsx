@@ -33,7 +33,13 @@ const AppContent: React.FC = () => {
     setCalibrationLine,
     updateCalibrationLine,
     markupModified,
-    setMarkupModifiedState
+    setMarkupModifiedState,
+    recalculateAllDensityPoints,
+    deleteBoundingBox,
+    deleteRuler,
+    deleteCalibrationLine,
+    deleteDensityPoint
+    recalculateAllDensityPoints
   } = useAnnotations();
   const { calibration, setScale: setCalibrationScale } = useCalibration();
   const [markupFileName, setMarkupFileName] = useState<string | null>(null);
