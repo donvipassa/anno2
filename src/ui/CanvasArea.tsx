@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useImage } from '../core/ImageProvider';
 import { useAnnotations } from '../core/AnnotationManager';
+import { useCalibration } from '../core/CalibrationManager';
 import { DEFECT_CLASSES } from '../types';
 import { drawBoundingBox, isPointInBox, isPointOnBoxBorder, getResizeHandle } from '../utils/canvas';
 import jsonData from '../utils/JSON_data.json';
@@ -30,6 +31,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const { imageState, setOffset, zoomToPoint } = useImage();
   const { fitToCanvas } = useImage();
+  const { getLength } = useCalibration();
   const { 
     annotations, 
     addBoundingBox, 
@@ -266,19 +268,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
       // Длина
       const pixelLength = Math.sqrt((ruler.x2 - ruler.x1) ** 2 + (ruler.y2 - ruler.y1) ** 2);
       
-      // Используем калибровку если она установлена
-      let lengthText;
-      if (annotations.calibrationLine) {
-        const calibrationPixelLength = Math.sqrt(
-          (annotations.calibrationLine.x2 - annotations.calibrationLine.x1) ** 2 + 
-          (annotations.calibrationLine.y2 - annotations.calibrationLine.y1) ** 2
-        );
-        const scale = annotations.calibrationLine.realLength / calibrationPixelLength;
-        const lengthInMm = pixelLength * scale;
-        lengthText = `${lengthInMm.toFixed(1)} мм`;
-      } else {
-        lengthText = `${pixelLength.toFixed(0)} px`;
-      }
+      const lengthText = getLength(pixelLength);
       
       ctx.fillStyle = '#FFFF00';
       ctx.font = 'bold 14px Arial';
