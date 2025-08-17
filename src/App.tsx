@@ -684,20 +684,32 @@ const AppContent: React.FC = () => {
           style={{ left: contextMenu.x, top: contextMenu.y }}
         >
           <button
-            className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+            className={`block w-full text-left px-4 py-2 text-sm ${
+              annotations.densityPoints.length === 0 
+                ? 'text-gray-400 cursor-not-allowed' 
+                : 'hover:bg-gray-100 text-gray-900'
+            }`}
             onClick={() => {
-              clearAllDensityPoints();
-              handleCloseContextMenu();
+              if (annotations.densityPoints.length > 0) {
+                clearAllDensityPoints();
+                handleCloseContextMenu();
+              }
             }}
             disabled={annotations.densityPoints.length === 0}
           >
             Очистить все измерения плотности
           </button>
           <button
-            className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+            className={`block w-full text-left px-4 py-2 text-sm ${
+              annotations.rulers.length === 0 
+                ? 'text-gray-400 cursor-not-allowed' 
+                : 'hover:bg-gray-100 text-gray-900'
+            }`}
             onClick={() => {
-              clearAllRulers();
-              handleCloseContextMenu();
+              if (annotations.rulers.length > 0) {
+                clearAllRulers();
+                handleCloseContextMenu();
+              }
             }}
             disabled={annotations.rulers.length === 0}
           >
