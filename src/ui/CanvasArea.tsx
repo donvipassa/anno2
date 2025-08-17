@@ -1093,6 +1093,14 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
         case 'e':
         case 'w':
           return 'e-resize';
+        case 'ew-resize':
+          return 'ew-resize';
+        case 'ns-resize':
+          return 'ns-resize';
+        case 'nwse-resize':
+          return 'nwse-resize';
+        case 'nesw-resize':
+          return 'nesw-resize';
         case 'pointer':
           return 'pointer';
         default:
