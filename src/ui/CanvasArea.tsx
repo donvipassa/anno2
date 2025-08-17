@@ -590,11 +590,36 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
         newHandle = getResizeHandle(coords.x, coords.y, selectedBbox, imageState.scale);
       }
       
-      // Если не на handle, проверяем наведение на bbox
+      // Если не на handle, проверяем наведение на другие объекты
       if (!newHandle) {
+        // Проверка наведения на точку плотности
+        const hoveredDensityPoint = getDensityPointAtPoint(coords.x, coords.y);
+        if (hoveredDensityPoint) {
+          newHandle = 'pointer';
+        }
+      }
+      
+      if (!newHandle) {
+        // Проверка наведения на линейку
+        const hoveredRuler = getRulerAtPoint(coords.x, coords.y);
+        if (hoveredRuler) {
+          newHandle = 'pointer';
+        }
+      }
+      
+      if (!newHandle) {
+        // Проверка наведения на калибровочную линию
+        const hoveredCalibrationLine = getCalibrationLineAtPoint(coords.x, coords.y);
+        if (hoveredCalibrationLine) {
+          newHandle = 'pointer';
+        }
+      }
+      
+      if (!newHandle) {
+        // Проверка наведения на bbox
         const hoveredBbox = getBboxAtPoint(coords.x, coords.y);
         if (hoveredBbox) {
-          newHandle = 'move';
+          newHandle = 'pointer';
         }
       }
       
@@ -1008,7 +1033,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
         case 'e':
         case 'w':
           return 'e-resize';
-        case 'move':
+        case 'pointer':
           return 'pointer';
         default:
           return 'default';
