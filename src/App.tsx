@@ -318,9 +318,69 @@ const AppContent: React.FC = () => {
     if (annotations.calibrationLine) {
       // При редактировании устанавливаем текущее значение
       const currentValue = annotations.calibrationLine.realLength.toString();
+      console.log('handleEditCalibration: текущее значение', currentValue);
+      
+      showModal('calibration', 'Калибровка масштаба', 'Укажите реальный размер эталона для установки масштаба (мм):',
+        [
+          { 
+            text: 'Отмена', 
+            action: () => {
+              console.log('Отмена калибровки');
+              closeModal();
+            }
+          },
+          { 
+            text: 'Применить', 
+            action: () => {
+              const inputValue = calibrationInputValue;
+              console.log('Применить нажато, значение:', inputValue);
+              
+              const realLength = parseFloat(inputValue);
+              if (isNaN(realLength) || realLength <= 0) {
+                alert('Пожалуйста, введите корректное положительное число');
+                return;
+              }
+              
+              try {
+                const lineToCalculateFrom = annotations.calibrationLine;
+                console.log('Используем существующую calibrationLine:', lineToCalculateFrom);
+                
+                if (!lineToCalculateFrom) {
+                  console.error('Нет данных линии для расчета');
+                  alert('Ошибка: нет данных линии для расчета');
+                  return;
+                }
+                
+                const pixelLength = Math.sqrt(
+                  (lineToCalculateFrom.x2 - lineToCalculateFrom.x1) ** 2 + 
+                  (lineToCalculateFrom.y2 - lineToCalculateFrom.y1) ** 2
+                );
+                
+                console.log('Пиксельная длина:', pixelLength);
+                
+                updateCalibrationLine({
+                  realLength: realLength
+                });
+                console.log('Обновлена калибровочная линия:', realLength, 'мм');
+                
+                const scale = realLength / pixelLength;
+                setCalibrationScale(pixelLength, realLength);
+                console.log('Установлен масштаб:', scale, 'мм/пиксель');
+
+                closeModal();
+              } catch (error) {
+                console.error('Ошибка при установке калибровки:', error);
+                closeModal();
+                alert('Произошла ошибка при установке калибровки');
+              }
+            },
+            primary: true
+          }
+        ]
+      );
+      
+      // Устанавливаем значение ПОСЛЕ показа модального окна
       setCalibrationInputValue(currentValue);
-      console.log('handleEditCalibration: установлено значение', currentValue);
-      handleCalibrationLineFinished(annotations.calibrationLine, false);
     }
   };
 
@@ -339,13 +399,8 @@ const AppContent: React.FC = () => {
     
     setCalibrationInputValue(defaultLength);
     
-    showModal('calibration', 'Калибровка масштаба', 'Укажите реальный размер эталона для установки масштаба (мм):',
-      [
-        { 
           text: 'Отмена', 
           action: () => {
-            console.log('Отмена калибровки');
-            closeModal();
             setCalibrationInputValue('50');
           }
         },
@@ -353,7 +408,6 @@ const AppContent: React.FC = () => {
           text: 'Применить', 
           action: () => {
             // Сохраняем текущее значение из поля ввода
-            const inputValue = calibrationInputValue.toString();
             console.log('Применить нажато, значение:', inputValue);
             console.log('isNew:', isNew);
             console.log('lineData:', lineData);
@@ -413,7 +467,6 @@ const AppContent: React.FC = () => {
 
               // Закрываем модальное окно и сбрасываем значение ПОСЛЕ всех операций
               closeModal();
-              setCalibrationInputValue('50');
             } catch (error) {
               console.error('Ошибка при установке калибровки:', error);
               closeModal();
@@ -424,6 +477,9 @@ const AppContent: React.FC = () => {
         }
       ]
     );
+    
+    // Устанавливаем значение ПОСЛЕ показа модального окна
+    setCalibrationInputValue(defaultLength);
   };
 
   const handleShowContextMenu = (x: number, y: number) => {
