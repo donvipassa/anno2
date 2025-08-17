@@ -160,8 +160,10 @@ export function drawBoundingBox(
   // Формируем текст подписи
   let labelText = defectClass.name;
   
-  // Если есть оригинальное название класса от API, используем его
-  if (box.apiClassName && box.apiClassName.toLowerCase() !== defectClass.name.toLowerCase()) {
+  // Если есть оригинальное название класса от API и класс не был изменен пользователем, используем его
+  // Считаем, что класс был изменен, если текущий classId отличается от исходного apiId или если apiId отсутствует
+  const classWasChanged = box.apiId !== undefined && box.classId !== box.apiId;
+  if (box.apiClassName && box.apiClassName.toLowerCase() !== defectClass.name.toLowerCase() && !classWasChanged) {
     labelText = box.apiClassName;
   }
   
