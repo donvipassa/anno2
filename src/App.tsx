@@ -16,7 +16,7 @@ import { mapApiClassToDefectClassId, convertApiBboxToPixels } from './utils/anno
 
 const AppContent: React.FC = () => {
   const { imageState, loadImage, setScale, toggleInversion, resetView, fitToCanvas, zoomIn, zoomOut, zoomReset } = useImage();
-  const { annotations, getYOLOExport, clearAllRulers, clearAllDensityPoints, loadAnnotations, clearAll, selectObject, addBoundingBox, updateBoundingBox } = useAnnotations();
+  const { annotations, getYOLOExport, clearAllRulers, clearAllDensityPoints, loadAnnotations, clearAll, selectObject, addBoundingBox } = useAnnotations();
   const { calibration, setScale: setCalibrationScale } = useCalibration();
 
   const [activeTool, setActiveTool] = useState<string>('');
@@ -179,15 +179,6 @@ const AppContent: React.FC = () => {
   const handleClassSelect = useCallback((classId: number) => {
     if (!imageState.src) return;
     
-    // Если есть выделенный bbox, изменяем его класс
-    if (annotations.selectedObjectId && annotations.selectedObjectType === 'bbox') {
-      const selectedBbox = annotations.boundingBoxes.find(bbox => bbox.id === annotations.selectedObjectId);
-      if (selectedBbox) {
-        updateBoundingBox(selectedBbox.id, { classId });
-        setMarkupModified(true);
-      }
-    }
-    
     setActiveClassId(classId);
     setActiveTool('bbox');
   }, [imageState.src]);
@@ -329,37 +320,15 @@ const AppContent: React.FC = () => {
       } else if ('0123456789'.includes(key)) {
         e.preventDefault();
         const classId = parseInt(key);
-        // Если есть выделенный bbox, изменяем его класс напрямую
-        if (annotations.selectedObjectId && annotations.selectedObjectType === 'bbox') {
-          const selectedBbox = annotations.boundingBoxes.find(bbox => bbox.id === annotations.selectedObjectId);
-          if (selectedBbox) {
-            updateBoundingBox(selectedBbox.id, { classId });
-            setActiveClassId(classId);
-            setMarkupModified(true);
-          }
-        } else {
-          handleClassSelect(classId);
-        }
+        handleClassSelect(classId);
       } else if (key === '-') {
         e.preventDefault();
-        // Если есть выделенный bbox, изменяем его класс напрямую
-        if (annotations.selectedObjectId && annotations.selectedObjectType === 'bbox') {
-          const selectedBbox = annotations.boundingBoxes.find(bbox => bbox.id === annotations.selectedObjectId);
-          if (selectedBbox) {
-            updateBoundingBox(selectedBbox.id, { classId: 10 });
-            setActiveClassId(10);
-            setMarkupModified(true);
-          }
-        } else {
-          handleClassSelect(10);
-        }
+        handleClassSelect(10);
       }
   }, [
     handleOpenFile, handleSaveMarkup, zoomIn, zoomOut, zoomReset, fitToCanvas, 
     toggleInversion, setActiveTool, layerVisible, setLayerVisible, filterActive, 
-    setFilterActive, handleHelp, selectObject, handleDeleteSelected, handleClassSelect,
-    annotations.selectedObjectId, annotations.selectedObjectType, annotations.boundingBoxes,
-    updateBoundingBox, setActiveClassId, setMarkupModified
+    setFilterActive, handleHelp, selectObject, handleDeleteSelected, handleClassSelect
   ]);
 
   useEffect(() => {
