@@ -33,8 +33,7 @@ const AppContent: React.FC = () => {
     setCalibrationLine,
     updateCalibrationLine,
     markupModified,
-    setMarkupModifiedState,
-    recalculateAllDensityPoints
+    setMarkupModifiedState
   } = useAnnotations();
   const { calibration, setScale: setCalibrationScale } = useCalibration();
   const [markupFileName, setMarkupFileName] = useState<string | null>(null);
@@ -599,6 +598,13 @@ const AppContent: React.FC = () => {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [markupModified]); // Use markupModified from context
   
+  // Пересчет плотности при инверсии изображения
+  useEffect(() => {
+    if (imageState.imageElement && annotations.densityPoints.length > 0) {
+      recalculateAllDensityPoints(imageState.imageElement, imageState.inverted);
+    }
+  }, [imageState.inverted, imageState.imageElement, recalculateAllDensityPoints]);
+
   return (
     <div className="h-screen flex flex-col bg-gray-100">
       <Header />
