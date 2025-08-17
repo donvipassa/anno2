@@ -1,4 +1,4 @@
-import jsonData from '../assets/data/defect-classes.json';
+import jsonData from './JSON_data.json';
 
 export const API_CLASS_TO_DEFECT_CLASS_ID_MAP: { [key: string]: number } = {
   "crack": 0, // Трещины
