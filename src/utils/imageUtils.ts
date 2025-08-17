@@ -46,17 +46,86 @@ export const saveImageAsFile = (
     { id: 10, name: 'Другое', color: '#808080' }
   ];
 
+  // Импортируем JSON данные для классов от API
+  const jsonData = [
+    {
+      "apiID": 12,
+      "name": "Defect",
+      "russian_name": "дефекты",
+      "color": [0, 225, 255]
+    },
+    {
+      "apiID": 13,
+      "name": "Duplex standard",
+      "russian_name": "Эталон Duplex",
+      "color": [24, 8, 253]
+    },
+    {
+      "apiID": 14,
+      "name": "marking mark",
+      "russian_name": "Маркировочные знаки",
+      "color": [255, 163, 158]
+    },
+    {
+      "apiID": 15,
+      "name": "measuring belt",
+      "russian_name": "Мерный пояс",
+      "color": [37, 211, 13]
+    },
+    {
+      "apiID": 16,
+      "name": "sensitivity standard",
+      "russian_name": "Канавочный эталон",
+      "color": [243, 244, 210]
+    },
+    {
+      "apiID": 17,
+      "name": "welding seam",
+      "russian_name": "Линейный сварной шов",
+      "color": [158, 165, 255]
+    },
+    {
+      "apiID": 18,
+      "name": "wire standard",
+      "russian_name": "Проволочный эталон",
+      "color": [255, 5, 234]
+    },
+    {
+      "apiID": 19,
+      "name": "Text",
+      "russian_name": "Текстовые комментарии",
+      "color": [255, 13, 0]
+    },
+    {
+      "apiID": 20,
+      "name": "welding seam - circular",
+      "russian_name": "Круговой сварной шов (на эллипс)",
+      "color": [238, 255, 0]
+    }
+  ];
   // Рисуем bounding boxes
   annotations.boundingBoxes?.forEach((bbox: any) => {
-    const defectClass = DEFECT_CLASSES.find(c => c.id === bbox.classId);
-    if (!defectClass) return;
+    let defectClass = DEFECT_CLASSES.find(c => c.id === bbox.classId);
+    let strokeColor = '#808080'; // цвет по умолчанию
+    let labelText = 'Неизвестно';
 
-    // Определяем цвет рамки
-    let strokeColor = defectClass.color;
-    if (bbox.classId === 10 && bbox.apiColor) {
-      // Для класса "Другое" используем оригинальный цвет от API, если он есть
+    if (defectClass) {
+      // Стандартный класс дефектов
+      strokeColor = defectClass.color;
+      labelText = defectClass.name;
+    } else if (bbox.classId >= 12) {
+      // Класс от API - ищем в JSON данных
+      const jsonEntry = jsonData.find((entry: any) => entry.apiID === bbox.classId);
+      if (jsonEntry) {
+        const [r, g, b] = jsonEntry.color;
+        strokeColor = `rgb(${r}, ${g}, ${b})`;
+        labelText = jsonEntry.russian_name || jsonEntry.name;
+      }
+    } else if (bbox.apiColor) {
+      // Используем цвет от API если есть
       const [r, g, b] = bbox.apiColor;
       strokeColor = `rgb(${r}, ${g}, ${b})`;
+      labelText = bbox.apiClassName || 'Неизвестно';
     }
 
     ctx.strokeStyle = strokeColor;
@@ -67,11 +136,7 @@ export const saveImageAsFile = (
     ctx.fillStyle = strokeColor;
     ctx.font = '16px Arial';
     
-    // Формируем текст подписи
-    let labelText = defectClass.name;
-    if (bbox.apiClassName && bbox.apiClassName.toLowerCase() !== defectClass.name.toLowerCase()) {
-      labelText = bbox.apiClassName;
-    }
+    // Добавляем уверенность для объектов от API
     if (bbox.confidence !== undefined) {
       labelText += ` (${Math.round(bbox.confidence * 100)}%)`;
     }

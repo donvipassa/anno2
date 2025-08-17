@@ -215,14 +215,15 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     ctx.scale(imageState.scale, imageState.scale);
     
     annotations.boundingBoxes.forEach(bbox => {
-      if (filterActive && activeClassId !== bbox.classId) return;
+      if (filterActive && activeClassId >= 0 && activeClassId !== bbox.classId) return;
 
       drawBoundingBox(
         ctx,
         bbox,
         annotations.selectedObjectId === bbox.id,
         imageState.scale,
-        DEFECT_CLASSES
+        DEFECT_CLASSES,
+        jsonData
       );
     });
     
