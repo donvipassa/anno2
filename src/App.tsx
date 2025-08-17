@@ -326,24 +326,12 @@ const AppContent: React.FC = () => {
     
     setCalibrationInputValue(defaultLength);
     
-    if (isNew) {
-      console.log('Сохраняем новую линию в pendingCalibrationLine:', lineData);
-      setPendingCalibrationLine(lineData);
-    }
-    
     showModal('calibration', 'Калибровка масштаба', 'Укажите реальный размер эталона для установки масштаба (мм):',
       [
         { 
           text: 'Отмена', 
           action: () => {
-            if (isNew) {
-              // Если это новая линия, удаляем её
-              console.log('Отмена: удаляем новую линию');
-              setPendingCalibrationLine(null);
-            } else {
-              // Если редактируем существующую, оставляем как было
-              console.log('Отмена: оставляем существующую линию без изменений');
-            }
+            console.log('Отмена калибровки');
             setCalibrationInputValue('50');
             closeModal();
           }
@@ -353,7 +341,7 @@ const AppContent: React.FC = () => {
           action: () => {
             console.log('Применить нажато, значение:', calibrationInputValue);
             console.log('isNew:', isNew);
-            console.log('pendingCalibrationLine:', pendingCalibrationLine);
+            console.log('lineData:', lineData);
             console.log('annotations.calibrationLine:', annotations.calibrationLine);
             
             const realLength = parseFloat(calibrationInputValue.toString());
@@ -366,15 +354,15 @@ const AppContent: React.FC = () => {
               // Определяем, какую линию использовать для расчетов
               let lineToCalculateFrom;
               if (isNew) {
-                lineToCalculateFrom = pendingCalibrationLine;
-                console.log('Используем pendingCalibrationLine для новой линии:', lineToCalculateFrom);
+                lineToCalculateFrom = lineData;
+                console.log('Используем lineData для новой линии:', lineToCalculateFrom);
               } else {
                 lineToCalculateFrom = annotations.calibrationLine;
                 console.log('Используем существующую calibrationLine:', lineToCalculateFrom);
               }
               
               if (!lineToCalculateFrom) {
-                console.error('Нет данных линии для расчета. isNew:', isNew, 'pendingCalibrationLine:', pendingCalibrationLine, 'calibrationLine:', annotations.calibrationLine);
+                console.error('Нет данных линии для расчета. isNew:', isNew, 'lineData:', lineData, 'calibrationLine:', annotations.calibrationLine);
                 alert('Ошибка: нет данных линии для расчета. Попробуйте нарисовать линию заново.');
                 return;
               }
@@ -387,10 +375,10 @@ const AppContent: React.FC = () => {
               
               console.log('Пиксельная длина:', pixelLength);
               
-              if (isNew && pendingCalibrationLine) {
-                console.log('Создаем новую калибровочную линию:', pendingCalibrationLine);
+              if (isNew) {
+                console.log('Создаем новую калибровочную линию:', lineData);
                 setCalibrationLine({
-                  ...pendingCalibrationLine,
+                  ...lineData,
                   realLength: realLength
                 });
                 console.log('Создана новая калибровочная линия:', realLength, 'мм, пиксельная длина:', pixelLength);
@@ -407,7 +395,6 @@ const AppContent: React.FC = () => {
               console.log('Установлен масштаб:', scale, 'мм/пиксель');
               
               closeModal();
-              setPendingCalibrationLine(null);
               setCalibrationInputValue('50');
             } catch (error) {
               console.error('Ошибка при установке калибровки:', error);
