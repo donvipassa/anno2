@@ -38,7 +38,8 @@ const AppContent: React.FC = () => {
     deleteBoundingBox,
     deleteRuler,
     deleteCalibrationLine,
-    deleteDensityPoint
+    deleteDensityPoint,
+    recalculateAllDensityPoints
   } = useAnnotations();
   const { calibration, setScale: setCalibrationScale } = useCalibration();
   const [markupFileName, setMarkupFileName] = useState<string | null>(null);
@@ -255,12 +256,23 @@ const AppContent: React.FC = () => {
   }, [selectObject]);
 
   const handleDeleteSelected = useCallback(() => {
-    // Реализация удаления выделенного объекта
-    if (annotations.selectedObjectId) {
-      // The delete functions in AnnotationManager will call setMarkupModified(true)
-      setMarkupModifiedState(true);
+    if (annotations.selectedObjectId && annotations.selectedObjectType) {
+      switch (annotations.selectedObjectType) {
+        case 'boundingBox':
+          deleteBoundingBox(annotations.selectedObjectId);
+          break;
+        case 'ruler':
+          deleteRuler(annotations.selectedObjectId);
+          break;
+        case 'calibrationLine':
+          deleteCalibrationLine();
+          break;
+        case 'densityPoint':
+          deleteDensityPoint(annotations.selectedObjectId);
+          break;
+      }
     }
-  }, [annotations.selectedObjectId]);
+  }, [annotations.selectedObjectId, annotations.selectedObjectType, deleteBoundingBox, deleteRuler, deleteCalibrationLine, deleteDensityPoint]);
 
   const handleAutoAnnotate = useCallback(async () => {
     if (!imageState.file || autoAnnotationPerformed) {
@@ -582,11 +594,6 @@ const AppContent: React.FC = () => {
     handleOpenFile, handleSaveMarkup, zoomIn, zoomOut, zoomReset, fitToCanvas, 
     toggleInversion, setActiveTool, layerVisible, setLayerVisible, filterActive, 
     setFilterActive, handleHelp, selectObject, handleDeleteSelected, handleClassSelect, handleToolChange
-  ], [
-    handleOpenFile, handleSaveMarkup, zoomIn, zoomOut, zoomReset, fitToCanvas, 
-    toggleInversion, handleToolChange, layerVisible, setLayerVisible, filterActive, 
-    setFilterActive, handleHelp, selectObject, handleDeleteSelected, handleClassSelect,
-    deleteBoundingBox, deleteRuler, deleteCalibrationLine, deleteDensityPoint
   ]);
 
   useEffect(() => {
