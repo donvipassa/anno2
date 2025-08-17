@@ -135,18 +135,32 @@ export function drawBoundingBox(
   box: any,
   isSelected: boolean,
   scale: number,
-  defectClasses: any[]
+  defectClasses: any[],
+  jsonData?: any[]
 ) {
-  const defectClass = defectClasses.find(c => c.id === box.classId);
-  if (!defectClass) return;
+  let defectClass = defectClasses.find(c => c.id === box.classId);
+  let strokeColor = '#808080'; // цвет по умолчанию
+  let labelText = 'Неизвестно';
 
-  // Определяем цвет рамки
-  let strokeColor = defectClass.color;
-  if (box.classId === 10 && box.apiColor) {
-    // Для класса "Другое" используем оригинальный цвет от API, если он есть
+  if (defectClass) {
+    // Стандартный класс дефектов
+    strokeColor = defectClass.color;
+    labelText = defectClass.name;
+  } else if (jsonData && box.classId >= 12) {
+    // Класс от API - ищем в JSON данных
+    const jsonEntry = jsonData.find((entry: any) => entry.apiID === box.classId);
+    if (jsonEntry) {
+      const [r, g, b] = jsonEntry.color;
+      strokeColor = `rgb(${r}, ${g}, ${b})`;
+      labelText = jsonEntry.russian_name || jsonEntry.name;
+    }
+  } else if (box.apiColor) {
+    // Используем цвет от API если есть
     const [r, g, b] = box.apiColor;
     strokeColor = `rgb(${r}, ${g}, ${b})`;
+    labelText = box.apiClassName || 'Неизвестно';
   }
+
   // Рамка
   ctx.strokeStyle = strokeColor;
   ctx.lineWidth = (isSelected ? 4 : 2) / scale;
@@ -157,18 +171,8 @@ export function drawBoundingBox(
   ctx.fillStyle = strokeColor;
   ctx.font = `${Math.max(16 / scale, 12)}px Arial`;
   
-  // Формируем текст подписи
-  let labelText = defectClass.name;
-  
-  // Используем apiClassName только если класс соответствует классу "Другое" (ID: 10)
-  // и у нас есть оригинальное название от API
-  if (box.classId === 10 && box.apiClassName) {
-    labelText = box.apiClassName;
-  }
-  
-  // Добавляем уверенность, если она есть
-  // Добавляем уверенность только если класс не был изменен пользователем
-  if (box.confidence !== undefined && box.classId === 10 && box.apiClassName) {
+  // Добавляем уверенность для объектов от API
+  if (box.confidence !== undefined && box.apiClassName) {
     labelText += ` (${Math.round(box.confidence * 100)}%)`;
   }
   
