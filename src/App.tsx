@@ -230,6 +230,16 @@ const AppContent: React.FC = () => {
     setActiveTool('bbox');
   }, [imageState.src]);
 
+  const handleToolChange = useCallback((tool: string) => {
+    setActiveTool(tool);
+    
+    // Сбрасываем выделение и класс при выборе инструментов измерения
+    if (tool === 'density' || tool === 'ruler' || tool === 'calibration') {
+      selectObject(null, null);
+      setActiveClassId(-1);
+    }
+  }, [selectObject]);
+
   const handleDeleteSelected = useCallback(() => {
     // Реализация удаления выделенного объекта
     if (annotations.selectedObjectId) {
@@ -349,13 +359,13 @@ const AppContent: React.FC = () => {
         toggleInversion();
       } else if (key === 'd') {
         e.preventDefault();
-        setActiveTool('density');
+        handleToolChange('density');
       } else if (key === 'r') {
         e.preventDefault();
-        setActiveTool('ruler');
+        handleToolChange('ruler');
       } else if (key === 'c') {
         e.preventDefault();
-        setActiveTool('calibration');
+        handleToolChange('calibration');
       } else if (key === 'l') {
         e.preventDefault();
         setLayerVisible(!layerVisible);
@@ -367,7 +377,7 @@ const AppContent: React.FC = () => {
         handleHelp();
       } else if (key === 'escape') {
         e.preventDefault();
-        setActiveTool('');
+        handleToolChange('');
         setActiveClassId(-1);
         // Сброс выделения объектов
         selectObject(null, null);
@@ -385,7 +395,7 @@ const AppContent: React.FC = () => {
   }, [
     handleOpenFile, handleSaveMarkup, zoomIn, zoomOut, zoomReset, fitToCanvas, 
     toggleInversion, setActiveTool, layerVisible, setLayerVisible, filterActive, 
-    setFilterActive, handleHelp, selectObject, handleDeleteSelected, handleClassSelect
+    setFilterActive, handleHelp, selectObject, handleDeleteSelected, handleClassSelect, handleToolChange
   ]);
 
   useEffect(() => {
@@ -413,7 +423,7 @@ const AppContent: React.FC = () => {
       
       <Toolbar
         activeTool={activeTool}
-        onToolChange={setActiveTool}
+        onToolChange={handleToolChange}
         onOpenFile={handleOpenFile}
         onSaveMarkup={handleSaveMarkup}
         onAutoAnnotate={handleAutoAnnotate}
@@ -440,7 +450,7 @@ const AppContent: React.FC = () => {
           activeClassId={activeClassId}
           layerVisible={layerVisible}
           filterActive={filterActive}
-          onToolChange={setActiveTool}
+          onToolChange={handleToolChange}
           onSelectClass={setActiveClassId}
           onShowContextMenu={handleShowContextMenu}
         />

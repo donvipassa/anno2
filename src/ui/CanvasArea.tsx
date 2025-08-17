@@ -855,7 +855,9 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     // Сброс инструментов при одиночном клике по пустой области
     if (e.button === 0 && !isDrawing && !isDragging && !isResizing && 
         !annotations.selectedObjectId && activeTool !== 'density') {
-      onToolChange('');
+      if (activeTool !== 'density' && activeTool !== 'ruler' && activeTool !== 'calibration') {
+        onToolChange('');
+      }
       onSelectClass(-1);
     }
 
