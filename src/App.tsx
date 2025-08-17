@@ -92,7 +92,7 @@ const AppContent: React.FC = () => {
         
         // Очистка существующих аннотаций
         clearAll(); // This will call setMarkupModifiedState(false)
-        setMarkupModified(false);
+        setMarkupModifiedState(false);
         setMarkupFileName(null);
       } catch (error) {
         showModal('error', 'Ошибка', 'Не удалось загрузить изображение', [
@@ -126,7 +126,7 @@ const AppContent: React.FC = () => {
         if (yoloData.length === 0) {
           // Пустой файл разметки - это нормально
           setMarkupFileName(file.name);
-          setMarkupModified(false);
+          setMarkupModifiedState(false);
           showModal('info', 'Успех', 'Файл разметки соответствует файлу изображения. Загрузка подтверждена', [
             { text: 'Ок', action: closeModal }
           ]);
@@ -143,7 +143,7 @@ const AppContent: React.FC = () => {
           const boundingBoxes = yoloData.map(data => convertYOLOToPixels(data, imageState.width, imageState.height));
           loadAnnotations({ boundingBoxes });
           setMarkupFileName(file.name);
-          setMarkupModified(false);
+          setMarkupModifiedState(false);
 
           showModal('info', 'Успех', 'Файл разметки соответствует файлу изображения. Загрузка подтверждена', [
             { text: 'Ок', action: closeModal }
@@ -180,7 +180,7 @@ const AppContent: React.FC = () => {
     // Реализация удаления выделенного объекта
     if (annotations.selectedObjectId) {
       // The delete functions in AnnotationManager will call setMarkupModified(true)
-      setMarkupModified(true);
+      setMarkupModifiedState(true);
     }
   }, [annotations.selectedObjectId]);
 
@@ -227,7 +227,7 @@ const AppContent: React.FC = () => {
     } finally {
       setIsProcessingAutoAnnotation(false);
     }
-  }, [imageState.file, addBoundingBox, setMarkupModified]);
+  }, [imageState.file, addBoundingBox, setMarkupModifiedState]);
 
   const handleHelp = () => {
     showModal('help', 'О программе', 'Автор и разработчик Алексей Сотников\nТехнопарк "Университетские технологии"', [
