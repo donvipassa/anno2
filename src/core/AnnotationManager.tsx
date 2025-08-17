@@ -19,6 +19,7 @@ interface AnnotationContextType {
   addDensityPoint: (point: Omit<DensityPoint, 'id'>) => string;
   updateDensityPoint: (id: string, updates: Partial<DensityPoint>) => void;
   deleteDensityPoint: (id: string) => void;
+  recalculateAllDensityPoints: (imageElement: HTMLImageElement, inverted: boolean) => void;
   selectObject: (id: string | null, type: AnnotationState['selectedObjectType']) => void;
   clearAll: () => void;
   clearAllRulers: () => void;
@@ -188,6 +189,48 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setMarkupModified(true);
   }, []);
 
+  const recalculateAllDensityPoints = useCallback((imageElement: HTMLImageElement, inverted: boolean) => {
+    if (!imageElement || annotations.densityPoints.length === 0) return;
+
+    // Создаем временный canvas для получения пиксельных данных
+    const tempCanvas = document.createElement('canvas');
+    const tempCtx = tempCanvas.getContext('2d');
+    if (!tempCtx) return;
+
+    tempCanvas.width = imageElement.naturalWidth;
+    tempCanvas.height = imageElement.naturalHeight;
+    
+    // Рисуем оригинальное изображение без инверсии
+    tempCtx.drawImage(imageElement, 0, 0);
+
+    // Пересчитываем плотность для всех точек
+    annotations.densityPoints.forEach(point => {
+      const x = Math.floor(point.x);
+      const y = Math.floor(point.y);
+      
+      // Проверяем границы
+      if (x >= 0 && x < tempCanvas.width && y >= 0 && y < tempCanvas.height) {
+        const imageData = tempCtx.getImageData(x, y, 1, 1);
+        const r = imageData.data[0];
+        const g = imageData.data[1];
+        const b = imageData.data[2];
+        const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+        
+        // Рассчитываем плотность с учетом инверсии
+        let density;
+        if (inverted) {
+          // При инверсии: темные области становятся светлыми, поэтому инвертируем расчет
+          density = gray / 255;
+        } else {
+          // Обычный расчет: 0 = белый, 1 = черный
+          density = 1 - (gray / 255);
+        }
+        
+        // Обновляем точку с новым значением плотности
+        updateDensityPoint(point.id, { density });
+      }
+    });
+  }, [annotations.densityPoints, updateDensityPoint]);
   const selectObject = useCallback((id: string | null, type: AnnotationState['selectedObjectType']) => {
     setAnnotations(prev => ({
       ...prev,
@@ -310,6 +353,7 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         addDensityPoint,
         updateDensityPoint,
         deleteDensityPoint,
+        recalculateAllDensityPoints,
         selectObject,
         clearAll,
         clearAllRulers,
