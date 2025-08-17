@@ -583,6 +583,11 @@ const AppContent: React.FC = () => {
     handleOpenFile, handleSaveMarkup, zoomIn, zoomOut, zoomReset, fitToCanvas, 
     toggleInversion, setActiveTool, layerVisible, setLayerVisible, filterActive, 
     setFilterActive, handleHelp, selectObject, handleDeleteSelected, handleClassSelect, handleToolChange
+  ], [
+    handleOpenFile, handleSaveMarkup, zoomIn, zoomOut, zoomReset, fitToCanvas, 
+    toggleInversion, handleToolChange, layerVisible, setLayerVisible, filterActive, 
+    setFilterActive, handleHelp, selectObject, handleDeleteSelected, handleClassSelect,
+    deleteBoundingBox, deleteRuler, deleteCalibrationLine, deleteDensityPoint
   ]);
 
   useEffect(() => {
