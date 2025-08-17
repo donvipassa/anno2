@@ -31,6 +31,10 @@ const AppContent: React.FC = () => {
   const { calibration, setScale: setCalibrationScale } = useCalibration();
   const [markupFileName, setMarkupFileName] = useState<string | null>(null);
   const [isProcessingAutoAnnotation, setIsProcessingAutoAnnotation] = useState<boolean>(false);
+  const [activeTool, setActiveTool] = useState<string>('');
+  const [activeClassId, setActiveClassId] = useState<number>(-1);
+  const [layerVisible, setLayerVisible] = useState<boolean>(true);
+  const [filterActive, setFilterActive] = useState<boolean>(false);
 
   // Модальные окна
   const [modalState, setModalState] = useState<{
