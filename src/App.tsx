@@ -180,7 +180,21 @@ const AppContent: React.FC = () => {
           }
 
           // Конвертация YOLO в пиксельные координаты
-          const boundingBoxes = yoloData.map(data => convertYOLOToPixels(data, imageState.width, imageState.height));
+          const boundingBoxes = yoloData.map(data => {
+            const bbox = convertYOLOToPixels(data, imageState.width, imageState.height);
+            
+            // Если это класс от API (ID >= 12), добавляем информацию из JSON
+            if (data.classId >= 12) {
+              const jsonEntry = jsonData.find((entry: any) => entry.apiID === data.classId);
+              if (jsonEntry) {
+                bbox.apiClassName = jsonEntry.name;
+                bbox.apiColor = jsonEntry.color;
+                bbox.apiId = jsonEntry.apiID;
+              }
+            }
+            
+            return bbox;
+          });
           loadAnnotations({ boundingBoxes });
           setMarkupFileName(file.name);
           setMarkupModifiedState(false);

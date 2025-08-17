@@ -82,11 +82,24 @@ export const convertYOLOToPixels = (
   imageWidth: number,
   imageHeight: number
 ): any => {
-  return {
+  const bbox = {
     classId: yoloData.classId,
     x: (yoloData.centerX - yoloData.width / 2) * imageWidth,
     y: (yoloData.centerY - yoloData.height / 2) * imageHeight,
     width: yoloData.width * imageWidth,
     height: yoloData.height * imageHeight
   };
+  
+  // Если это класс от API (ID >= 12), добавляем информацию из JSON
+  if (yoloData.classId >= 12) {
+    const jsonData = await import('./JSON_data.json');
+    const jsonEntry = jsonData.default.find((entry: any) => entry.apiID === yoloData.classId);
+    if (jsonEntry) {
+      bbox.apiClassName = jsonEntry.name;
+      bbox.apiColor = jsonEntry.color;
+      bbox.apiId = jsonEntry.apiID;
+    }
+  }
+  
+  return bbox;
 };
