@@ -207,7 +207,8 @@ const AppContent: React.FC = () => {
           classId,
           confidence: detection.confidence,
           apiClassName: detection.class,
-          apiColor: classId === 10 ? detection.color : undefined // Сохраняем цвет только для неизвестных классов
+          apiColor: classId === 10 ? detection.color : undefined, // Сохраняем цвет только для неизвестных классов
+          apiId: detection.id // Сохраняем оригинальный ID от API
         });
       });
 

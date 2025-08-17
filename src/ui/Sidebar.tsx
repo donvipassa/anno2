@@ -45,7 +45,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
           return (
             <Tooltip
               key={defectClass.id}
-              text={disabled ? '' : `${defectClass.name} (${defectClass.hotkey})`}
+              text={disabled ? '' : 
+                (selectedBbox ? 
+                  `Изменить класс на "${defectClass.name}" (${defectClass.hotkey})` : 
+                  `${defectClass.name} (${defectClass.hotkey})`
+                )
+              }
             >
               <button
                 className={`

@@ -1,5 +1,4 @@
 export const API_CLASS_TO_DEFECT_CLASS_ID_MAP: { [key: string]: number } = {
-  "defect": 0, // Трещины
   "crack": 0, // Трещины
   "porosity": 2, // Поры
   "inclusion": 3, // Шлаковые включения
@@ -10,7 +9,7 @@ export const API_CLASS_TO_DEFECT_CLASS_ID_MAP: { [key: string]: number } = {
   "misalignment": 9, // Смещение кромок
   "tungsten inclusion": 4, // Вольфрамовые включения
   "oxide inclusion": 5, // Окисные включения
-  "welding seam": 10, // Сопоставляется с 'Другое'
+  // Все остальные классы, включая "defect" и "welding seam", будут сопоставляться с 'Другое' (ID: 10)
 };
 
 export const mapApiClassToDefectClassId = (apiClassName: string): number => {
