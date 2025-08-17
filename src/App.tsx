@@ -340,12 +340,13 @@ const AppContent: React.FC = () => {
         { 
           text: 'Применить', 
           action: () => {
-            console.log('Применить нажато, значение:', calibrationInputValue);
+            const inputValue = calibrationInputValue;
+            console.log('Применить нажато, значение:', inputValue);
             console.log('isNew:', isNew);
             console.log('lineData:', lineData);
             console.log('annotations.calibrationLine:', annotations.calibrationLine);
             
-            const realLength = parseFloat(calibrationInputValue.toString());
+            const realLength = parseFloat(inputValue.toString());
             if (isNaN(realLength) || realLength <= 0) {
               alert('Пожалуйста, введите корректное положительное число');
               return;
