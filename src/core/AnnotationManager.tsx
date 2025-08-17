@@ -243,6 +243,9 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       const width = bbox.width / imageWidth;
       const height = bbox.height / imageHeight;
       
+      // Используем оригинальный ID от API, если он есть, иначе наш classId
+      const exportId = bbox.apiId !== undefined ? bbox.apiId : bbox.classId;
+      
       // Используем оригинальное название от API, если оно есть, иначе название класса
       let className: string;
       if (bbox.apiClassName) {
@@ -254,7 +257,7 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       // Проверяем, что название класса содержит только корректные символы
       const safeClassName = className.replace(/[^\u0000-\u007F\u0400-\u04FF\s]/g, '?');
       
-      return `${bbox.classId} ${centerX.toFixed(6)} ${centerY.toFixed(6)} ${width.toFixed(6)} ${height.toFixed(6)}   # ${safeClassName}`;
+      return `${exportId} ${centerX.toFixed(6)} ${centerY.toFixed(6)} ${width.toFixed(6)} ${height.toFixed(6)}   # ${safeClassName}`;
     }).join('\n');
   }, [annotations.boundingBoxes]);
 
