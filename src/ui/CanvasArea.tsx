@@ -434,7 +434,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     currentBox, 
     currentLine,
     activeTool,
-    getLength, 
+    getLength,
     getCanvasCoords
   ]);
 
