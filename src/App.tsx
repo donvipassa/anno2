@@ -332,7 +332,9 @@ const AppContent: React.FC = () => {
           { 
             text: 'Применить', 
             action: () => {
-              const inputValue = calibrationInputValue;
+              // Получаем значение из поля ввода в момент нажатия кнопки
+              const inputElement = document.querySelector('input[type="number"]') as HTMLInputElement;
+              const inputValue = inputElement ? inputElement.value : calibrationInputValue;
               console.log('Применить нажато, значение:', inputValue);
               
               const realLength = parseFloat(inputValue);
@@ -348,6 +350,7 @@ const AppContent: React.FC = () => {
                 if (!lineToCalculateFrom) {
                   console.error('Нет данных линии для расчета');
                   alert('Ошибка: нет данных линии для расчета');
+                  closeModal();
                   return;
                 }
                 
@@ -380,7 +383,9 @@ const AppContent: React.FC = () => {
       );
       
       // Устанавливаем значение ПОСЛЕ показа модального окна
-      setCalibrationInputValue(currentValue);
+      setTimeout(() => {
+        setCalibrationInputValue(currentValue);
+      }, 100);
     }
   };
 
@@ -398,8 +403,6 @@ const AppContent: React.FC = () => {
     }
     
     setCalibrationInputValue(defaultLength);
-    
-    showModal('calibration', 'Калибровка масштаба', 'Укажите реальный размер эталона для установки масштаба (мм):',
       [
         { 
           text: 'Отмена', 
@@ -411,21 +414,19 @@ const AppContent: React.FC = () => {
         { 
           text: 'Применить', 
           action: () => {
-            // Сохраняем текущее значение из поля ввода
-            const inputValue = calibrationInputValue;
+            // Получаем значение из поля ввода в момент нажатия кнопки
+            const inputElement = document.querySelector('input[type="number"]') as HTMLInputElement;
+            const inputValue = inputElement ? inputElement.value : calibrationInputValue;
             console.log('Применить нажато, значение:', inputValue);
             console.log('isNew:', isNew);
             console.log('lineData:', lineData);
             console.log('annotations.calibrationLine:', annotations.calibrationLine);
             
-            const realLength = parseFloat(inputValue.toString());
+            const realLength = parseFloat(inputValue);
             if (isNaN(realLength) || realLength <= 0) {
               alert('Пожалуйста, введите корректное положительное число');
               return;
             }
-            
-            // Закрываем модальное окно ПЕРЕД выполнением операций
-            closeModal();
             
             try {
               // Определяем, какую линию использовать для расчетов
@@ -441,6 +442,7 @@ const AppContent: React.FC = () => {
               if (!lineToCalculateFrom) {
                 console.error('Нет данных линии для расчета. isNew:', isNew, 'lineData:', lineData, 'calibrationLine:', annotations.calibrationLine);
                 alert('Ошибка: нет данных линии для расчета. Попробуйте нарисовать линию заново.');
+                closeModal();
                 return;
               }
               
@@ -471,9 +473,10 @@ const AppContent: React.FC = () => {
               setCalibrationScale(pixelLength, realLength);
               console.log('Установлен масштаб:', scale, 'мм/пиксель');
 
-              // Закрываем модальное окно и сбрасываем значение ПОСЛЕ всех операций
+              closeModal();
             } catch (error) {
               console.error('Ошибка при установке калибровки:', error);
+              closeModal();
               alert('Произошла ошибка при установке калибровки');
             }
           },
@@ -483,7 +486,9 @@ const AppContent: React.FC = () => {
     );
     
     // Устанавливаем значение ПОСЛЕ показа модального окна
-    setCalibrationInputValue(defaultLength);
+    setTimeout(() => {
+      setCalibrationInputValue(defaultLength);
+    }, 100);
   };
 
   const handleShowContextMenu = (x: number, y: number) => {
