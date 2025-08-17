@@ -244,7 +244,11 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       const height = bbox.height / imageHeight;
       
       const className = DEFECT_CLASSES.find(c => c.id === bbox.classId)?.name || 'Неизвестно';
-      return `${bbox.classId} ${centerX.toFixed(6)} ${centerY.toFixed(6)} ${width.toFixed(6)} ${height.toFixed(6)}   # ${className}`;
+      
+      // Проверяем, что название класса содержит только корректные символы
+      const safeClassName = className.replace(/[^\u0000-\u007F\u0400-\u04FF\s]/g, '?');
+      
+      return `${bbox.classId} ${centerX.toFixed(6)} ${centerY.toFixed(6)} ${width.toFixed(6)} ${height.toFixed(6)}   # ${safeClassName}`;
     }).join('\n');
   }, [annotations.boundingBoxes]);
 

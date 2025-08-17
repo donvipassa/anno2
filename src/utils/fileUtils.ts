@@ -1,12 +1,13 @@
 // Утилиты для работы с файлами
 
 export const downloadFile = (content: string, filename: string): void => {
-  const blob = new Blob([content], { type: 'text/plain' });
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   
   const link = document.createElement('a');
   link.href = url;
   link.download = filename;
+  link.setAttribute('charset', 'utf-8');
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
