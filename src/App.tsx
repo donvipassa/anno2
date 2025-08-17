@@ -316,14 +316,26 @@ const AppContent: React.FC = () => {
 
   const handleEditCalibration = () => {
     if (annotations.calibrationLine) {
-      setCalibrationInputValue(annotations.calibrationLine.realLength.toString());
+      // При редактировании устанавливаем текущее значение
+      const currentValue = annotations.calibrationLine.realLength.toString();
+      setCalibrationInputValue(currentValue);
+      console.log('handleEditCalibration: установлено значение', currentValue);
       handleCalibrationLineFinished(annotations.calibrationLine, false);
     }
   };
 
   const handleCalibrationLineFinished = (lineData: any, isNew: boolean) => {
     console.log('handleCalibrationLineFinished вызвана:', { lineData, isNew });
-    const defaultLength = isNew ? '50' : (lineData?.realLength?.toString() || annotations.calibrationLine?.realLength?.toString() || '50');
+    
+    // Определяем значение по умолчанию
+    let defaultLength = '50';
+    if (!isNew && annotations.calibrationLine) {
+      // При редактировании существующей линии используем её текущее значение
+      defaultLength = annotations.calibrationLine.realLength.toString();
+    } else if (lineData?.realLength) {
+      // Если в lineData есть realLength, используем его
+      defaultLength = lineData.realLength.toString();
+    }
     
     setCalibrationInputValue(defaultLength);
     
@@ -340,7 +352,8 @@ const AppContent: React.FC = () => {
         { 
           text: 'Применить', 
           action: () => {
-            const inputValue = calibrationInputValue;
+            // Сохраняем текущее значение из поля ввода
+            const inputValue = calibrationInputValue.toString();
             console.log('Применить нажато, значение:', inputValue);
             console.log('isNew:', isNew);
             console.log('lineData:', lineData);
@@ -351,6 +364,9 @@ const AppContent: React.FC = () => {
               alert('Пожалуйста, введите корректное положительное число');
               return;
             }
+            
+            // Закрываем модальное окно ПЕРЕД выполнением операций
+            closeModal();
             
             try {
               // Определяем, какую линию использовать для расчетов
@@ -396,7 +412,6 @@ const AppContent: React.FC = () => {
               setCalibrationScale(pixelLength, realLength);
               console.log('Установлен масштаб:', scale, 'мм/пиксель');
               
-              closeModal();
               setCalibrationInputValue('50');
             } catch (error) {
               console.error('Ошибка при установке калибровки:', error);
