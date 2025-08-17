@@ -190,52 +190,34 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, []);
 
   const updateAllDensityPoints = useCallback((canvas: HTMLCanvasElement) => {
-    // Получаем текущее состояние изображения из контекста
-    // Поскольку мы не можем получить imageState здесь, передадим его как параметр
-  }, []);
-
-  const updateAllDensityPointsWithImageState = useCallback((imageState: any) => {
-    if (!imageState.imageElement) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
     setAnnotations(prev => ({
       ...prev,
       densityPoints: prev.densityPoints.map(point => {
-        // Создаем временный canvas для получения правильных данных пикселя
-        const tempCanvas = document.createElement('canvas');
-        const tempCtx = tempCanvas.getContext('2d');
-        if (!tempCtx) return point;
-        
-        tempCanvas.width = imageState.width;
-        tempCanvas.height = imageState.height;
-        
-        // Применяем инверсию если нужно
-        if (imageState.inverted) {
-          tempCtx.filter = 'invert(1)';
-        }
-        
-        // Рисуем изображение
-        tempCtx.drawImage(imageState.imageElement, 0, 0);
+        // Получаем координаты точки на canvas
+        const rect = canvas.getBoundingClientRect();
+        const canvasX = point.x; // Это уже координаты в canvas
+        const canvasY = point.y;
         
         try {
-          const imageData = tempCtx.getImageData(point.x, point.y, 1, 1);
+          const imageData = ctx.getImageData(canvasX, canvasY, 1, 1);
           const r = imageData.data[0];
           const g = imageData.data[1];
           const b = imageData.data[2];
           const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-          
-          // Плотность: 0 = белый, 1 = черный
           const density = 1 - (gray / 255);
           
           return { ...point, density };
         } catch (error) {
-          console.error('Ошибка при получении данных пикселя:', error);
+          // Если не удалось получить данные пикселя, оставляем старое значение
           return point;
         }
       })
     }));
     setMarkupModified(true);
-  }
-  )
+  }, []);
   const selectObject = useCallback((id: string | null, type: AnnotationState['selectedObjectType']) => {
     setAnnotations(prev => ({
       ...prev,
@@ -346,7 +328,7 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         annotations,
         markupModified,
         setMarkupModifiedState,
-        updateAllDensityPoints: updateAllDensityPointsWithImageState,
+        updateAllDensityPoints,
         addBoundingBox,
         updateBoundingBox,
         deleteBoundingBox,
