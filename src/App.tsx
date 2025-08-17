@@ -345,8 +345,8 @@ const AppContent: React.FC = () => {
           text: 'Отмена', 
           action: () => {
             console.log('Отмена калибровки');
-            setCalibrationInputValue('50');
             closeModal();
+            setCalibrationInputValue('50');
           }
         },
         { 
@@ -366,7 +366,6 @@ const AppContent: React.FC = () => {
             }
             
             // Закрываем модальное окно ПЕРЕД выполнением операций
-            closeModal();
             
             try {
               // Определяем, какую линию использовать для расчетов
@@ -411,10 +410,13 @@ const AppContent: React.FC = () => {
               const scale = realLength / pixelLength;
               setCalibrationScale(pixelLength, realLength);
               console.log('Установлен масштаб:', scale, 'мм/пиксель');
-              
+
+              // Закрываем модальное окно и сбрасываем значение ПОСЛЕ всех операций
+              closeModal();
               setCalibrationInputValue('50');
             } catch (error) {
               console.error('Ошибка при установке калибровки:', error);
+              closeModal();
               alert('Произошла ошибка при установке калибровки');
             }
           },
