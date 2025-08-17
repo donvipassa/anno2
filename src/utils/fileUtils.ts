@@ -1,5 +1,5 @@
 // Утилиты для работы с файлами
-import jsonData from './JSON_data.json';
+import jsonData from '../assets/data/defect-classes.json';
 
 export const downloadFile = (content: string, filename: string): void => {
   const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
@@ -39,43 +39,6 @@ export const readFileAsText = (file: File): Promise<string> => {
 
 export const getMarkupFileName = (imageFileName: string): string => {
   return `${imageFileName}.txt`;
-};
-
-export const validateMarkupFileName = (markupFileName: string, imageFileName: string): boolean => {
-  return markupFileName === getMarkupFileName(imageFileName);
-};
-
-export const parseYOLOData = (content: string): any[] => {
-  const lines = content.trim().split('\n').filter(line => {
-    const trimmed = line.trim();
-    // Исключаем строки с некорректными символами кодировки
-    if (/[РЎРўРЈРЄРЅРІРЇРЁРЉРЊРЋРЌРЌРЎРџ]/.test(trimmed)) {
-      console.warn('Пропущена строка с некорректной кодировкой:', trimmed);
-      return false;
-    }
-    return trimmed.length > 0;
-  });
-  
-  return lines.map(line => {
-    // Разделяем по пробелам и берем только числовые части (до комментария #)
-    const commentIndex = line.indexOf('#');
-    const dataLine = commentIndex >= 0 ? line.substring(0, commentIndex) : line;
-    const parts = dataLine.split(' ').filter(part => part.trim());
-    
-    if (parts.length < 5) return null;
-    
-    try {
-      return {
-        classId: parseInt(parts[0]),
-        centerX: parseFloat(parts[1]),
-        centerY: parseFloat(parts[2]),
-        width: parseFloat(parts[3]),
-        height: parseFloat(parts[4])
-      };
-    } catch {
-      return null;
-    }
-  }).filter(Boolean);
 };
 
 export const convertYOLOToPixels = (

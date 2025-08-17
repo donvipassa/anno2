@@ -1,4 +1,5 @@
 // Основные типы данных приложения
+export * from './api';
 
 export interface DefectClass {
   id: number;

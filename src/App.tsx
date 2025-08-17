@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { ImageProvider } from './core/ImageProvider';
 import { AnnotationProvider } from './core/AnnotationManager';
 import { Header } from './ui/Header';
@@ -11,8 +12,10 @@ import { useImage } from './core/ImageProvider';
 import { useAnnotations } from './core/AnnotationManager';
 import { useCalibration } from './core/CalibrationManager';
 import { validateImageFile, saveImageAsFile } from './utils/imageUtils';
-import { getMarkupFileName, downloadFile, readFileAsText, validateMarkupFileName, parseYOLOData, convertYOLOToPixels } from './utils/fileUtils';
-import { detectObjects } from './utils/api';
+import { getMarkupFileName, downloadFile, readFileAsText, convertYOLOToPixels } from './utils/fileUtils';
+import { validateMarkupFileName } from './utils/validation';
+import { validateYOLOData } from './utils/validation';
+import { detectObjects } from './services/api';
 import { mapApiClassToDefectClassId, convertApiBboxToPixels } from './utils/annotationUtils';
 import jsonData from './utils/JSON_data.json';
 
@@ -167,7 +170,7 @@ const AppContent: React.FC = () => {
 
       try {
         const content = await readFileAsText(file);
-        const yoloData = parseYOLOData(content);
+        const yoloData = validateYOLOData(content);
         
         if (yoloData.length === 0) {
           // Пустой файл разметки - это нормально
@@ -734,11 +737,13 @@ const AppContent: React.FC = () => {
 
 function App() {
   return (
-    <ImageProvider>
-      <AnnotationProvider>
-        <AppContent />
-      </AnnotationProvider>
-    </ImageProvider>
+    <ErrorBoundary>
+      <ImageProvider>
+        <AnnotationProvider>
+          <AppContent />
+        </AnnotationProvider>
+      </ImageProvider>
+    </ErrorBoundary>
   );
 }
 
