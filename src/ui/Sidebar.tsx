@@ -15,13 +15,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onClassSelect,
   disabled
 }) => {
-  const { annotations } = useAnnotations();
+  const { annotations, updateBoundingBox } = useAnnotations();
   const { imageState } = useImage();
 
   const getClassCount = (classId: number): number => {
     return annotations.boundingBoxes.filter(bbox => bbox.classId === classId).length;
   };
 
+  const handleClassClick = (classId: number) => {
+    // Проверяем, есть ли выделенный bbox
+    const selectedBbox = annotations.selectedObjectId && annotations.selectedObjectType === 'bbox' 
+      ? annotations.boundingBoxes.find(bbox => bbox.id === annotations.selectedObjectId)
+      : null;
+
+    if (selectedBbox) {
+      // Если есть выделенный bbox, изменяем его класс
+      updateBoundingBox(selectedBbox.id, { classId });
+    } else {
+      // Если нет выделенного bbox, активируем класс для рисования
+      onClassSelect(classId);
+    }
+  };
   const getClassColor = (classId: number): string => {
     const defectClass = DEFECT_CLASSES.find(c => c.id === classId);
     if (!defectClass) return '#808080';
@@ -69,7 +83,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   borderColor: disabled ? undefined : getClassColor(defectClass.id),
                   borderWidth: isActive && !disabled ? '4px' : '2px'
                 }}
-                onClick={() => !disabled && onClassSelect(defectClass.id)}
+                onClick={() => !disabled && handleClassClick(defectClass.id)}
                 disabled={disabled}
               >
                 <span className="text-sm font-medium text-black">
