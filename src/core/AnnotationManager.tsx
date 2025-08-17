@@ -258,54 +258,25 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         classId: bbox.classId,
         apiId: bbox.apiId,
         apiClassName: bbox.apiClassName,
-        hasApiData: bbox.apiId !== undefined && bbox.apiClassName !== undefined
+        isFromAPI: bbox.apiId !== undefined && bbox.apiClassName !== undefined
       });
       
-      // Определяем ID и название для экспорта
-      let exportId: number;
-      let className: string;
-      
+      // Для объектов от API используем их данные напрямую
       if (bbox.apiId !== undefined && bbox.apiClassName) {
-        console.log('Looking for JSON entry for:', bbox.apiClassName);
-        const jsonEntry = jsonData.find(entry => 
-          entry.name.toLowerCase().trim() === bbox.apiClassName!.toLowerCase().trim() ||
-          entry.russian_name.toLowerCase().trim() === bbox.apiClassName!.toLowerCase().trim()
-        );
-        console.log('Found JSON entry:', jsonEntry);
-        
-        // Есть данные от API
-        if (bbox.classId !== 10) {
-          // Класс был изменен пользователем - используем новый classId и название
-          console.log('Class was changed by user from', bbox.apiClassName, 'to classId', bbox.classId);
-          const defectClass = DEFECT_CLASSES.find(c => c.id === bbox.classId);
-          exportId = bbox.classId;
-          className = defectClass?.name || 'Неизвестно';
-        } else {
-          // Класс не изменен - используем данные из JSON файла
-          if (jsonEntry) {
-            console.log('Using JSON data:', jsonEntry.apiID, jsonEntry.russian_name);
-            exportId = jsonEntry.apiID;
-            className = jsonEntry.russian_name;
-          } else {
-            console.log('JSON entry not found, using original API data:', bbox.apiId, bbox.apiClassName);
-            exportId = bbox.apiId || bbox.classId;
-            className = bbox.apiClassName;
-          }
-        }
+        console.log('Using API data:', bbox.apiId, bbox.apiClassName);
+        const exportId = bbox.apiId;
+        const className = bbox.apiClassName;
+        const safeClassName = className.replace(/[^\u0000-\u007F\u0400-\u04FF\s]/g, '?');
+        return `${exportId} ${centerX.toFixed(6)} ${centerY.toFixed(6)} ${width.toFixed(6)} ${height.toFixed(6)}   # ${safeClassName}`;
       } else {
-        // Рамка создана вручную или нет данных от API
+        // Рамка создана вручную
         console.log('Manual bbox or no API data, using classId:', bbox.classId);
-        exportId = bbox.classId;
+        const exportId = bbox.classId;
         const defectClass = DEFECT_CLASSES.find(c => c.id === bbox.classId);
-        className = defectClass?.name || 'Неизвестно';
+        const className = defectClass?.name || 'Неизвестно';
+        const safeClassName = className.replace(/[^\u0000-\u007F\u0400-\u04FF\s]/g, '?');
+        return `${exportId} ${centerX.toFixed(6)} ${centerY.toFixed(6)} ${width.toFixed(6)} ${height.toFixed(6)}   # ${safeClassName}`;
       }
-      
-      console.log('Final export data:', { exportId, className });
-      
-      // Проверяем, что название класса содержит только корректные символы
-      const safeClassName = className.replace(/[^\u0000-\u007F\u0400-\u04FF\s]/g, '?');
-      
-      return `${exportId} ${centerX.toFixed(6)} ${centerY.toFixed(6)} ${width.toFixed(6)} ${height.toFixed(6)}   # ${safeClassName}`;
     }).join('\n');
   }, [annotations.boundingBoxes]);
 

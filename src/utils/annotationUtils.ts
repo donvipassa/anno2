@@ -1,3 +1,5 @@
+import jsonData from './JSON_data.json';
+
 export const API_CLASS_TO_DEFECT_CLASS_ID_MAP: { [key: string]: number } = {
   "crack": 0, // Трещины
   "porosity": 2, // Поры

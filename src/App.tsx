@@ -238,7 +238,36 @@ const AppContent: React.FC = () => {
       // Добавляем обнаруженные объекты как новые bounding boxes
       detections.forEach(detection => {
         const bbox = convertApiBboxToPixels(detection.bbox);
-        const classId = mapApiClassToDefectClassId(detection.class);
+        
+        // Ищем соответствие в JSON файле
+        const jsonEntry = jsonData.find(entry => 
+          entry.name.toLowerCase().trim() === detection.class.toLowerCase().trim()
+        );
+        
+        let classId: number;
+        let finalApiId: number;
+        let finalApiClassName: string;
+        
+        if (jsonEntry) {
+          // Найдено в JSON - используем данные из JSON
+          classId = jsonEntry.apiID;
+          finalApiId = jsonEntry.apiID;
+          finalApiClassName = jsonEntry.russian_name;
+          console.log('Found in JSON:', {
+            originalClass: detection.class,
+            jsonEntry: jsonEntry,
+            assignedClassId: classId
+          });
+        } else {
+          // Не найдено в JSON - используем стандартное сопоставление
+          classId = mapApiClassToDefectClassId(detection.class);
+          finalApiId = detection.id;
+          finalApiClassName = detection.class;
+          console.log('Not found in JSON, using standard mapping:', {
+            originalClass: detection.class,
+            mappedClassId: classId
+          });
+        }
         
         const id = addBoundingBox({
           x: bbox.x,
@@ -247,17 +276,12 @@ const AppContent: React.FC = () => {
           height: bbox.height,
           classId,
           confidence: detection.confidence,
-          apiClassName: detection.class,
+          apiClassName: finalApiClassName,
           apiColor: detection.color, // Всегда сохраняем цвет от API
-          apiId: detection.id // Сохраняем оригинальный ID от API
+          apiId: finalApiId
         });
         
-        console.log('Added bbox with ID:', id, 'API data:', {
-          apiId: detection.id,
-          apiClassName: detection.class,
-          classId,
-          confidence: detection.confidence
-        });
+        console.log('Added bbox:', { id, classId, finalApiId, finalApiClassName });
       });
       
       // setMarkupModified(true); // REMOVE THIS, addBoundingBox already does it
