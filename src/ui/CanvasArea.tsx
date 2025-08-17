@@ -1,7 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useImage } from '../core/ImageProvider';
 import { useAnnotations } from '../core/AnnotationManager';
-import { useCalibration } from '../core/CalibrationManager';
 import { DEFECT_CLASSES } from '../types';
 import { drawBoundingBox, isPointInBox, isPointOnBoxBorder, getResizeHandle } from '../utils/canvas';
 import jsonData from '../utils/JSON_data.json';
@@ -47,7 +46,6 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     deleteDensityPoint,
     selectObject 
   } = useAnnotations();
-  const { getLength, setScale: setCalibrationScale } = useCalibration();
   
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPoint, setStartPoint] = useState({ x: 0, y: 0 });
@@ -267,11 +265,24 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
 
       // Длина
       const pixelLength = Math.sqrt((ruler.x2 - ruler.x1) ** 2 + (ruler.y2 - ruler.y1) ** 2);
-      const length = getLength(pixelLength);
+      
+      // Используем калибровку если она установлена
+      let lengthText;
+      if (annotations.calibrationLine) {
+        const calibrationPixelLength = Math.sqrt(
+          (annotations.calibrationLine.x2 - annotations.calibrationLine.x1) ** 2 + 
+          (annotations.calibrationLine.y2 - annotations.calibrationLine.y1) ** 2
+        );
+        const scale = annotations.calibrationLine.realLength / calibrationPixelLength;
+        const lengthInMm = pixelLength * scale;
+        lengthText = `${lengthInMm.toFixed(1)} мм`;
+      } else {
+        lengthText = `${pixelLength.toFixed(0)} px`;
+      }
+      
       ctx.fillStyle = '#FFFF00';
       ctx.font = 'bold 14px Arial';
-      const text = `${length.value.toFixed(1)} ${length.unit}`;
-      const textWidth = ctx.measureText(text).width;
+      const textWidth = ctx.measureText(lengthText).width;
       
       // Рисуем фон для текста
       const textX = (start.x + end.x) / 2 - textWidth / 2;
@@ -281,7 +292,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
       
       // Рисуем текст
       ctx.fillStyle = '#FFFF00';
-      ctx.fillText(text, textX, textY);
+      ctx.fillText(lengthText, textX, textY);
     });
 
     // Отрисовка линии калибровки
