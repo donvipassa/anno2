@@ -33,12 +33,7 @@ const AppContent: React.FC = () => {
     setCalibrationLine,
     updateCalibrationLine,
     markupModified,
-    setMarkupModifiedState,
-    recalculateAllDensityPoints,
-    deleteBoundingBox,
-    deleteRuler,
-    deleteCalibrationLine,
-    deleteDensityPoint,
+    setMarkupModifiedState
   } = useAnnotations();
   const { calibration, setScale: setCalibrationScale } = useCalibration();
   const [markupFileName, setMarkupFileName] = useState<string | null>(null);
@@ -255,23 +250,12 @@ const AppContent: React.FC = () => {
   }, [selectObject]);
 
   const handleDeleteSelected = useCallback(() => {
-    if (annotations.selectedObjectId && annotations.selectedObjectType) {
-      switch (annotations.selectedObjectType) {
-        case 'boundingBox':
-          deleteBoundingBox(annotations.selectedObjectId);
-          break;
-        case 'ruler':
-          deleteRuler(annotations.selectedObjectId);
-          break;
-        case 'calibrationLine':
-          deleteCalibrationLine();
-          break;
-        case 'densityPoint':
-          deleteDensityPoint(annotations.selectedObjectId);
-          break;
-      }
+    // Реализация удаления выделенного объекта
+    if (annotations.selectedObjectId) {
+      // The delete functions in AnnotationManager will call setMarkupModified(true)
+      setMarkupModifiedState(true);
     }
-  }, [annotations.selectedObjectId, annotations.selectedObjectType, deleteBoundingBox, deleteRuler, deleteCalibrationLine, deleteDensityPoint]);
+  }, [annotations.selectedObjectId]);
 
   const handleAutoAnnotate = useCallback(async () => {
     if (!imageState.file || autoAnnotationPerformed) {
@@ -614,13 +598,6 @@ const AppContent: React.FC = () => {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [markupModified]); // Use markupModified from context
   
-  // Пересчет плотности при инверсии изображения
-  useEffect(() => {
-    if (imageState.imageElement && annotations.densityPoints.length > 0) {
-      recalculateAllDensityPoints(imageState.imageElement, imageState.inverted);
-    }
-  }, [imageState.inverted, imageState.imageElement, recalculateAllDensityPoints]);
-
   // Пересчет плотности при инверсии изображения
   useEffect(() => {
     if (imageState.imageElement && annotations.densityPoints.length > 0) {
