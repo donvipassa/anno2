@@ -901,13 +901,13 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
         const pixelLength = Math.sqrt(
           (clampedCoords.x - clampedStartPoint.x) ** 2 + (clampedCoords.y - clampedStartPoint.y) ** 2
         );
-        if (pixelLength >= 5) {
+        if (pixelLength >= 10) { // Минимальная длина для калибровочной линии
           onCalibrationLineFinished({
             x1: clampedStartPoint.x,
             y1: clampedStartPoint.y,
             x2: clampedCoords.x,
             y2: clampedCoords.y,
-            realLength: 0
+            realLength: 50 // Значение по умолчанию
           }, true);
         }
       }

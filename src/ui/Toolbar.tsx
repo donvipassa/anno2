@@ -161,7 +161,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         }}
         disabled={!hasImage}
         active={activeTool === 'calibration'}
-        highlighted={calibrationSet}
+        highlighted={calibrationSet && activeTool !== 'calibration'}
       />
 
       <div className="w-px h-6 bg-gray-300 mx-2" />

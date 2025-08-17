@@ -321,7 +321,7 @@ const AppContent: React.FC = () => {
   };
 
   const handleCalibrationLineFinished = (lineData: any, isNew: boolean) => {
-    const defaultLength = isNew ? '50' : lineData.realLength?.toString() || '50';
+    const defaultLength = isNew ? '50' : (annotations.calibrationLine?.realLength?.toString() || '50');
     
     setCalibrationInputValue(defaultLength);
     
@@ -335,10 +335,11 @@ const AppContent: React.FC = () => {
           text: 'Отмена', 
           action: () => {
             if (isNew) {
-              // Если это новая линия, не создаем её
+              // Если это новая линия, не создаем её - просто очищаем pending
               setPendingCalibrationLine(null);
+            } else {
+              // Если редактируем существующую, ничего не делаем - оставляем как было
             }
-            setPendingCalibrationLine(null);
             setCalibrationInputValue('50');
             closeModal();
           }
@@ -347,7 +348,12 @@ const AppContent: React.FC = () => {
           text: 'Применить', 
           action: () => {
             const realLength = parseFloat(calibrationInputValue);
-            if (realLength > 0) {
+            if (isNaN(realLength) || realLength <= 0) {
+              alert('Пожалуйста, введите корректное положительное число');
+              return;
+            }
+            
+            try {
               let pixelLength;
               
               if (isNew && pendingCalibrationLine) {
@@ -361,6 +367,9 @@ const AppContent: React.FC = () => {
                   ...pendingCalibrationLine,
                   realLength: realLength
                 });
+                
+                // Устанавливаем масштаб
+                setCalibrationScale(pixelLength, realLength);
               } else if (!isNew && annotations.calibrationLine) {
                 // Существующая калибровочная линия
                 pixelLength = Math.sqrt(
@@ -371,18 +380,17 @@ const AppContent: React.FC = () => {
                 updateCalibrationLine({
                   realLength: realLength
                 });
-              }
-              
-              if (pixelLength) {
+                
+                // Обновляем масштаб
                 setCalibrationScale(pixelLength, realLength);
               }
               
               setPendingCalibrationLine(null);
               setCalibrationInputValue('50');
               closeModal();
-            } else {
-              // Показываем ошибку если значение некорректное
-              alert('Пожалуйста, введите корректное положительное число');
+            } catch (error) {
+              console.error('Ошибка при установке калибровки:', error);
+              alert('Произошла ошибка при установке калибровки');
             }
           },
           primary: true
