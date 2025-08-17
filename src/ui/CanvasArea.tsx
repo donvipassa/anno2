@@ -268,19 +268,14 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
       // Длина
       const pixelLength = Math.sqrt((ruler.x2 - ruler.x1) ** 2 + (ruler.y2 - ruler.y1) ** 2);
       
-      const lengthText = getLength(pixelLength);
-      
-      ctx.fillStyle = '#FFFF00';
-      ctx.font = 'bold 14px Arial';
-      const textWidth = ctx.measureText(lengthText).width;
-      
-      // Рисуем фон для текста
-      const textX = (start.x + end.x) / 2 - textWidth / 2;
-      const textY = (start.y + end.y) / 2 - 5;
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-      ctx.fillRect(textX - 4, textY - 16, textWidth + 8, 20);
-      
-      // Рисуем текст
+      let lengthText;
+      if (annotations.calibrationLine) {
+        const calibrationPixelLength = Math.sqrt(
+          (annotations.calibrationLine.x2 - annotations.calibrationLine.x1) ** 2 + 
+          (annotations.calibrationLine.y2 - annotations.calibrationLine.y1) ** 2
+        const scale = annotations.calibrationLine.realLength / calibrationPixelLength;
+        const lengthInMm = pixelLength * scale;
+        lengthText = `${pixelLength.toFixed(0)} px`;
       ctx.fillStyle = '#FFFF00';
       ctx.fillText(lengthText, textX, textY);
     });
@@ -328,13 +323,9 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
       const text = `${line.realLength.toFixed(1)} мм`;
       const textWidth = ctx.measureText(text).width;
       
-      // Рисуем фон для текста
       const textX = (start.x + end.x) / 2 - textWidth / 2;
       const textY = (start.y + end.y) / 2 - 5;
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-      ctx.fillRect(textX - 4, textY - 16, textWidth + 8, 20);
       
-      // Рисуем текст
       ctx.fillStyle = '#0000FF';
       ctx.fillText(text, textX, textY);
     }
@@ -381,15 +372,10 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
       ctx.fillStyle = '#FF00FF';
       ctx.font = 'bold 14px Arial';
       const densityText = `${point.density.toFixed(2)}`;
-      const densityTextWidth = ctx.measureText(densityText).width;
       
-      // Рисуем фон для текста
       const densityTextX = canvasCoords.x + 15;
       const densityTextY = canvasCoords.y - 5;
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-      ctx.fillRect(densityTextX - 2, densityTextY - 16, densityTextWidth + 4, 20);
       
-      // Рисуем текст
       ctx.fillStyle = '#FF00FF';
       ctx.fillText(densityText, densityTextX, densityTextY);
     });
