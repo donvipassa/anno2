@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { AnnotationState, BoundingBox, Ruler, CalibrationLine, DensityPoint, DEFECT_CLASSES } from '../types';
 import { v4 as uuidv4 } from 'uuid';
+import jsonData from '../utils/JSON_data.json';
 
 interface AnnotationContextType {
   annotations: AnnotationState;
@@ -266,13 +267,16 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       
       if (bbox.apiId !== undefined && bbox.apiClassName) {
       }
-      if (bbox.apiId !== undefined && bbox.apiClassName) {
+        const jsonEntry = jsonData.find(entry => 
+          entry.name.toLowerCase() === bbox.apiClassName!.toLowerCase() ||
+          entry.russian_name.toLowerCase() === bbox.apiClassName!.toLowerCase()
+        );
         // Есть данные от API
         if (bbox.classId !== 10) {
           // Класс был изменен пользователем - используем новый classId и название
           console.log('Class was changed by user from', bbox.apiClassName, 'to classId', bbox.classId);
-          exportId = bbox.classId;
-          const defectClass = DEFECT_CLASSES.find(c => c.id === bbox.classId);
+          exportId = jsonEntry.apiID;
+          className = jsonEntry.russian_name;
           className = defectClass?.name || 'Неизвестно';
         } else {
           // Класс не изменен - используем оригинальные данные от API
