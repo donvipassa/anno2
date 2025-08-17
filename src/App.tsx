@@ -623,6 +623,13 @@ const AppContent: React.FC = () => {
     }
   }, [imageState.inverted, imageState.imageElement, recalculateAllDensityPoints]);
 
+  // Пересчет плотности при инверсии изображения
+  useEffect(() => {
+    if (imageState.imageElement && annotations.densityPoints.length > 0) {
+      recalculateAllDensityPoints(imageState.imageElement, imageState.inverted);
+    }
+  }, [imageState.inverted, imageState.imageElement, recalculateAllDensityPoints]);
+
   return (
     <div className="h-screen flex flex-col bg-gray-100">
       <Header />
