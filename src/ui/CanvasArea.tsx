@@ -1079,7 +1079,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
         }
       }, 100);
     }
-  }, [imageState.inverted, annotations.densityPoints, getCanvasCoords, updateDensityPoint, imageState.imageElement]);
+  }, [imageState.inverted, annotations.densityPoints, getCanvasCoords, updateDensityPoint]);
 
   // Автоматическая подгонка изображения при загрузке
   useEffect(() => {
