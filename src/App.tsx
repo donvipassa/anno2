@@ -19,6 +19,9 @@ const AppContent: React.FC = () => {
   const { annotations, getYOLOExport, clearAllRulers, clearAllDensityPoints, loadAnnotations, clearAll, selectObject, addBoundingBox } = useAnnotations();
   const { calibration, setScale: setCalibrationScale } = useCalibration();
 
+  const [activeTool, setActiveTool] = useState<string>('');
+  const [activeClassId, setActiveClassId] = useState<number>(-1);
+
   // Синхронизация активного класса с выделенным объектом
   useEffect(() => {
     if (annotations.selectedObjectId && annotations.selectedObjectType === 'bbox') {
@@ -30,8 +33,6 @@ const AppContent: React.FC = () => {
     }
   }, [annotations.selectedObjectId, annotations.selectedObjectType, annotations.boundingBoxes, activeClassId]);
 
-  const [activeTool, setActiveTool] = useState<string>('');
-  const [activeClassId, setActiveClassId] = useState<number>(-1);
   const [layerVisible, setLayerVisible] = useState<boolean>(true);
   const [filterActive, setFilterActive] = useState<boolean>(false);
   const [markupModified, setMarkupModified] = useState<boolean>(false);
