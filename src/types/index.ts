@@ -113,6 +113,7 @@ export const DEFECT_CLASSES: DefectClass[] = [
 
 export interface ApiDetection {
   class: string;
+  id: number;
   confidence: number;
   bbox: [number, number, number, number]; // [x_min, y_min, x_max, y_max]
   color: [number, number, number]; // [R, G, B]
