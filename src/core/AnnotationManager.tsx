@@ -234,6 +234,8 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       })
     }));
     setMarkupModified(true);
+  }
+  )
   const selectObject = useCallback((id: string | null, type: AnnotationState['selectedObjectType']) => {
     setAnnotations(prev => ({
       ...prev,
