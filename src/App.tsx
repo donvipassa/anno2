@@ -399,15 +399,20 @@ const AppContent: React.FC = () => {
     
     setCalibrationInputValue(defaultLength);
     
+    showModal('calibration', 'Калибровка масштаба', 'Укажите реальный размер эталона для установки масштаба (мм):',
+      [
+        { 
           text: 'Отмена', 
           action: () => {
             setCalibrationInputValue('50');
+            closeModal();
           }
         },
         { 
           text: 'Применить', 
           action: () => {
             // Сохраняем текущее значение из поля ввода
+            const inputValue = calibrationInputValue;
             console.log('Применить нажато, значение:', inputValue);
             console.log('isNew:', isNew);
             console.log('lineData:', lineData);
@@ -420,6 +425,7 @@ const AppContent: React.FC = () => {
             }
             
             // Закрываем модальное окно ПЕРЕД выполнением операций
+            closeModal();
             
             try {
               // Определяем, какую линию использовать для расчетов
@@ -466,10 +472,8 @@ const AppContent: React.FC = () => {
               console.log('Установлен масштаб:', scale, 'мм/пиксель');
 
               // Закрываем модальное окно и сбрасываем значение ПОСЛЕ всех операций
-              closeModal();
             } catch (error) {
               console.error('Ошибка при установке калибровки:', error);
-              closeModal();
               alert('Произошла ошибка при установке калибровки');
             }
           },
@@ -567,7 +571,6 @@ const AppContent: React.FC = () => {
   ]);
 
   useEffect(() => {
-
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
@@ -585,6 +588,7 @@ const AppContent: React.FC = () => {
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [markupModified]); // Use markupModified from context
+  
   return (
     <div className="h-screen flex flex-col bg-gray-100">
       <Header />
