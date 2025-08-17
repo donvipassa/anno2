@@ -329,12 +329,15 @@ const AppContent: React.FC = () => {
       setPendingCalibrationLine(lineData);
     }
     
-    showModal('calibration', 'Калибровка масштаба', 
-      'Укажите реальный размер эталона для установки масштаба (мм):',
+    showModal('calibration', 'Калибровка масштаба', 'Укажите реальный размер эталона для установки масштаба (мм):',
       [
         { 
           text: 'Отмена', 
           action: () => {
+            if (isNew) {
+              // Если это новая линия, не создаем её
+              setPendingCalibrationLine(null);
+            }
             setPendingCalibrationLine(null);
             setCalibrationInputValue('50');
             closeModal();
@@ -343,8 +346,7 @@ const AppContent: React.FC = () => {
         { 
           text: 'Применить', 
           action: () => {
-            const inputValue = calibrationInputValue;
-            const realLength = parseFloat(inputValue);
+            const realLength = parseFloat(calibrationInputValue);
             if (realLength > 0) {
               let pixelLength;
               
@@ -378,13 +380,16 @@ const AppContent: React.FC = () => {
               setPendingCalibrationLine(null);
               setCalibrationInputValue('50');
               closeModal();
+            } else {
+              // Показываем ошибку если значение некорректное
+              alert('Пожалуйста, введите корректное положительное число');
             }
           },
           primary: true
         }
       ],
       {
-        label: '',
+        label: 'Реальный размер (мм):',
         value: calibrationInputValue,
         onChange: setCalibrationInputValue
       }
