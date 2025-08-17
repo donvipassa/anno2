@@ -16,17 +16,19 @@ import { mapApiClassToDefectClassId, convertApiBboxToPixels } from './utils/anno
 
 const AppContent: React.FC = () => {
   const { imageState, loadImage, setScale, toggleInversion, resetView, fitToCanvas, zoomIn, zoomOut, zoomReset } = useImage();
-  const { annotations, getYOLOExport, clearAllRulers, clearAllDensityPoints, loadAnnotations, clearAll, selectObject, addBoundingBox } = useAnnotations();
-  const { calibration, setScale: setCalibrationScale } = useCalibration();
-    getYOLOExport,
-    clearAllRulers,
-    clearAllDensityPoints,
-    loadAnnotations,
-    clearAll,
-    selectObject,
+  const { 
+    annotations, 
+    getYOLOExport, 
+    clearAllRulers, 
+    clearAllDensityPoints, 
+    loadAnnotations, 
+    clearAll, 
+    selectObject, 
     addBoundingBox,
-    markupModified, // Get from context
-  // const [markupModified, setMarkupModified] = useState<boolean>(false); // REMOVE THIS
+    markupModified,
+    setMarkupModifiedState
+  } = useAnnotations();
+  const { calibration, setScale: setCalibrationScale } = useCalibration();
   const [markupFileName, setMarkupFileName] = useState<string | null>(null);
   const [isProcessingAutoAnnotation, setIsProcessingAutoAnnotation] = useState<boolean>(false);
 
