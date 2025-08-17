@@ -399,11 +399,14 @@ const AppContent: React.FC = () => {
     
     setCalibrationInputValue(defaultLength);
     
+    showModal('calibration', 'Калибровка масштаба', 'Укажите реальный размер эталона для установки масштаба (мм):',
+      [
         { 
           text: 'Отмена', 
           action: () => {
             setCalibrationInputValue('50');
             closeModal();
+          }
         },
         { 
           text: 'Применить', 
