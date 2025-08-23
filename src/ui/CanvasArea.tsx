@@ -495,19 +495,6 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
 
     const coords = getImageCoords(e.clientX, e.clientY);
 
-    // Проверка на инструмент измерения плотности
-    if (e.button === 0 && activeTool === 'density') {
-      // Проверка, что клик внутри изображения
-      if (coords.x >= 0 && coords.x <= imageState.width && 
-          coords.y >= 0 && coords.y <= imageState.height) {
-        addDensityPoint({
-          x: coords.x,
-          y: coords.y
-        });
-      }
-      return;
-    }
-
     // Приоритет 1: Взаимодействие с уже выделенным объектом
     if (annotations.selectedObjectId) {
       // Проверка взаимодействия с выделенным bbox
@@ -660,6 +647,20 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
         x2: canvasX,
         y2: canvasY
       });
+      return;
+    }
+
+    if (activeTool === 'density') {
+      // Проверка, что клик внутри изображения
+      if (coords.x >= 0 && coords.x <= imageState.width && 
+          coords.y >= 0 && coords.y <= imageState.height) {
+        // Сбрасываем выделение перед созданием новой точки
+        selectObject(null, null);
+        addDensityPoint({
+          x: coords.x,
+          y: coords.y
+        });
+      }
       return;
     }
 
