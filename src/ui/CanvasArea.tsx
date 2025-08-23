@@ -61,6 +61,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
   const [isPanning, setIsPanning] = useState(false);
   const [lastPanPosition, setLastPanPosition] = useState({ x: 0, y: 0 });
   const [rulerHandleType, setRulerHandleType] = useState<'start' | 'end' | null>(null);
+  const [densityHandleType, setDensityHandleType] = useState<'center' | 'marker_tl' | 'marker_tr' | 'marker_br' | 'marker_bl' | null>(null);
   const didPanWithRMB = useRef(false);
 
   // Получение координат изображения из координат мыши
@@ -104,9 +105,32 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     const tolerance = 25; // Радиус области клика
     for (let i = annotations.densityPoints.length - 1; i >= 0; i--) {
       const point = annotations.densityPoints[i];
+      
+      // Если точка выделена, проверяем попадание в маркеры
+      if (annotations.selectedObjectId === point.id) {
+        const handleSize = 6;
+        const offset = 20;
+        
+        // Проверяем попадание в угловые маркеры
+        const markers = [
+          { x: point.x - offset, y: point.y - offset, type: 'marker_tl' }, // верх-лево
+          { x: point.x + offset, y: point.y - offset, type: 'marker_tr' }, // верх-право
+          { x: point.x + offset, y: point.y + offset, type: 'marker_br' }, // низ-право
+          { x: point.x - offset, y: point.y + offset, type: 'marker_bl' }  // низ-лево
+        ];
+        
+        for (const marker of markers) {
+          const markerDistance = Math.sqrt((imageX - marker.x) ** 2 + (imageY - marker.y) ** 2);
+          if (markerDistance <= handleSize) {
+            return { point, handleType: marker.type };
+          }
+        }
+      }
+      
+      // Проверяем попадание в центральную область точки
       const distance = Math.sqrt((imageX - point.x) ** 2 + (imageY - point.y) ** 2);
       if (distance <= tolerance) {
-        return point;
+        return { point, handleType: 'center' };
       }
     }
     return null;
@@ -535,8 +559,9 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
       if (annotations.selectedObjectType === 'density') {
         const selectedPoint = annotations.densityPoints.find(point => point.id === annotations.selectedObjectId);
         if (selectedPoint) {
-          const clickedPoint = getDensityPointAtPoint(coords.x, coords.y);
-          if (clickedPoint && clickedPoint.id === selectedPoint.id) {
+          const densityResult = getDensityPointAtPoint(coords.x, coords.y);
+          if (densityResult && densityResult.point.id === selectedPoint.id) {
+            setDensityHandleType(densityResult.handleType);
             setIsDragging(true);
             setDragStart({ x: e.clientX, y: e.clientY });
             return;
@@ -547,9 +572,10 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
 
     // Приоритет 2: Выбор нового объекта (всегда проверяем все объекты)
     // Проверка клика по точке плотности
-    const clickedDensityPoint = getDensityPointAtPoint(coords.x, coords.y);
-    if (clickedDensityPoint) {
-      selectObject(clickedDensityPoint.id, 'density');
+    const densityResult = getDensityPointAtPoint(coords.x, coords.y);
+    if (densityResult) {
+      selectObject(densityResult.point.id, 'density');
+      setDensityHandleType(densityResult.handleType);
       setIsDragging(true);
       setDragStart({ x: e.clientX, y: e.clientY });
       return;
@@ -697,8 +723,8 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
       // Если не на handle, проверяем наведение на другие объекты
       if (!newHandle) {
         // Проверка наведения на точку плотности
-        const hoveredDensityPoint = getDensityPointAtPoint(coords.x, coords.y);
-        if (hoveredDensityPoint) {
+        const densityResult = getDensityPointAtPoint(coords.x, coords.y);
+        if (densityResult) {
           newHandle = 'pointer';
         }
       }
@@ -1007,6 +1033,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     setIsResizing(false);
     setResizeHandle('');
     setRulerHandleType(null);
+    setDensityHandleType(null);
   }, [
     isDrawing,
     activeTool,
