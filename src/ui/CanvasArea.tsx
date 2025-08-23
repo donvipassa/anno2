@@ -590,7 +590,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
 
     // Проверка клика по bbox
     const clickedBbox = getBboxAtPoint(coords.x, coords.y);
-    if (clickedBbox && activeTool !== 'density' && activeTool !== 'ruler' && activeTool !== 'calibration') {
+    if (clickedBbox) {
       selectObject(clickedBbox.id, 'bbox');
       setIsDragging(true);
       setDragStart({ x: e.clientX, y: e.clientY });
