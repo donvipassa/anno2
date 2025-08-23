@@ -473,15 +473,8 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
             const b = imageData.data[2];
             const gray = 0.299 * r + 0.587 * g + 0.114 * b;
             
-            // Учитываем инверсию цвета при расчете плотности
-            let density;
-            if (imageState.inverted) {
-              // При инверсии: темные области становятся светлыми, поэтому инвертируем расчет
-              density = gray / 255;
-            } else {
-              // Обычный расчет: 0 = белый, 1 = черный
-              density = 1 - (gray / 255);
-            }
+            // Расчет плотности по отображаемому изображению
+            const density = 1 - (gray / 255);
             
             addDensityPoint({
               x: coords.x,
