@@ -50,19 +50,37 @@ const AppContent: React.FC = () => {
 
   // Синхронизация activeClassId с выделенным объектом
   useEffect(() => {
-    if (annotations.selectedObjectId && annotations.selectedObjectType === 'bbox') {
-      const selectedBbox = annotations.boundingBoxes.find(bbox => bbox.id === annotations.selectedObjectId);
-      if (selectedBbox && selectedBbox.classId >= 0 && selectedBbox.classId <= 10) {
-        // Если выделена рамка со стандартным классом дефекта, синхронизируем activeClassId
-        setActiveClassId(selectedBbox.classId);
-      } else if (selectedBbox && selectedBbox.classId > 10) {
-        // Если выделена рамка с API классом, сбрасываем activeClassId
-        setActiveClassId(-1);
+    if (annotations.selectedObjectId) {
+      switch (annotations.selectedObjectType) {
+        case 'bbox':
+          const selectedBbox = annotations.boundingBoxes.find(bbox => bbox.id === annotations.selectedObjectId);
+          if (selectedBbox) {
+            setActiveTool('bbox');
+            if (selectedBbox.classId >= 0 && selectedBbox.classId <= 10) {
+              // Стандартный класс дефекта
+              setActiveClassId(selectedBbox.classId);
+            } else {
+              // API класс
+              setActiveClassId(-1);
+            }
+          }
+          break;
+        case 'ruler':
+          setActiveTool('ruler');
+          setActiveClassId(-1);
+          break;
+        case 'calibration':
+          setActiveTool('calibration');
+          setActiveClassId(-1);
+          break;
+        case 'density':
+          setActiveTool('density');
+          setActiveClassId(-1);
+          break;
       }
-    } else if (annotations.selectedObjectType && annotations.selectedObjectType !== 'bbox') {
-      // Если выделен не bbox объект (линейка, калибровка, точка), сбрасываем activeClassId
-      setActiveClassId(-1);
     }
+    // Не сбрасываем инструменты при selectedObjectId === null, 
+    // чтобы пользователь мог продолжить рисование
   }, [annotations.selectedObjectId, annotations.selectedObjectType, annotations.boundingBoxes]);
 
   // Синхронизация состояния калибровки при удалении калибровочной линии
@@ -165,6 +183,8 @@ const AppContent: React.FC = () => {
         // Очистка существующих аннотаций
         clearAll(); // This will call setMarkupModifiedState(false)
         setMarkupModifiedState(false);
+        setActiveTool('');
+        setActiveClassId(-1);
         setMarkupFileName(null);
         setAutoAnnotationPerformed(false);
       } catch (error) {
