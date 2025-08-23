@@ -299,6 +299,9 @@ const AppContent: React.FC = () => {
     if (annotations.selectedObjectId) {
       // The delete functions in AnnotationManager will call setMarkupModified(true)
       setMarkupModifiedState(true);
+      // Сбрасываем активный инструмент и класс после удаления объекта
+      setActiveTool('');
+      setActiveClassId(-1);
     }
   }, [annotations.selectedObjectId]);
 
