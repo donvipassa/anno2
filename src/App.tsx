@@ -87,6 +87,7 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     if (!annotations.calibrationLine) {
       resetScale();
+      setActiveTool(''); // Сбрасываем активный инструмент при удалении калибровочной линии
     }
   }, [annotations.calibrationLine, resetScale]);
 
@@ -417,6 +418,8 @@ const AppContent: React.FC = () => {
                 setCalibrationScale(pixelLength, realLength);
                 console.log('Установлен масштаб:', scale, 'мм/пиксель');
 
+                setActiveTool(''); // Сбрасываем активный инструмент после успешной калибровки
+                setActiveTool(''); // Сбрасываем активный инструмент после успешной калибровки
                 closeModal();
               } catch (error) {
                 console.error('Ошибка при установке калибровки:', error);
