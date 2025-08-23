@@ -65,6 +65,13 @@ const AppContent: React.FC = () => {
     }
   }, [annotations.selectedObjectId, annotations.selectedObjectType, annotations.boundingBoxes]);
 
+  // Синхронизация состояния калибровки при удалении калибровочной линии
+  useEffect(() => {
+    if (!annotations.calibrationLine) {
+      resetScale();
+    }
+  }, [annotations.calibrationLine, resetScale]);
+
   // Модальные окна
   const [modalState, setModalState] = useState<{
     type: string | null;
