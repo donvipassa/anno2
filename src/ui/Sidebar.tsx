@@ -57,11 +57,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="space-y-2">
         {DEFECT_CLASSES.map((defectClass) => {
           const count = getClassCount(defectClass.id);
-          const isActive = activeClassId === defectClass.id;
           const selectedBbox = annotations.selectedObjectId && annotations.selectedObjectType === 'bbox' 
             ? annotations.boundingBoxes.find(bbox => bbox.id === annotations.selectedObjectId)
             : null;
-          const isSelectedObjectClass = selectedBbox?.classId === defectClass.id;
+          
+          // Унифицированное выделение: активный класс для рисования ИЛИ класс выделенной рамки
+          const isUnifiedSelected = activeClassId === defectClass.id || selectedBbox?.classId === defectClass.id;
           
           return (
             <Tooltip
@@ -80,15 +81,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   ${disabled 
                     ? 'opacity-50 pointer-events-none bg-gray-50 border-gray-200 text-gray-400'
                     : `
-                      ${isActive ? 'bg-blue-50' : (isSelectedObjectClass ? 'bg-green-50' : 'bg-white hover:bg-gray-50')} border-gray-200 text-black
+                      ${isUnifiedSelected ? 'bg-blue-50' : 'bg-white hover:bg-gray-50'} border-gray-200 text-black
                       hover:border-opacity-80
                     `
                   }
-                  ${isActive && !disabled ? 'border-4 ring-2 ring-blue-400 ring-opacity-50' : ''}
+                  ${isUnifiedSelected && !disabled ? 'border-4 ring-2 ring-blue-400 ring-opacity-50' : ''}
                 `}
                 style={{
                   borderColor: disabled ? undefined : getClassColor(defectClass.id),
-                  borderWidth: isActive && !disabled ? '4px' : '2px'
+                  borderWidth: isUnifiedSelected && !disabled ? '4px' : '2px'
                 }}
                 onClick={() => !disabled && handleClassClick(defectClass.id)}
                 disabled={disabled}
@@ -97,8 +98,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   {defectClass.name}
                 </span>
                 <span className={`text-sm font-medium ${
-                  isActive ? 'text-blue-700' : 
-                  (isSelectedObjectClass ? 'text-green-700' : 'text-black')
+                  isUnifiedSelected ? 'text-blue-700' : 'text-black'
                 }`}>
                   ({count})
                 </span>

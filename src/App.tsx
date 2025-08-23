@@ -48,6 +48,23 @@ const AppContent: React.FC = () => {
   const [pendingCalibrationLine, setPendingCalibrationLine] = useState<any>(null);
   const [calibrationInputValue, setCalibrationInputValue] = useState<string>('50');
 
+  // Синхронизация activeClassId с выделенным объектом
+  useEffect(() => {
+    if (annotations.selectedObjectId && annotations.selectedObjectType === 'bbox') {
+      const selectedBbox = annotations.boundingBoxes.find(bbox => bbox.id === annotations.selectedObjectId);
+      if (selectedBbox && selectedBbox.classId >= 0 && selectedBbox.classId <= 10) {
+        // Если выделена рамка со стандартным классом дефекта, синхронизируем activeClassId
+        setActiveClassId(selectedBbox.classId);
+      } else if (selectedBbox && selectedBbox.classId > 10) {
+        // Если выделена рамка с API классом, сбрасываем activeClassId
+        setActiveClassId(-1);
+      }
+    } else if (annotations.selectedObjectType && annotations.selectedObjectType !== 'bbox') {
+      // Если выделен не bbox объект (линейка, калибровка, точка), сбрасываем activeClassId
+      setActiveClassId(-1);
+    }
+  }, [annotations.selectedObjectId, annotations.selectedObjectType, annotations.boundingBoxes]);
+
   // Модальные окна
   const [modalState, setModalState] = useState<{
     type: string | null;
