@@ -55,13 +55,20 @@ const AppContent: React.FC = () => {
       if (selectedBbox && selectedBbox.classId >= 0 && selectedBbox.classId <= 10) {
         // Если выделена рамка со стандартным классом дефекта, синхронизируем activeClassId
         setActiveClassId(selectedBbox.classId);
+        setActiveTool('bbox');
       } else if (selectedBbox && selectedBbox.classId > 10) {
         // Если выделена рамка с API классом, сбрасываем activeClassId
         setActiveClassId(-1);
+        setActiveTool('');
       }
     } else if (annotations.selectedObjectType && annotations.selectedObjectType !== 'bbox') {
       // Если выделен не bbox объект (линейка, калибровка, точка), сбрасываем activeClassId
       setActiveClassId(-1);
+      setActiveTool('');
+    } else if (!annotations.selectedObjectId) {
+      // Если ничего не выделено, сбрасываем состояние
+      setActiveClassId(-1);
+      setActiveTool('');
     }
   }, [annotations.selectedObjectId, annotations.selectedObjectType, annotations.boundingBoxes]);
 
@@ -155,6 +162,10 @@ const AppContent: React.FC = () => {
 
       try {
         await loadImage(file);
+        
+        // Сброс состояния инструментов и класса при загрузке нового изображения
+        setActiveTool('');
+        setActiveClassId(-1);
         
         // Предложение загрузить разметку
         showModal('confirm', 'Загрузка разметки', 'Открыть файл разметки для данного изображения?', [
