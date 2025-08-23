@@ -61,6 +61,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
   const [isPanning, setIsPanning] = useState(false);
   const [lastPanPosition, setLastPanPosition] = useState({ x: 0, y: 0 });
   const [rulerHandleType, setRulerHandleType] = useState<'start' | 'end' | null>(null);
+  const didPanWithRMB = useRef(false);
 
   // Получение координат изображения из координат мыши
   const getImageCoords = useCallback((clientX: number, clientY: number) => {
@@ -445,6 +446,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
       // Правая кнопка мыши - начинаем панорамирование
       setIsPanning(true);
       setLastPanPosition({ x: e.clientX, y: e.clientY });
+      didPanWithRMB.current = false; // Сбрасываем флаг при начале потенциального панорамирования
       return; // Предотвращаем дальнейшую обработку для ПКМ
     }
 
@@ -640,6 +642,11 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
       // Панорамирование изображения
       const deltaX = e.clientX - lastPanPosition.x;
       const deltaY = e.clientY - lastPanPosition.y;
+      
+      // Если есть реальное движение мыши, отмечаем что произошло панорамирование
+      if (Math.abs(deltaX) > 2 || Math.abs(deltaY) > 2) {
+        didPanWithRMB.current = true;
+      }
       
       setOffset(
         imageState.offsetX + deltaX,
@@ -880,8 +887,9 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault(); // Подавляем стандартное контекстное меню браузера
     
-    if (isPanning) {
-      // Если было панорамирование, не показываем пользовательское контекстное меню
+    // Если произошло панорамирование с ПКМ, не показываем контекстное меню
+    if (didPanWithRMB.current) {
+      didPanWithRMB.current = false; // Сбрасываем флаг
       return;
     }
 
@@ -895,6 +903,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     if (isPanning) {
       setIsPanning(false);
       setLastPanPosition({ x: 0, y: 0 });
+      // Не сбрасываем didPanWithRMB.current здесь, так как событие contextmenu может произойти после mouseup
       return; // Предотвращаем дальнейшую обработку для ПКМ
     }
 
