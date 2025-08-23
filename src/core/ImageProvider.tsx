@@ -14,6 +14,7 @@ interface ImageContextType {
   zoomOut: (canvasWidth?: number, canvasHeight?: number) => void;
   zoomReset: (canvasWidth?: number, canvasHeight?: number) => void;
   zoomToPoint: (pointX: number, pointY: number, zoomIn: boolean, canvasWidth: number, canvasHeight: number) => void;
+  getOriginalPixelColor: (x: number, y: number) => [number, number, number] | null;
 }
 
 const ImageContext = createContext<ImageContextType | null>(null);
@@ -39,6 +40,31 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     imageElement: null
   });
 
+  // Скрытый canvas для чтения пикселей
+  const hiddenCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const hiddenCtxRef = useRef<CanvasRenderingContext2D | null>(null);
+
+  const getOriginalPixelColor = useCallback((x: number, y: number): [number, number, number] | null => {
+    if (!hiddenCtxRef.current || !imageState.width || !imageState.height) {
+      return null;
+    }
+
+    // Проверяем границы
+    if (x < 0 || x >= imageState.width || y < 0 || y >= imageState.height) {
+      return null;
+    }
+
+    try {
+      const imageData = hiddenCtxRef.current.getImageData(Math.floor(x), Math.floor(y), 1, 1);
+      const r = imageData.data[0];
+      const g = imageData.data[1];
+      const b = imageData.data[2];
+      return [r, g, b];
+    } catch (error) {
+      console.error('Error reading pixel data:', error);
+      return null;
+    }
+  }, [imageState.width, imageState.height]);
 
   const loadImage = useCallback(async (file: File): Promise<void> => {
     return new Promise((resolve, reject) => {
@@ -57,6 +83,18 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       reader.onload = (e) => {
         const img = new Image();
         img.onload = () => {
+          // Создаем скрытый canvas для чтения пикселей
+          if (!hiddenCanvasRef.current) {
+            hiddenCanvasRef.current = document.createElement('canvas');
+            hiddenCtxRef.current = hiddenCanvasRef.current.getContext('2d');
+          }
+
+          if (hiddenCanvasRef.current && hiddenCtxRef.current) {
+            hiddenCanvasRef.current.width = img.naturalWidth;
+            hiddenCanvasRef.current.height = img.naturalHeight;
+            hiddenCtxRef.current.drawImage(img, 0, 0);
+          }
+
           setImageState(prev => ({
             ...prev,
             file,
@@ -251,7 +289,8 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         zoomIn,
         zoomOut,
         zoomReset,
-        zoomToPoint
+        zoomToPoint,
+        getOriginalPixelColor
       }}
     >
       {children}

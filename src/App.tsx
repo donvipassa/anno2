@@ -20,7 +20,7 @@ import { mapApiClassToDefectClassId, convertApiBboxToPixels } from './utils/anno
 import jsonData from './data/defect-classes.json';
 
 const AppContent: React.FC = () => {
-  const { imageState, loadImage, setScale, toggleInversion, resetView, fitToCanvas, zoomIn, zoomOut, zoomReset } = useImage();
+  const { imageState, loadImage, setScale, toggleInversion, resetView, fitToCanvas, zoomIn, zoomOut, zoomReset, getOriginalPixelColor } = useImage();
   const { 
     annotations, 
     getYOLOExport, 
@@ -774,7 +774,8 @@ const AppContent: React.FC = () => {
                   imageState.width, 
                   imageState.height, 
                   annotations, 
-                  `annotated_${imageState.file.name}`
+                  `annotated_${imageState.file.name}`,
+                  getOriginalPixelColor
                 );
               }
               handleCloseContextMenu();

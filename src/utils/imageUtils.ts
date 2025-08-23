@@ -20,7 +20,8 @@ export const saveImageAsFile = (
   imageWidth: number,
   imageHeight: number,
   annotations: any,
-  filename: string
+  filename: string,
+  getOriginalPixelColor?: (x: number, y: number) => [number, number, number] | null
 ): void => {
   // Создаем временный canvas с оригинальным разрешением
   const canvas = document.createElement('canvas');
@@ -133,6 +134,17 @@ export const saveImageAsFile = (
 
   // Рисуем точки плотности
   annotations.densityPoints?.forEach((point: any) => {
+    // Динамический расчет плотности для сохранения
+    let density = 0;
+    if (getOriginalPixelColor) {
+      const originalColor = getOriginalPixelColor(point.x, point.y);
+      if (originalColor) {
+        const [r, g, b] = originalColor;
+        const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+        density = 1 - (gray / 255);
+      }
+    }
+
     ctx.strokeStyle = '#FF00FF';
     ctx.lineWidth = 3;
 
@@ -147,7 +159,7 @@ export const saveImageAsFile = (
     // Значение плотности
     ctx.fillStyle = '#FF00FF';
     ctx.font = '16px Arial';
-    ctx.fillText(`${point.density.toFixed(2)}`, point.x + 20, point.y - 5);
+    ctx.fillText(`${density.toFixed(2)}`, point.x + 20, point.y - 5);
   });
 
   // Сохраняем файл
