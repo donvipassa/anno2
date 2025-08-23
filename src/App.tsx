@@ -35,7 +35,7 @@ const AppContent: React.FC = () => {
     markupModified,
     setMarkupModifiedState
   } = useAnnotations();
-  const { calibration, setScale: setCalibrationScale } = useCalibration();
+  const { calibration, setScale: setCalibrationScale, resetScale } = useCalibration();
   const [markupFileName, setMarkupFileName] = useState<string | null>(null);
   const [isProcessingAutoAnnotation, setIsProcessingAutoAnnotation] = useState<boolean>(false);
   const [activeTool, setActiveTool] = useState<string>('');
