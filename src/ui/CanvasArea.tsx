@@ -494,9 +494,10 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
       return;
     }
 
-    if (e.button === 0) { // ЛКМ
-      // Проверка на выделенный bbox и его handles (только если не активен инструмент bbox)
-      if (activeTool !== 'bbox') {
+    // Приоритет 1: Взаимодействие с уже выделенным объектом
+    if (annotations.selectedObjectId) {
+      // Проверка взаимодействия с выделенным bbox
+      if (annotations.selectedObjectType === 'bbox') {
         const selectedBbox = annotations.boundingBoxes.find(bbox => bbox.id === annotations.selectedObjectId);
         if (selectedBbox) {
           const handle = getResizeHandle(coords.x, coords.y, selectedBbox, imageState.scale);
@@ -506,114 +507,148 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
             setDragStart({ x: e.clientX, y: e.clientY });
             return;
           }
+          // Если клик на тело выделенного bbox
+          if (isPointInBox(coords.x, coords.y, selectedBbox)) {
+            setIsDragging(true);
+            setDragStart({ x: e.clientX, y: e.clientY });
+            return;
+          }
         }
       }
-
-      // Если активен инструмент bbox, проверяем - если клик НЕ на существующую рамку, начинаем рисование
-      if (activeTool === 'bbox' && activeClassId >= 0) {
-        const clickedBbox = getBboxAtPoint(coords.x, coords.y);
-        if (!clickedBbox) {
-          // Клик в пустое место - начинаем рисование новой рамки
-          setIsDrawing(true);
-          setStartPoint(coords);
-          setCurrentBox({
-            x: coords.x,
-            y: coords.y,
-            width: 0,
-            height: 0
-          });
-          return;
-        } else {
-          // Клик на существующую рамку - выделяем её
-          selectObject(clickedBbox.id, 'bbox');
-          setIsDragging(true);
-          setDragStart({ x: e.clientX, y: e.clientY });
-          return;
+      
+      // Проверка взаимодействия с выделенной линейкой
+      if (annotations.selectedObjectType === 'ruler') {
+        const selectedRuler = annotations.rulers.find(ruler => ruler.id === annotations.selectedObjectId);
+        if (selectedRuler) {
+          const rulerResult = getRulerAtPoint(coords.x, coords.y);
+          if (rulerResult && rulerResult.ruler.id === selectedRuler.id) {
+            setRulerHandleType(rulerResult.handleType);
+            setIsDragging(true);
+            setDragStart({ x: e.clientX, y: e.clientY });
+            return;
+          }
         }
       }
-
-      // Если НЕ активен инструмент bbox, обычная логика выделения
-      if (activeTool !== 'bbox') {
-        // Проверка клика по точке плотности
-        const clickedDensityPoint = getDensityPointAtPoint(coords.x, coords.y);
-        if (clickedDensityPoint) {
-          selectObject(clickedDensityPoint.id, 'density');
-          setIsDragging(true);
-          setDragStart({ x: e.clientX, y: e.clientY });
-          return;
-        }
-
-        // Проверка клика по линейке
-        const rulerResult = getRulerAtPoint(coords.x, coords.y);
-        if (rulerResult) {
-          selectObject(rulerResult.ruler.id, 'ruler');
-          setRulerHandleType(rulerResult.handleType);
-          setIsDragging(true);
-          setDragStart({ x: e.clientX, y: e.clientY });
-          return;
-        }
-
-        // Проверка клика по калибровочной линии
+      
+      // Проверка взаимодействия с выделенной калибровочной линией
+      if (annotations.selectedObjectType === 'calibration' && annotations.calibrationLine) {
         const calibrationResult = getCalibrationLineAtPoint(coords.x, coords.y);
-        if (calibrationResult) {
-          selectObject(calibrationResult.line.id, 'calibration');
+        if (calibrationResult && calibrationResult.line.id === annotations.calibrationLine.id) {
           setRulerHandleType(calibrationResult.handleType);
           setIsDragging(true);
           setDragStart({ x: e.clientX, y: e.clientY });
           return;
         }
-
-        // Проверка клика по существующему bbox
-        const clickedBbox = getBboxAtPoint(coords.x, coords.y);
-        if (clickedBbox) {
-          // Если рамка уже выделена, просто начинаем перетаскивание
-          if (annotations.selectedObjectId === clickedBbox.id) {
-            setIsDragging(true);
-            setDragStart({ x: e.clientX, y: e.clientY });
-          } else {
-            // Выделяем новую рамку для перемещения
-            selectObject(clickedBbox.id, 'bbox');
-            setIsDragging(true);
-            setDragStart({ x: e.clientX, y: e.clientY });
-          }
-          return;
-        }
       }
-
-      // Инструменты рисования
-      if (activeTool === 'ruler') {
-        const rect = canvasRef.current!.getBoundingClientRect();
-        const canvasX = e.clientX - rect.left;
-        const canvasY = e.clientY - rect.top;
-        setIsDrawing(true);
-        setStartPoint(coords);
-        setCurrentLine({
-          x1: canvasX,
-          y1: canvasY,
-          x2: canvasX,
-          y2: canvasY
-        });
-      } else if (activeTool === 'calibration') {
-        // Если калибровка уже существует, не начинаем новое рисование
-        if (annotations.calibrationLine) {
-          return;
+      
+      // Проверка взаимодействия с выделенной точкой плотности
+      if (annotations.selectedObjectType === 'density') {
+        const selectedPoint = annotations.densityPoints.find(point => point.id === annotations.selectedObjectId);
+        if (selectedPoint) {
+          const clickedPoint = getDensityPointAtPoint(coords.x, coords.y);
+          if (clickedPoint && clickedPoint.id === selectedPoint.id) {
+            setIsDragging(true);
+            setDragStart({ x: e.clientX, y: e.clientY });
+            return;
+          }
         }
-        const rect = canvasRef.current!.getBoundingClientRect();
-        const canvasX = e.clientX - rect.left;
-        const canvasY = e.clientY - rect.top;
-        setIsDrawing(true);
-        setStartPoint(coords);
-        setCurrentLine({
-          x1: canvasX,
-          y1: canvasY,
-          x2: canvasX,
-          y2: canvasY
-        });
-      } else {
-        // Сброс выделения
-        selectObject(null, null);
       }
     }
+
+    // Приоритет 2: Выбор нового объекта (всегда проверяем все объекты)
+    // Проверка клика по точке плотности
+    const clickedDensityPoint = getDensityPointAtPoint(coords.x, coords.y);
+    if (clickedDensityPoint) {
+      selectObject(clickedDensityPoint.id, 'density');
+      setIsDragging(true);
+      setDragStart({ x: e.clientX, y: e.clientY });
+      return;
+    }
+
+    // Проверка клика по линейке
+    const rulerResult = getRulerAtPoint(coords.x, coords.y);
+    if (rulerResult) {
+      selectObject(rulerResult.ruler.id, 'ruler');
+      setRulerHandleType(rulerResult.handleType);
+      setIsDragging(true);
+      setDragStart({ x: e.clientX, y: e.clientY });
+      return;
+    }
+
+    // Проверка клика по калибровочной линии
+    const calibrationResult = getCalibrationLineAtPoint(coords.x, coords.y);
+    if (calibrationResult) {
+      selectObject(calibrationResult.line.id, 'calibration');
+      setRulerHandleType(calibrationResult.handleType);
+      setIsDragging(true);
+      setDragStart({ x: e.clientX, y: e.clientY });
+      return;
+    }
+
+    // Проверка клика по bbox
+    const clickedBbox = getBboxAtPoint(coords.x, coords.y);
+    if (clickedBbox) {
+      selectObject(clickedBbox.id, 'bbox');
+      setIsDragging(true);
+      setDragStart({ x: e.clientX, y: e.clientY });
+      return;
+    }
+
+    // Приоритет 3: Рисование новых объектов
+    if (activeTool === 'bbox' && activeClassId >= 0) {
+      // Сбрасываем выделение перед началом рисования
+      selectObject(null, null);
+      setIsDrawing(true);
+      setStartPoint(coords);
+      setCurrentBox({
+        x: coords.x,
+        y: coords.y,
+        width: 0,
+        height: 0
+      });
+      return;
+    }
+
+    if (activeTool === 'ruler') {
+      // Сбрасываем выделение перед началом рисования
+      selectObject(null, null);
+      const rect = canvasRef.current!.getBoundingClientRect();
+      const canvasX = e.clientX - rect.left;
+      const canvasY = e.clientY - rect.top;
+      setIsDrawing(true);
+      setStartPoint(coords);
+      setCurrentLine({
+        x1: canvasX,
+        y1: canvasY,
+        x2: canvasX,
+        y2: canvasY
+      });
+      return;
+    }
+
+    if (activeTool === 'calibration') {
+      // Если калибровка уже существует, не начинаем новое рисование
+      if (annotations.calibrationLine) {
+        return;
+      }
+      // Сбрасываем выделение перед началом рисования
+      selectObject(null, null);
+      const rect = canvasRef.current!.getBoundingClientRect();
+      const canvasX = e.clientX - rect.left;
+      const canvasY = e.clientY - rect.top;
+      setIsDrawing(true);
+      setStartPoint(coords);
+      setCurrentLine({
+        x1: canvasX,
+        y1: canvasY,
+        x2: canvasX,
+        y2: canvasY
+      });
+      return;
+    }
+
+    // Приоритет 4: Сброс выделения при клике в пустое место
+    selectObject(null, null);
   }, [
     imageState.imageElement, 
     activeTool, 
@@ -627,7 +662,9 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     getDensityPointAtPoint,
     getRulerAtPoint,
     getCalibrationLineAtPoint,
-    isDrawing
+    isDrawing,
+    getResizeHandle,
+    isPointInBox
   ]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
@@ -961,13 +998,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     }
 
     // Сброс инструментов при одиночном клике по пустой области
-    if (e.button === 0 && !isDrawing && !isDragging && !isResizing && 
-        !annotations.selectedObjectId && activeTool !== 'density') {
-      if (activeTool !== 'density' && activeTool !== 'ruler' && activeTool !== 'calibration') {
-        onToolChange('');
-      }
-      onSelectClass(-1);
-    }
+    // Убираем эту логику, так как выделение теперь управляется в handleMouseDown
 
     // Открываем модальное окно для пересчета масштаба после изменения калибровочной линии
     if (annotations.selectedObjectId && annotations.selectedObjectType === 'calibration' && 
@@ -1003,8 +1034,6 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     onShowContextMenu,
     annotations.selectedObjectId,
     isResizing,
-    onToolChange,
-    onSelectClass,
     dragStart,
     isPanning,
     onCalibrationLineFinished
