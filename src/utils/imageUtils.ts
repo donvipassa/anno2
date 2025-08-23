@@ -2,35 +2,6 @@
 import jsonData from '../data/defect-classes.json';
 import { APP_CONFIG } from '../config';
 
-/**
- * Получает данные пикселя из изображения по координатам
- * @param imageElement - HTML элемент изображения
- * @param x - X координата в пикселях изображения
- * @param y - Y координата в пикселях изображения
- * @returns Объект с значениями r, g, b, a пикселя
- */
-export const getPixelDataFromImage = (
-  imageElement: HTMLImageElement,
-  x: number,
-  y: number
-): { r: number; g: number; b: number; a: number } => {
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return { r: 0, g: 0, b: 0, a: 0 };
-
-  canvas.width = imageElement.naturalWidth;
-  canvas.height = imageElement.naturalHeight;
-  ctx.drawImage(imageElement, 0, 0);
-
-  const imageData = ctx.getImageData(Math.floor(x), Math.floor(y), 1, 1);
-  return {
-    r: imageData.data[0],
-    g: imageData.data[1],
-    b: imageData.data[2],
-    a: imageData.data[3]
-  };
-};
-
 export const calculateDensity = (imageData: ImageData, x: number, y: number): number => {
   const index = (y * imageData.width + x) * 4;
   const r = imageData.data[index];
@@ -162,15 +133,6 @@ export const saveImageAsFile = (
 
   // Рисуем точки плотности
   annotations.densityPoints?.forEach((point: any) => {
-    // Динамический расчет плотности для сохранения (без инверсии)
-    let density = 0;
-    if (imageElement) {
-      const pixelData = getPixelDataFromImage(imageElement, point.x, point.y);
-      const { r, g, b } = pixelData;
-      const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-      density = 1 - (gray / 255);
-    }
-
     ctx.strokeStyle = '#FF00FF';
     ctx.lineWidth = 3;
 
@@ -185,7 +147,7 @@ export const saveImageAsFile = (
     // Значение плотности
     ctx.fillStyle = '#FF00FF';
     ctx.font = '16px Arial';
-    ctx.fillText(`${density.toFixed(2)}`, point.x + 20, point.y - 5);
+    ctx.fillText(`${point.density.toFixed(2)}`, point.x + 20, point.y - 5);
   });
 
   // Сохраняем файл

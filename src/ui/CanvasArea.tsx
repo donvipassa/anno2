@@ -4,7 +4,6 @@ import { useAnnotations } from '../core/AnnotationManager';
 import { useCalibration } from '../core/CalibrationManager';
 import { DEFECT_CLASSES } from '../types';
 import { drawBoundingBox, isPointInBox, isPointOnBoxBorder, getResizeHandle } from '../utils/canvas';
-import { getPixelDataFromImage } from '../utils/imageUtils';
 import jsonData from '../data/defect-classes.json';
 
 interface CanvasAreaProps {
@@ -349,23 +348,6 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     annotations.densityPoints.forEach(point => {
       const canvasCoords = getCanvasCoords(point.x, point.y);
 
-      // Динамический расчет плотности
-      let density = 0;
-      if (imageState.imageElement) {
-        const pixelData = getPixelDataFromImage(imageState.imageElement, point.x, point.y);
-        let { r, g, b } = pixelData;
-        
-        // Применяем инверсию если активна
-        if (imageState.inverted) {
-          r = 255 - r;
-          g = 255 - g;
-          b = 255 - b;
-        }
-        
-        const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-        density = 1 - (gray / 255);
-      }
-
       ctx.strokeStyle = '#FF00FF';
       ctx.lineWidth = annotations.selectedObjectId === point.id ? 3 : 2;
 
@@ -403,7 +385,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
       // Значение плотности
       ctx.fillStyle = '#FF00FF';
       ctx.font = 'bold 14px Arial';
-      const densityText = `${density.toFixed(2)}`;
+      const densityText = `${point.density.toFixed(2)}`;
       
       const densityTextX = canvasCoords.x + 15;
       const densityTextY = canvasCoords.y - 5;
@@ -481,10 +463,26 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
       // Проверка, что клик внутри изображения
       if (coords.x >= 0 && coords.x <= imageState.width && 
           coords.y >= 0 && coords.y <= imageState.height) {
-        addDensityPoint({
-          x: coords.x,
-          y: coords.y
-        });
+        const canvas = canvasRef.current;
+        if (canvas) {
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            const imageData = ctx.getImageData(canvasX, canvasY, 1, 1);
+            const r = imageData.data[0];
+            const g = imageData.data[1];
+            const b = imageData.data[2];
+            const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+            
+            // Расчет плотности по отображаемому изображению
+            const density = 1 - (gray / 255);
+            
+            addDensityPoint({
+              x: coords.x,
+              y: coords.y,
+              density: density
+            });
+          }
+        }
       }
       return;
     }

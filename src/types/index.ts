@@ -71,6 +71,7 @@ export interface DensityPoint {
   id: string;
   x: number;
   y: number;
+  density: number;
   selected?: boolean;
 }
 
