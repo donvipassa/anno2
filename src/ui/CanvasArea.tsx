@@ -590,7 +590,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
 
     // Проверка клика по bbox
     const clickedBbox = getBboxAtPoint(coords.x, coords.y);
-    if (clickedBbox && activeTool !== 'density' && activeTool !== 'ruler' && activeTool !== 'calibration') {
+    if (clickedBbox) {
       selectObject(clickedBbox.id, 'bbox');
       setIsDragging(true);
       setDragStart({ x: e.clientX, y: e.clientY });
@@ -598,7 +598,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     }
 
     // Приоритет 3: Рисование новых объектов
-    if (activeTool === 'bbox' && activeClassId >= 0) {
+    if (activeTool === 'bbox' && activeClassId >= 0 && !clickedBbox) {
       // Сбрасываем выделение перед началом рисования
       selectObject(null, null);
       setIsDrawing(true);
@@ -612,7 +612,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
       return;
     }
 
-    if (activeTool === 'ruler') {
+    if (activeTool === 'ruler' && !clickedBbox) {
       // Сбрасываем выделение перед началом рисования
       selectObject(null, null);
       const rect = canvasRef.current!.getBoundingClientRect();
@@ -629,7 +629,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
       return;
     }
 
-    if (activeTool === 'calibration') {
+    if (activeTool === 'calibration' && !clickedBbox) {
       // Если калибровка уже существует, не начинаем новое рисование
       if (annotations.calibrationLine) {
         return;
@@ -650,7 +650,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
       return;
     }
 
-    if (activeTool === 'density') {
+    if (activeTool === 'density' && !clickedBbox) {
       // Проверка, что клик внутри изображения
       if (coords.x >= 0 && coords.x <= imageState.width && 
           coords.y >= 0 && coords.y <= imageState.height) {
