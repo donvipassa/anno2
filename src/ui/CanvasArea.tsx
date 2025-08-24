@@ -27,7 +27,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
   onToolChange,
   onSelectClass,
   onShowContextMenu,
-  onCalibrationLineFinished
+  onCalibrationLineFinished,
   onBboxCreated,
   onEditDefectBbox
 }) => {
