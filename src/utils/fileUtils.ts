@@ -51,7 +51,8 @@ export const convertYOLOToPixels = (
     x: (yoloData.centerX - yoloData.width / 2) * imageWidth,
     y: (yoloData.centerY - yoloData.height / 2) * imageHeight,
     width: yoloData.width * imageWidth,
-    height: yoloData.height * imageHeight
+    height: yoloData.height * imageHeight,
+    formattedDefectString: yoloData.formattedDefectString
   };
   
   // Если это класс от API (ID >= 12), добавляем информацию из JSON

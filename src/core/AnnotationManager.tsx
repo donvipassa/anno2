@@ -288,6 +288,8 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       
       // Определяем название класса для комментария
       let className = '';
+      let defectRecord = '';
+      
       if (bbox.apiClassName && bbox.classId >= 12) {
         // Если это объект от API, ищем русское название в JSON
         const jsonEntry = jsonData.find((entry: any) => entry.apiID === bbox.classId);
@@ -298,9 +300,14 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         className = defectClass ? defectClass.name : 'Неизвестно';
       }
       
+      // Добавляем условную запись дефекта если есть
+      if (bbox.formattedDefectString) {
+        defectRecord = ` - ${bbox.formattedDefectString}`;
+      }
+      
       const safeClassName = className.replace(/[^\u0000-\u007F\u0400-\u04FF\s]/g, '?');
       console.log('Export data:', { exportId, className });
-      return `${exportId} ${centerX.toFixed(6)} ${centerY.toFixed(6)} ${width.toFixed(6)} ${height.toFixed(6)}   # ${safeClassName}`;
+      return `${exportId} ${centerX.toFixed(6)} ${centerY.toFixed(6)} ${width.toFixed(6)} ${height.toFixed(6)}   # ${safeClassName}${defectRecord}`;
     }).join('\n');
   }, [annotations.boundingBoxes]);
 

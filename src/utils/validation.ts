@@ -57,16 +57,34 @@ export const validateYOLOData = (content: string): any[] => {
     const dataLine = commentIndex >= 0 ? line.substring(0, commentIndex) : line;
     const parts = dataLine.split(' ').filter(part => part.trim());
     
+    // Извлекаем условную запись дефекта из комментария
+    let formattedDefectString = null;
+    if (commentIndex >= 0) {
+      const comment = line.substring(commentIndex + 1).trim();
+      // Ищем условную запись после " - "
+      const dashIndex = comment.indexOf(' - ');
+      if (dashIndex >= 0) {
+        formattedDefectString = comment.substring(dashIndex + 3).trim();
+      }
+    }
+    
     if (parts.length < 5) return null;
     
     try {
-      return {
+      const result = {
         classId: parseInt(parts[0]),
         centerX: parseFloat(parts[1]),
         centerY: parseFloat(parts[2]),
         width: parseFloat(parts[3]),
         height: parseFloat(parts[4])
       };
+      
+      // Добавляем условную запись дефекта если найдена
+      if (formattedDefectString) {
+        result.formattedDefectString = formattedDefectString;
+      }
+      
+      return result;
     } catch {
       return null;
     }
