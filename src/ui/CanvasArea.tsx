@@ -15,6 +15,8 @@ interface CanvasAreaProps {
   onSelectClass: (classId: number) => void;
   onShowContextMenu: (x: number, y: number) => void;
   onCalibrationLineFinished: (lineData: any, isNew: boolean) => void;
+  onBboxCreated: (bboxData: Omit<BoundingBox, 'id' | 'defectRecord' | 'formattedDefectString'>) => void;
+  onEditDefectBbox: (bboxId: string) => void;
 }
 
 export const CanvasArea: React.FC<CanvasAreaProps> = ({
@@ -26,6 +28,8 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
   onSelectClass,
   onShowContextMenu,
   onCalibrationLineFinished
+  onBboxCreated,
+  onEditDefectBbox
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -975,16 +979,14 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
       if (activeTool === 'bbox' && currentBox) {
         const minSize = 10;
         if (currentBox.width >= minSize && currentBox.height >= minSize) {
-          const bbox = {
+          const bboxData = {
             classId: activeClassId,
             x: Math.min(clampedStartPoint.x, clampedCoords.x),
             y: Math.min(clampedStartPoint.y, clampedCoords.y),
             width: Math.abs(clampedCoords.x - clampedStartPoint.x),
             height: Math.abs(clampedCoords.y - clampedStartPoint.y)
           };
-          
-          const id = addBoundingBox(bbox);
-          selectObject(id, 'bbox');
+          onBboxCreated(bboxData);
         }
       } else if (activeTool === 'ruler' && currentLine) {
         const pixelLength = Math.sqrt(
@@ -1100,6 +1102,17 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [annotations.selectedObjectId, annotations.selectedObjectType, deleteBoundingBox, deleteRuler, deleteCalibrationLine, deleteDensityPoint]);
+
+  // Обработчик двойного клика
+  const handleDoubleClick = useCallback((e: React.MouseEvent) => {
+    if (!imageState.imageElement) return;
+    const coords = getImageCoords(e.clientX, e.clientY);
+    const clickedBbox = getBboxAtPoint(coords.x, coords.y);
+    // Проверяем, что это рамка дефекта (классы 0-9)
+    if (clickedBbox && clickedBbox.classId >= 0 && clickedBbox.classId <= 9) {
+      onEditDefectBbox(clickedBbox.id);
+    }
+  }, [imageState.imageElement, getImageCoords, getBboxAtPoint, onEditDefectBbox]);
 
   // Обновление canvas при изменениях
   useEffect(() => {
@@ -1219,6 +1232,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
           onContextMenu={handleContextMenu}
+          onDoubleClick={handleDoubleClick}
           onWheel={handleWheel}
         />
       )}

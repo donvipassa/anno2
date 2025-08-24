@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { AnnotationState, BoundingBox, Ruler, CalibrationLine, DensityPoint, DEFECT_CLASSES } from '../types';
+import { DefectRecord } from '../types/defects';
 import { v4 as uuidv4 } from 'uuid';
 import jsonData from '../data/defect-classes.json';
 
@@ -25,6 +26,7 @@ interface AnnotationContextType {
   clearAllDensityPoints: () => void;
   loadAnnotations: (data: any) => void;
   getYOLOExport: (imageWidth: number, imageHeight: number) => string;
+  updateBoundingBoxDefectRecord: (id: string, record: DefectRecord, formattedString: string) => void;
 }
 
 const AnnotationContext = createContext<AnnotationContextType | null>(null);
@@ -109,6 +111,16 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         ruler.id === id ? { ...ruler, ...updates } : ruler
       )
     })); 
+    setMarkupModified(true);
+  }, []);
+
+  const updateBoundingBoxDefectRecord = useCallback((id: string, record: DefectRecord, formattedString: string) => {
+    setAnnotations(prev => ({
+      ...prev,
+      boundingBoxes: prev.boundingBoxes.map(box =>
+        box.id === id ? { ...box, defectRecord: record, formattedDefectString: formattedString } : box
+      )
+    }));
     setMarkupModified(true);
   }, []);
 
@@ -315,7 +327,8 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         clearAllRulers,
         clearAllDensityPoints,
         loadAnnotations,
-        getYOLOExport
+        getYOLOExport,
+        updateBoundingBoxDefectRecord
       }}
     >
       {children}

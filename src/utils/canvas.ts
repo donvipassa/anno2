@@ -142,7 +142,13 @@ export function drawBoundingBox(
   let strokeColor = '#808080'; // цвет по умолчанию
   let labelText = 'Неизвестно';
 
-  if (defectClass) {
+  // Приоритет: сначала проверяем наличие отформатированной записи дефекта
+  if (box.formattedDefectString) {
+    if (defectClass) {
+      strokeColor = defectClass.color;
+    }
+    labelText = box.formattedDefectString;
+  } else if (defectClass) {
     // Стандартный класс дефектов
     strokeColor = defectClass.color;
     labelText = defectClass.name;

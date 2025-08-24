@@ -1,5 +1,6 @@
 // Основные типы данных приложения
 export * from './api';
+export * from './defects';
 
 /**
  * Интерфейс для JSON данных классов от API
@@ -37,6 +38,8 @@ export interface BoundingBox {
   apiClassName?: string;
   apiColor?: [number, number, number]; // RGB цвет от API для неизвестных классов
   apiId?: number; // ID класса от API
+  defectRecord?: import('./defects').DefectRecord | null; // Для хранения структурированной записи дефекта
+  formattedDefectString?: string; // Для хранения отформатированной строки записи дефекта
 }
 
 /**
