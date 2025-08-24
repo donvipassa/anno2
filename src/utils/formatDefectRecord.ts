@@ -145,11 +145,8 @@ export const formatDefectRecord = (
     }
   });
 
-  // Объединяем записи точкой с запятой и добавляем суммарную длину
+  // Объединяем записи точкой с запятой
   let result = formattedRecords.join('; ');
-  if (totalLength > 0) {
-    result += `; Σ${totalLength}`;
-  }
 
   return result;
 };
