@@ -317,14 +317,14 @@ export const DefectFormModal: React.FC<DefectFormModalProps> = ({
 
         <div className="flex gap-6">
           {/* Изображение дефекта */}
-          <div className="flex-shrink-0">
+          <div className="flex-shrink-0 w-64">
             <h3 className="font-medium text-gray-700 mb-3">{selectedDefect.вид_дефекта}</h3>
             {displayImage && (
-              <div className="bg-gray-100 rounded-lg p-4 flex items-center justify-center w-64 h-64">
+              <div className="bg-gray-100 rounded-lg p-4 flex items-center justify-center h-64">
                 <img
                   src={`/${displayImage}`}
                   alt={activeCharacter?.название_характера || selectedDefect.вид_дефекта}
-                  className="max-w-full max-h-full object-contain"
+                  className="w-full h-full object-contain"
                   onError={(e) => {
                     console.error(`Ошибка загрузки изображения: ${displayImage}`);
                     e.currentTarget.style.display = 'none';
@@ -333,17 +333,17 @@ export const DefectFormModal: React.FC<DefectFormModalProps> = ({
               </div>
             )}
             {!displayImage && (
-              <div className="bg-gray-100 rounded-lg p-4 flex items-center justify-center w-64 h-64">
+              <div className="bg-gray-100 rounded-lg p-4 flex items-center justify-center h-64">
                 <span className="text-gray-500 text-sm">Изображение не найдено</span>
               </div>
             )}
           </div>
 
           {/* Правая часть с полями */}
-          <div className="flex-1 flex flex-col">
-            <div className="flex gap-6 flex-1">
+          <div className="flex-1 flex flex-col min-w-0">
+            <div className="flex gap-8 flex-1">
               {/* Характер дефекта и количество */}
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 {/* Характер дефекта - показываем только для сложных дефектов */}
                 {!isSimpleDefect() && (
                   <div className="mb-6">
@@ -366,7 +366,7 @@ export const DefectFormModal: React.FC<DefectFormModalProps> = ({
                               }}
                               className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
                             />
-                            <span className="text-sm text-gray-700">
+                            <span className="text-sm text-gray-700 break-words">
                               {character.название_характера !== '-' ? character.название_характера : selectedDefect.вид_дефекта}
                             </span>
                           </label>
@@ -374,7 +374,7 @@ export const DefectFormModal: React.FC<DefectFormModalProps> = ({
                       </div>
                     ) : uniqueCharacters.length === 1 ? (
                       <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                        <span className="text-sm text-blue-800 font-medium">
+                        <span className="text-sm text-blue-800 font-medium break-words">
                           {uniqueCharacters[0].название_характера !== '-' ? uniqueCharacters[0].название_характера : selectedDefect.вид_дефекта}
                         </span>
                       </div>
@@ -384,7 +384,7 @@ export const DefectFormModal: React.FC<DefectFormModalProps> = ({
                     {varieties.length > 0 && (
                       <div className="mt-4">
                         <h4 className="font-medium text-gray-700 mb-2">Разновидность</h4>
-                        <div className="space-y-2">
+                              <label className="block text-sm text-gray-600 mb-1 break-words">
                           {varieties.map((variety) => (
                             <label key={variety} className="flex items-center space-x-3 cursor-pointer">
                               <input
@@ -395,7 +395,7 @@ export const DefectFormModal: React.FC<DefectFormModalProps> = ({
                                 onChange={(e) => setSelectedVariety(e.target.value)}
                                 className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
                               />
-                              <span className="text-sm text-gray-700">{variety}</span>
+                              <span className="text-sm text-gray-700 break-words">{variety}</span>
                             </label>
                           ))}
                         </div>
@@ -415,7 +415,7 @@ export const DefectFormModal: React.FC<DefectFormModalProps> = ({
                         onChange={(e) => setCount(e.target.checked ? 2 : 1)}
                         className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                       />
-                      <span className="text-sm text-gray-700">
+                      <span className="text-sm text-gray-700 break-words">
                         Количество однотипных дефектов, шт.
                       </span>
                     </label>
@@ -433,7 +433,7 @@ export const DefectFormModal: React.FC<DefectFormModalProps> = ({
               </div>
 
               {/* Размеры дефекта */}
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <h3 className="font-medium text-gray-700 mb-3">Размеры дефекта</h3>
                 
                 {selectedCharacter && (isSimpleDefect() || isCharacterAndVarietySelected()) && activeCharacter && (
@@ -443,7 +443,7 @@ export const DefectFormModal: React.FC<DefectFormModalProps> = ({
                       <>
                         {/* Длина цепочки/скопления */}
                         <div>
-                          <label className="block text-sm text-gray-600 mb-1">
+                          <label className="block text-sm text-gray-600 mb-1 break-words">
                             {activeCharacter.контролируемый_размер_1}, мм
                           </label>
                           <input
@@ -464,7 +464,7 @@ export const DefectFormModal: React.FC<DefectFormModalProps> = ({
                         {/* Максимальные размеры элементов в цепочке/скоплении */}
                         {activeCharacter.контролируемый_размер_2 && activeCharacter.контролируемый_размер_2 !== '-' && (
                           <div>
-                            <label className="block text-sm text-gray-600 mb-1">
+                            <label className="block text-sm text-gray-600 mb-1 break-words">
                               {activeCharacter.контролируемый_размер_2}, мм
                             </label>
                             <input
@@ -489,7 +489,7 @@ export const DefectFormModal: React.FC<DefectFormModalProps> = ({
                         {/* Максимальная длина элементов (только для удлиненных) */}
                         {activeCharacter.контролируемый_размер_3 && activeCharacter.контролируемый_размер_3 !== '-' && (
                           <div>
-                            <label className="block text-sm text-gray-600 mb-1">
+                            <label className="block text-sm text-gray-600 mb-1 break-words">
                               {activeCharacter.контролируемый_размер_3}, мм
                             </label>
                             <input
