@@ -383,8 +383,7 @@ export const DefectFormModal: React.FC<DefectFormModalProps> = ({
                     {/* Разновидности */}
                     {varieties.length > 0 && (
                       <div className="mt-4">
-                        <h4 className="font-medium text-gray-700 mb-2">Разновидность</h4>
-                              <label className="block text-sm text-gray-600 mb-1 break-words">
+                        <div className="space-y-2">
                           {varieties.map((variety) => (
                             <label key={variety} className="flex items-center space-x-3 cursor-pointer">
                               <input
