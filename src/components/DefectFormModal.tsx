@@ -315,12 +315,12 @@ export const DefectFormModal: React.FC<DefectFormModalProps> = ({
           </div>
         )}
 
-        <div className="flex gap-8 min-w-fit">
+        <div className="flex gap-8 min-w-fit h-full">
           {/* Изображение дефекта */}
-          <div className="flex-shrink-0 w-64 min-w-64">
+          <div className="flex-shrink-0 w-64 min-w-64 flex flex-col">
             <h3 className="font-medium text-gray-700 mb-3">{selectedDefect.вид_дефекта}</h3>
             {displayImage && (
-              <div className="bg-gray-100 rounded-lg p-4 flex items-center justify-center h-64">
+              <div className="bg-gray-100 rounded-lg p-4 flex items-center justify-center flex-grow">
                 <img
                   src={`/${displayImage}`}
                   alt={activeCharacter?.название_характера || selectedDefect.вид_дефекта}
@@ -333,7 +333,7 @@ export const DefectFormModal: React.FC<DefectFormModalProps> = ({
               </div>
             )}
             {!displayImage && (
-              <div className="bg-gray-100 rounded-lg p-4 flex items-center justify-center h-64">
+              <div className="bg-gray-100 rounded-lg p-4 flex items-center justify-center flex-grow">
                 <span className="text-gray-500 text-sm">Изображение не найдено</span>
               </div>
             )}
@@ -599,15 +599,16 @@ export const DefectFormModal: React.FC<DefectFormModalProps> = ({
                 )}
               </div>
             </div>
+
+            {/* Предварительный просмотр записи */}
+            {formattedRecordString && (
+              <div className="mt-6 p-3 bg-blue-50 border border-blue-200 rounded-md text-blue-800 text-sm">
+                <span className="font-semibold">Итоговая запись:</span> {formattedRecordString}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Предварительный просмотр записи */}
-        {formattedRecordString && (
-          <div className="mt-6 p-3 bg-blue-50 border border-blue-200 rounded-md text-blue-800 text-sm">
-            <span className="font-semibold">Итоговая запись:</span> {formattedRecordString}
-          </div>
-        )}
       </div>
 
       <ModalButtons>
