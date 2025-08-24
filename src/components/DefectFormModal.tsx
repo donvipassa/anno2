@@ -298,7 +298,7 @@ export const DefectFormModal: React.FC<DefectFormModalProps> = ({
   const displayImage = getDisplayImage();
 
   return (
-    <Modal isOpen={isOpen} title="Параметры дефекта" onClose={onClose}>
+    <Modal isOpen={isOpen} title="Параметры дефекта" onClose={onClose} maxWidth="max-w-5xl">
       <div className="max-h-[80vh] overflow-y-auto">
         {/* Ошибки валидации */}
         {validationErrors.length > 0 && (
@@ -315,9 +315,9 @@ export const DefectFormModal: React.FC<DefectFormModalProps> = ({
           </div>
         )}
 
-        <div className="flex gap-6">
+        <div className="flex gap-8 min-w-fit">
           {/* Изображение дефекта */}
-          <div className="flex-shrink-0 w-64">
+          <div className="flex-shrink-0 w-64 min-w-64">
             <h3 className="font-medium text-gray-700 mb-3">{selectedDefect.вид_дефекта}</h3>
             {displayImage && (
               <div className="bg-gray-100 rounded-lg p-4 flex items-center justify-center h-64">
@@ -340,10 +340,10 @@ export const DefectFormModal: React.FC<DefectFormModalProps> = ({
           </div>
 
           {/* Правая часть с полями */}
-          <div className="flex-1 flex flex-col min-w-0">
-            <div className="flex gap-8 flex-1">
+          <div className="flex-1 flex flex-col min-w-fit">
+            <div className="flex gap-8 flex-1 min-w-fit">
               {/* Характер дефекта и количество */}
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-80">
                 {/* Характер дефекта - показываем только для сложных дефектов */}
                 {!isSimpleDefect() && (
                   <div className="mb-6">
@@ -432,7 +432,7 @@ export const DefectFormModal: React.FC<DefectFormModalProps> = ({
               </div>
 
               {/* Размеры дефекта */}
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-64">
                 <h3 className="font-medium text-gray-700 mb-3">Размеры дефекта</h3>
                 
                 {selectedCharacter && (isSimpleDefect() || isCharacterAndVarietySelected()) && activeCharacter && (

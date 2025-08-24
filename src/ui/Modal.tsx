@@ -6,6 +6,7 @@ interface ModalProps {
   children: React.ReactNode;
   onClose?: () => void;
   closeOnOutsideClick?: boolean;
+  maxWidth?: string;
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -13,7 +14,8 @@ export const Modal: React.FC<ModalProps> = ({
   title,
   children,
   onClose,
-  closeOnOutsideClick = false
+  closeOnOutsideClick = false,
+  maxWidth = 'max-w-md'
 }) => {
   useEffect(() => {
     if (isOpen) {
@@ -40,7 +42,7 @@ export const Modal: React.FC<ModalProps> = ({
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
       onClick={handleOverlayClick}
     >
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4">
+      <div className={`bg-white rounded-lg shadow-xl ${maxWidth} w-full mx-4`}>
         <div className="px-6 py-4 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
         </div>
