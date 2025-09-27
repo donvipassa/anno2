@@ -88,7 +88,7 @@ const AppContent: React.FC = () => {
   const [calibrationInputValue, setCalibrationInputValue] = useState<string>('50');
 
   // Хук для файловых операций
-  const { openFileDialog, handleSaveMarkup } = useFileOperations(
+  const { openFileDialog, handleSaveMarkup, handleOpenMarkup } = useFileOperations(
     showModal,
     closeModal,
     setMarkupFileName,
