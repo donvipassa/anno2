@@ -1,8 +1,8 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { ErrorBoundary } from '../components/ErrorBoundary';
-import { ImageProvider } from './core/ImageProvider';
-import { AnnotationProvider } from './core/AnnotationManager';
-import { DefectFormModal } from './components/DefectFormModal';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { ImageProvider } from '../core/ImageProvider';
+import { AnnotationProvider } from '../core/AnnotationManager';
+import { DefectFormModal } from '../components/DefectFormModal';
 import { DefectRecord } from './types/defects';
 import { 
   Header, 
@@ -14,9 +14,9 @@ import {
   ModalButtons, 
   ModalButton 
 } from './ui';
-import { useImage } from './core/ImageProvider';
-import { useAnnotations } from './core/AnnotationManager';
-import { useCalibration } from './core/CalibrationManager';
+import { useImage } from '../core/ImageProvider';
+import { useAnnotations } from '../core/AnnotationManager';
+import { useCalibration } from '../core/CalibrationManager';
 import { 
   validateImageFile, 
   saveImageAsFile,
@@ -26,10 +26,6 @@ import {
   convertYOLOToPixels,
   validateMarkupFileName,
   validateYOLOData
-} from './utils';
-import { detectObjects } from './services/api';
-import { mapApiClassToDefectClassId, convertApiBboxToPixels } from './utils';
-import jsonData from './data/defect-classes.json';
 
 // Константы для модальных окон
 const MODAL_TYPES = {
