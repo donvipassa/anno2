@@ -382,6 +382,7 @@ const AppContent: React.FC = () => {
     // Проверяем, что это дефект (классы 0-9), а не API класс
     if (bboxData.classId >= 0 && bboxData.classId <= 9) {
       const newBboxId = addBoundingBox(bboxData);
+      setPendingBboxId(newBboxId); // Помечаем как pending
       selectObject(newBboxId, 'bbox');
       setDefectFormModalState({
         isOpen: true,
@@ -416,20 +417,18 @@ const AppContent: React.FC = () => {
   }, [updateBoundingBoxDefectRecord]);
 
   const handleCloseDefectModal = useCallback(() => {
-    // Если есть pending рамка, удаляем её при отмене
-    if (pendingBboxId) {
-      // Удаляем рамку через AnnotationManager
-      const bboxToDelete = annotations.boundingBoxes.find(bbox => bbox.id === pendingBboxId);
-      if (bboxToDelete) {
-        // Используем функцию удаления из контекста аннотаций
-        selectObject(pendingBboxId, 'bbox');
-        handleDeleteSelected();
+    // Если есть pending рамка (новая рамка без сохраненной записи), удаляем её при отмене
+    if (defectFormModalState.bboxId) {
+      const bboxToCheck = annotations.boundingBoxes.find(bbox => bbox.id === defectFormModalState.bboxId);
+      // Удаляем рамку только если у неё нет сохраненной записи дефекта (это новая рамка)
+      if (bboxToCheck && !bboxToCheck.formattedDefectString) {
+        deleteBoundingBox(defectFormModalState.bboxId);
       }
-      setPendingBboxId(null);
     }
     
     setDefectFormModalState({ isOpen: false, bboxId: null, defectClassId: null, initialRecord: null });
-  }, [pendingBboxId, annotations.boundingBoxes, selectObject, handleDeleteSelected]);
+    setPendingBboxId(null);
+  }, [defectFormModalState.bboxId, annotations.boundingBoxes, deleteBoundingBox]);
 
   const handleHelp = () => {
     showModal('help', 'О программе', 'Автор и разработчик Алексей Сотников\nТехнопарк "Университетские технологии"', [
