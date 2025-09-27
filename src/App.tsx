@@ -266,14 +266,6 @@ const AppContent: React.FC = () => {
     }
   }, [addBoundingBox, selectObject]);
 
-  const handleCancelDefectModal = useCallback(() => {
-    // Если есть выделенная рамка, удаляем её при отмене
-    if (annotations.selectedObjectId && annotations.selectedObjectType === 'bbox') {
-      deleteBoundingBox(annotations.selectedObjectId);
-    }
-    closeDefectFormModal();
-  }, [annotations.selectedObjectId, annotations.selectedObjectType, deleteBoundingBox, closeDefectFormModal]);
-
   const handleEditDefectBbox = useCallback((bboxId: string) => {
     const bboxToEdit = annotations.boundingBoxes.find(bbox => bbox.id === bboxId);
     if (bboxToEdit) {
@@ -644,7 +636,7 @@ const AppContent: React.FC = () => {
       {/* Модальное окно для формы дефекта */}
       <DefectFormModal
         isOpen={defectFormModalState.isOpen}
-        onClose={handleCancelDefectModal}
+        onClose={closeDefectFormModal}
         bboxId={defectFormModalState.bboxId}
         defectClassId={defectFormModalState.defectClassId}
         initialRecord={defectFormModalState.initialRecord}
