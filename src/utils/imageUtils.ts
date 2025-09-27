@@ -58,7 +58,13 @@ export const saveImageAsFile = (
     let strokeColor = '#808080'; // цвет по умолчанию
     let labelText = 'Неизвестно';
 
-    if (defectClass) {
+    if (bbox.formattedDefectString) {
+      // Приоритет условной записи дефекта
+      if (defectClass) {
+        strokeColor = defectClass.color;
+      }
+      labelText = bbox.formattedDefectString;
+    } else if (defectClass) {
       // Стандартный класс дефектов
       strokeColor = defectClass.color;
       labelText = defectClass.name;
