@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ImageProvider } from './core/ImageProvider';
 import { AnnotationProvider } from './core/AnnotationManager';
+import { DefectFormModal } from './components/DefectFormModal';
 import { DefectRecord } from './types/defects';
 import { 
   Header, 
@@ -115,12 +116,12 @@ const AppContent: React.FC = () => {
   const [autoAnnotationPerformed, setAutoAnnotationPerformed] = useState<boolean>(false);
 
   // Состояние модального окна формы дефекта
-  // const [defectFormModalState, setDefectFormModalState] = useState<DefectFormState>({
-  //   isOpen: false,
-  //   bboxId: null,
-  //   defectClassId: null,
-  //   initialRecord: null
-  // });
+  const [defectFormModalState, setDefectFormModalState] = useState<DefectFormState>({
+    isOpen: false,
+    bboxId: null,
+    defectClassId: null,
+    initialRecord: null
+  });
 
   // Состояние калибровки
   const [pendingCalibrationLine, setPendingCalibrationLine] = useState<any>(null);
@@ -454,24 +455,53 @@ const AppContent: React.FC = () => {
   }, [imageState.file, addBoundingBox, autoAnnotationPerformed]);
 
   const handleBboxCreated = useCallback((bboxData: Omit<BoundingBox, 'id' | 'defectRecord' | 'formattedDefectString'>) => {
-    // Создаем рамку без диалога
-    const newBboxId = addBoundingBox(bboxData);
-    selectObject(newBboxId, 'bbox');
+    // Проверяем, что это дефект (классы 0-9)
+    if (bboxData.classId >= 0 && bboxData.classId <= 9) {
+      const newBboxId = addBoundingBox(bboxData);
+      selectObject(newBboxId, 'bbox');
+      setDefectFormModalState({
+        isOpen: true,
+        bboxId: newBboxId,
+        defectClassId: bboxData.classId,
+        initialRecord: null
+      });
+    } else {
+      // Для других классов создаем рамку без диалога
+      const newBboxId = addBoundingBox(bboxData);
+      selectObject(newBboxId, 'bbox');
+    }
   }, [addBoundingBox, selectObject]);
 
   const handleEditDefectBbox = useCallback((bboxId: string) => {
-    // Временно отключено
-    console.log('Edit defect bbox:', bboxId);
+    const bboxToEdit = annotations.boundingBoxes.find(bbox => bbox.id === bboxId);
+    if (bboxToEdit) {
+      selectObject(bboxId, 'bbox');
+      setDefectFormModalState({
+        isOpen: true,
+        bboxId: bboxId,
+        defectClassId: bboxToEdit.classId,
+        initialRecord: bboxToEdit.defectRecord || null
+      });
+    }
   }, [annotations.boundingBoxes, selectObject]);
 
   const handleSaveDefectRecord = useCallback((bboxId: string, record: DefectRecord, formattedString: string) => {
-    // Временно отключено
-    console.log('Save defect record:', bboxId, record, formattedString);
+    updateBoundingBoxDefectRecord(bboxId, record, formattedString);
+    setDefectFormModalState({
+      isOpen: false,
+      bboxId: null,
+      defectClassId: null,
+      initialRecord: null
+    });
   }, [updateBoundingBoxDefectRecord]);
 
   const handleCloseDefectModal = useCallback(() => {
-    // Временно отключено
-    console.log('Close defect modal');
+    setDefectFormModalState({
+      isOpen: false, 
+      bboxId: null, 
+      defectClassId: null, 
+      initialRecord: null
+    });
   }, []);
 
   const handleHelp = useCallback(() => {
@@ -829,7 +859,14 @@ const AppContent: React.FC = () => {
       </Modal>
 
       {/* Модальное окно для формы дефекта */}
-      {/* Временно отключено */}
+      <DefectFormModal
+        isOpen={defectFormModalState.isOpen}
+        onClose={handleCloseDefectModal}
+        bboxId={defectFormModalState.bboxId}
+        defectClassId={defectFormModalState.defectClassId}
+        initialRecord={defectFormModalState.initialRecord}
+        onSaveRecord={handleSaveDefectRecord}
+      />
 
       {/* Контекстное меню */}
       {contextMenu.visible && (
