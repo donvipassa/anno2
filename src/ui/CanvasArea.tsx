@@ -244,6 +244,47 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
       }
     }
 
+    // Проверяем тело калибровочной линии для перемещения
+    if (annotations.calibrationLine) {
+      const line = annotations.calibrationLine;
+      const rulerTolerance = 15 / imageState.scale;
+      const distance = Math.abs((line.y2 - line.y1) * x - (line.x2 - line.x1) * y + line.x2 * line.y1 - line.y2 * line.x1) /
+                      Math.sqrt((line.y2 - line.y1) ** 2 + (line.x2 - line.x1) ** 2);
+      
+      if (distance <= rulerTolerance &&
+          x >= Math.min(line.x1, line.x2) - rulerTolerance &&
+          x <= Math.max(line.x1, line.x2) + rulerTolerance &&
+          y >= Math.min(line.y1, line.y2) - rulerTolerance &&
+          y <= Math.max(line.y1, line.y2) + rulerTolerance) {
+        // Проверяем, что это не маркер
+        const distToStart = calculateDistance(x, y, line.x1, line.y1);
+        const distToEnd = calculateDistance(x, y, line.x2, line.y2);
+        if (distToStart > markerTolerance && distToEnd > markerTolerance) {
+          return 'move';
+        }
+      }
+    }
+
+    // Проверяем тело линеек для перемещения
+    const rulerTolerance = 15 / imageState.scale;
+    for (let i = annotations.rulers.length - 1; i >= 0; i--) {
+      const ruler = annotations.rulers[i];
+      const distance = Math.abs((ruler.y2 - ruler.y1) * x - (ruler.x2 - ruler.x1) * y + ruler.x2 * ruler.y1 - ruler.y2 * ruler.x1) /
+                      Math.sqrt((ruler.y2 - ruler.y1) ** 2 + (ruler.x2 - ruler.x1) ** 2);
+      
+      if (distance <= rulerTolerance &&
+          x >= Math.min(ruler.x1, ruler.x2) - rulerTolerance &&
+          x <= Math.max(ruler.x1, ruler.x2) + rulerTolerance &&
+          y >= Math.min(ruler.y1, ruler.y2) - rulerTolerance &&
+          y <= Math.max(ruler.y1, ruler.y2) + rulerTolerance) {
+        // Проверяем, что это не маркер
+        const distToStart = calculateDistance(x, y, ruler.x1, ruler.y1);
+        const distToEnd = calculateDistance(x, y, ruler.x2, ruler.y2);
+        if (distToStart > markerTolerance && distToEnd > markerTolerance) {
+          return 'move';
+        }
+      }
+    }
     return 'default';
   }, [annotations, imageState.scale]);
 
