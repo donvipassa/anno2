@@ -3,6 +3,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { ImageProvider } from './core/ImageProvider';
 import { AnnotationProvider } from './core/AnnotationManager';
 import { DefectFormModal } from './components/DefectFormModal';
+import { DefectFormModal } from './components/DefectFormModal';
 import { DefectRecord } from './types/defects';
 import { 
   Header, 
@@ -17,18 +18,13 @@ import {
 import { useImage } from './core/ImageProvider';
 import { useAnnotations } from './core/AnnotationManager';
 import { useCalibration } from './core/CalibrationManager';
-import { 
-  validateImageFile, 
-  saveImageAsFile,
-  getMarkupFileName, 
-  downloadFile, 
-  readFileAsText, 
-  convertYOLOToPixels,
-  validateMarkupFileName,
-  validateYOLOData
-} from './utils';
+import { saveImageAsFile } from './utils';
 import { detectObjects } from './services/api';
 import { mapApiClassToDefectClassId, convertApiBboxToPixels } from './utils';
+import { useModalState } from './hooks/useModalState';
+import { useDefectFormModal } from './hooks/useDefectFormModal';
+import { useContextMenu } from './hooks/useContextMenu';
+import { useFileOperations } from './hooks/useFileOperations';
 import jsonData from './data/defect-classes.json';
 
 // Константы для модальных окон
@@ -39,38 +35,6 @@ const MODAL_TYPES = {
   CALIBRATION: 'calibration',
   HELP: 'help'
 } as const;
-
-// Типы для состояния модального окна
-interface ModalState {
-  type: string | null;
-  title: string;
-  message: string;
-  buttons?: Array<{
-    text: string;
-    action: () => void;
-    primary?: boolean;
-  }>;
-  input?: {
-    label: string;
-    value: string;
-    onChange: (value: string) => void;
-  };
-}
-
-// Типы для состояния формы дефекта
-interface DefectFormState {
-  isOpen: boolean;
-  bboxId: string | null;
-  defectClassId: number | null;
-  initialRecord: DefectRecord | null;
-}
-
-// Типы для контекстного меню
-interface ContextMenuState {
-  visible: boolean;
-  x: number;
-  y: number;
-}
 
 const AppContent: React.FC = () => {
   // Хуки для управления состоянием
@@ -106,6 +70,11 @@ const AppContent: React.FC = () => {
   
   const { calibration, setScale: setCalibrationScale, resetScale } = useCalibration();
 
+  // Хуки для управления UI состоянием
+  const { modalState, closeModal, showModal } = useModalState();
+  const { defectFormModalState, openDefectFormModal, closeDefectFormModal } = useDefectFormModal();
+  const { contextMenu, showContextMenu, hideContextMenu } = useContextMenu();
+
   // Локальное состояние компонента
   const [markupFileName, setMarkupFileName] = useState<string | null>(null);
   const [isProcessingAutoAnnotation, setIsProcessingAutoAnnotation] = useState<boolean>(false);
@@ -115,55 +84,18 @@ const AppContent: React.FC = () => {
   const [filterActive, setFilterActive] = useState<boolean>(false);
   const [autoAnnotationPerformed, setAutoAnnotationPerformed] = useState<boolean>(false);
 
-  // Состояние модального окна формы дефекта
-  const [defectFormModalState, setDefectFormModalState] = useState<DefectFormState>({
-    isOpen: false,
-    bboxId: null,
-    defectClassId: null,
-    initialRecord: null
-  });
-
   // Состояние калибровки
   const [pendingCalibrationLine, setPendingCalibrationLine] = useState<any>(null);
   const [calibrationInputValue, setCalibrationInputValue] = useState<string>('50');
 
-  // Состояние модального окна
-  const [modalState, setModalState] = useState<ModalState>({
-    type: null,
-    title: '',
-    message: ''
-  });
-
-  // Состояние контекстного меню
-  const [contextMenu, setContextMenu] = useState<ContextMenuState>({
-    visible: false,
-    x: 0,
-    y: 0
-  });
-
-  // Функции для работы с модальными окнами
-  const closeModal = useCallback(() => {
-    setModalState({ type: null, title: '', message: '' });
-  }, []);
-
-  const showModal = useCallback((
-    type: string, 
-    title: string, 
-    message: string, 
-    buttons?: Array<{ text: string; action: () => void; primary?: boolean }>, 
-    input?: any
-  ) => {
-    setModalState({ type, title, message, buttons, input });
-  }, []);
-
-  // Функции для работы с контекстным меню
-  const handleShowContextMenu = useCallback((x: number, y: number) => {
-    setContextMenu({ visible: true, x, y });
-  }, []);
-
-  const handleCloseContextMenu = useCallback(() => {
-    setContextMenu({ visible: false, x: 0, y: 0 });
-  }, []);
+  // Хук для файловых операций
+  const { openFileDialog, handleSaveMarkup } = useFileOperations(
+    showModal,
+    closeModal,
+    setMarkupFileName,
+    setMarkupModifiedState,
+    setAutoAnnotationPerformed
+  );
 
   // Эффект синхронизации activeClassId с выделенным объектом
   useEffect(() => {
@@ -208,58 +140,6 @@ const AppContent: React.FC = () => {
     }
   }, [annotations.calibrationLine, resetScale]);
 
-  // Функции для работы с файлами
-  const validateAndShowError = useCallback((validation: { valid: boolean; error?: string }) => {
-    if (!validation.valid) {
-      const errorMessages = {
-        'FILE_TOO_LARGE': 'Файл слишком большой. Максимум — 20 МБ',
-        'INVALID_FORMAT': 'Недопустимый формат. Поддерживаются форматы: JPG, PNG, TIFF, BMP'
-      };
-      const message = errorMessages[validation.error as keyof typeof errorMessages] || 'Неизвестная ошибка';
-      showModal(MODAL_TYPES.ERROR, 'Ошибка', message, [
-        { text: 'Ок', action: closeModal }
-      ]);
-      return false;
-    }
-    return true;
-  }, [showModal, closeModal]);
-
-  const openFileDialog = useCallback(() => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-
-      const validation = validateImageFile(file);
-      if (!validateAndShowError(validation)) return;
-
-      try {
-        await loadImage(file);
-        
-        // Предложение загрузить разметку
-        showModal(MODAL_TYPES.CONFIRM, 'Загрузка разметки', 'Открыть файл разметки для данного изображения?', [
-          { text: 'Да', action: () => { closeModal(); handleOpenMarkup(file.name); } },
-          { text: 'Нет', action: closeModal }
-        ]);
-        
-        // Очистка существующих аннотаций
-        clearAll();
-        setMarkupModifiedState(false);
-        setActiveTool('');
-        setActiveClassId(-1);
-        setMarkupFileName(null);
-        setAutoAnnotationPerformed(false);
-      } catch (error) {
-        showModal(MODAL_TYPES.ERROR, 'Ошибка', 'Не удалось загрузить изображение', [
-          { text: 'Ок', action: closeModal }
-        ]);
-      }
-    };
-    input.click();
-  }, [validateAndShowError, loadImage, showModal, closeModal, clearAll, setMarkupModifiedState]);
-
   const handleOpenFile = () => {
     // Проверка на несохраненные изменения
     if (markupModified) {
@@ -291,86 +171,6 @@ const AppContent: React.FC = () => {
     
     openFileDialog();
   };
-
-  const handleOpenMarkup = useCallback((imageFileName: string) => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.txt';
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-
-      const expectedFileName = getMarkupFileName(imageFileName);
-      if (!validateMarkupFileName(file.name, imageFileName)) {
-        showModal(MODAL_TYPES.ERROR, 'Ошибка', 'Файл разметки не соответствует файлу изображения. Загрузка отменена', [
-          { text: 'Ок', action: closeModal }
-        ]);
-        return;
-      }
-
-      try {
-        const content = await readFileAsText(file);
-        const yoloData = validateYOLOData(content);
-        
-        if (yoloData.length === 0) {
-          // Пустой файл разметки - это нормально
-          setMarkupFileName(file.name);
-          setMarkupModifiedState(false);
-          showModal(MODAL_TYPES.INFO, 'Успех', 'Файл разметки соответствует файлу изображения. Загрузка подтверждена', [
-            { text: 'Ок', action: closeModal }
-          ]);
-        } else {
-          // Проверяем, что изображение загружено
-          if (!imageState.width || !imageState.height) {
-            showModal(MODAL_TYPES.ERROR, 'Ошибка', 'Не удалось загрузить файл разметки. Сначала загрузите изображение', [
-              { text: 'Ок', action: closeModal }
-            ]);
-            return;
-          }
-
-          // Конвертация YOLO в пиксельные координаты
-          const boundingBoxes = yoloData.map(data => {
-            const bbox = convertYOLOToPixels(data, imageState.width, imageState.height);
-            
-            // Если это класс от API (ID >= 12), добавляем информацию из JSON
-            if (data.classId >= 12) {
-              const jsonEntry = jsonData.find((entry: any) => entry.apiID === data.classId);
-              if (jsonEntry) {
-                bbox.apiClassName = jsonEntry.name;
-                bbox.apiColor = jsonEntry.color;
-                bbox.apiId = jsonEntry.apiID;
-              }
-            }
-            
-            return bbox;
-          });
-          loadAnnotations({ boundingBoxes });
-          setMarkupFileName(file.name);
-          setMarkupModifiedState(false);
-
-          showModal(MODAL_TYPES.INFO, 'Успех', 'Файл разметки соответствует файлу изображения. Загрузка подтверждена', [
-            { text: 'Ок', action: closeModal }
-          ]);
-        }
-      } catch (error) {
-        showModal(MODAL_TYPES.ERROR, 'Ошибка', 'Не удалось загрузить файл разметки. Файл повреждён или имеет неверный формат', [
-          { text: 'Ок', action: closeModal }
-        ]);
-      }
-    };
-    input.click();
-  }, [showModal, closeModal, imageState.width, imageState.height, setMarkupFileName, setMarkupModifiedState, loadAnnotations]);
-
-  const handleSaveMarkup = useCallback(() => {
-    if (annotations.boundingBoxes.length === 0) return;
-
-    const yoloContent = getYOLOExport(imageState.width, imageState.height);
-    const fileName = getMarkupFileName(imageState.file?.name || 'markup');
-    
-    downloadFile(yoloContent, fileName);
-    setMarkupFileName(fileName);
-    setMarkupModifiedState(false);
-  }, [annotations.boundingBoxes.length, getYOLOExport, imageState.width, imageState.height, imageState.file?.name, setMarkupFileName, setMarkupModifiedState]);
 
   const handleClassSelect = useCallback((classId: number) => {
     if (!imageState.src) return;
@@ -459,12 +259,7 @@ const AppContent: React.FC = () => {
     if (bboxData.classId >= 0 && bboxData.classId <= 9) {
       const newBboxId = addBoundingBox(bboxData);
       selectObject(newBboxId, 'bbox');
-      setDefectFormModalState({
-        isOpen: true,
-        bboxId: newBboxId,
-        defectClassId: bboxData.classId,
-        initialRecord: null
-      });
+      openDefectFormModal(newBboxId, bboxData.classId);
     } else {
       // Для других классов создаем рамку без диалога
       const newBboxId = addBoundingBox(bboxData);
@@ -476,33 +271,14 @@ const AppContent: React.FC = () => {
     const bboxToEdit = annotations.boundingBoxes.find(bbox => bbox.id === bboxId);
     if (bboxToEdit) {
       selectObject(bboxId, 'bbox');
-      setDefectFormModalState({
-        isOpen: true,
-        bboxId: bboxId,
-        defectClassId: bboxToEdit.classId,
-        initialRecord: bboxToEdit.defectRecord || null
-      });
+      openDefectFormModal(bboxId, bboxToEdit.classId, bboxToEdit.defectRecord || null);
     }
   }, [annotations.boundingBoxes, selectObject]);
 
   const handleSaveDefectRecord = useCallback((bboxId: string, record: DefectRecord, formattedString: string) => {
     updateBoundingBoxDefectRecord(bboxId, record, formattedString);
-    setDefectFormModalState({
-      isOpen: false,
-      bboxId: null,
-      defectClassId: null,
-      initialRecord: null
-    });
+    closeDefectFormModal();
   }, [updateBoundingBoxDefectRecord]);
-
-  const handleCloseDefectModal = useCallback(() => {
-    setDefectFormModalState({
-      isOpen: false, 
-      bboxId: null, 
-      defectClassId: null, 
-      initialRecord: null
-    });
-  }, []);
 
   const handleHelp = useCallback(() => {
     showModal(MODAL_TYPES.HELP, 'О программе', 'Автор и разработчик Алексей Сотников\nТехнопарк "Университетские технологии"', [
@@ -812,7 +588,7 @@ const AppContent: React.FC = () => {
           filterActive={filterActive}
           onToolChange={handleToolChange}
           onSelectClass={setActiveClassId}
-          onShowContextMenu={handleShowContextMenu}
+          onShowContextMenu={showContextMenu}
           onCalibrationLineFinished={handleCalibrationLineFinished}
           onBboxCreated={handleBboxCreated}
           onEditDefectBbox={handleEditDefectBbox}
@@ -861,7 +637,7 @@ const AppContent: React.FC = () => {
       {/* Модальное окно для формы дефекта */}
       <DefectFormModal
         isOpen={defectFormModalState.isOpen}
-        onClose={handleCloseDefectModal}
+        onClose={closeDefectFormModal}
         bboxId={defectFormModalState.bboxId}
         defectClassId={defectFormModalState.defectClassId}
         initialRecord={defectFormModalState.initialRecord}
@@ -883,7 +659,7 @@ const AppContent: React.FC = () => {
             onClick={() => {
               if (annotations.densityPoints.length > 0) {
                 clearAllDensityPoints();
-                handleCloseContextMenu();
+                hideContextMenu();
               }
             }}
             disabled={annotations.densityPoints.length === 0}
@@ -899,7 +675,7 @@ const AppContent: React.FC = () => {
             onClick={() => {
               if (annotations.rulers.length > 0) {
                 clearAllRulers();
-                handleCloseContextMenu();
+                hideContextMenu();
               }
             }}
             disabled={annotations.rulers.length === 0}
@@ -919,7 +695,7 @@ const AppContent: React.FC = () => {
                   getOriginalPixelColor
                 );
               }
-              handleCloseContextMenu();
+              hideContextMenu();
             }}
             disabled={!imageState.src}
           >
@@ -932,7 +708,7 @@ const AppContent: React.FC = () => {
       {contextMenu.visible && (
         <div
           className="fixed inset-0 z-40"
-          onClick={handleCloseContextMenu}
+          onClick={hideContextMenu}
         />
       )}
     </div>
