@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { ErrorBoundary } from './components/ErrorBoundary';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import { ImageProvider } from './core/ImageProvider';
 import { AnnotationProvider } from './core/AnnotationManager';
 import { DefectFormModal } from './components/DefectFormModal';
@@ -495,21 +495,10 @@ const AppContent: React.FC = () => {
 
   const handleCloseDefectModal = useCallback(() => {
     // Если это новая рамка (без defectRecord) и пользователь закрыл без сохранения - удаляем рамку
-    
-    console.log('Clicked object:', clickedObject);
-    
-    console.log('Double click detected');
     if (defectFormModalState.bboxId && defectFormModalState.initialRecord === null) {
-      console.log('Bbox found:', bbox);
-      console.log('Bbox classId:', bbox.classId);
-      console.log('Bbox defectRecord:', bbox.defectRecord);
-      
       const bbox = annotations.boundingBoxes.find(b => b.id === defectFormModalState.bboxId);
       if (bbox && !bbox.defectRecord) {
-        console.log('Opening defect modal for bbox:', bbox.id);
         deleteBoundingBox(defectFormModalState.bboxId);
-      } else {
-        console.log('Bbox does not meet criteria for defect modal');
       }
     }
     
