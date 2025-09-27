@@ -136,7 +136,8 @@ export function drawBoundingBox(
   isSelected: boolean,
   scale: number,
   defectClasses: any[],
-  jsonData?: any[]
+  jsonData?: any[],
+  calibrationLine?: any
 ) {
   let defectClass = defectClasses.find(c => c.id === box.classId);
   let strokeColor = '#808080'; // цвет по умолчанию
@@ -147,24 +148,32 @@ export function drawBoundingBox(
     if (defectClass) {
       strokeColor = defectClass.color;
     }
-    labelText = box.formattedDefectString;
+    // Добавляем размеры к условной записи дефекта
+    const sizeText = getSizeText(box, calibrationLine);
+    labelText = `${box.formattedDefectString} - ${sizeText}`;
   } else if (defectClass) {
     // Стандартный класс дефектов
     strokeColor = defectClass.color;
-    labelText = defectClass.name;
+    // Добавляем размеры к названию класса
+    const sizeText = getSizeText(box, calibrationLine);
+    labelText = `${defectClass.name} - ${sizeText}`;
   } else if (jsonData && box.classId >= 12) {
     // Класс от API - ищем в JSON данных
     const jsonEntry = jsonData.find((entry: any) => entry.apiID === box.classId);
     if (jsonEntry) {
       const [r, g, b] = jsonEntry.color;
       strokeColor = `rgb(${r}, ${g}, ${b})`;
-      labelText = jsonEntry.russian_name || jsonEntry.name;
+      // Добавляем размеры к названию API класса
+      const sizeText = getSizeText(box, calibrationLine);
+      labelText = `${jsonEntry.russian_name || jsonEntry.name} - ${sizeText}`;
     }
   } else if (box.apiColor) {
     // Используем цвет от API если есть
     const [r, g, b] = box.apiColor;
     strokeColor = `rgb(${r}, ${g}, ${b})`;
-    labelText = box.apiClassName || 'Неизвестно';
+    // Добавляем размеры к API классу
+    const sizeText = getSizeText(box, calibrationLine);
+    labelText = `${box.apiClassName || 'Неизвестно'} - ${sizeText}`;
   }
 
   // Рамка
@@ -179,7 +188,8 @@ export function drawBoundingBox(
   
   // Добавляем уверенность для объектов от API
   if (box.confidence !== undefined && box.apiClassName) {
-    labelText += ` (${Math.round(box.confidence * 100)}%)`;
+    const confidenceText = ` (${Math.round(box.confidence * 100)}%)`;
+    labelText += confidenceText;
   }
   
   ctx.fillText(labelText, box.x, box.y - 5 / scale);
@@ -187,5 +197,25 @@ export function drawBoundingBox(
   // Хэндлы для выделенного объекта
   if (isSelected) {
     drawResizeHandles(ctx, box, scale);
+  }
+}
+
+// Вспомогательная функция для получения текста размеров
+function getSizeText(box: any, calibrationLine?: any): string {
+  if (calibrationLine) {
+    // Если есть калибровка, показываем в мм
+    const pixelLength = Math.sqrt(
+      (calibrationLine.x2 - calibrationLine.x1) ** 2 + 
+      (calibrationLine.y2 - calibrationLine.y1) ** 2
+    );
+    const scale = calibrationLine.realLength / pixelLength;
+    const widthMm = (box.width * scale).toFixed(1);
+    const heightMm = (box.height * scale).toFixed(1);
+    return `${widthMm}×${heightMm} мм`;
+  } else {
+    // Если нет калибровки, показываем в пикселях
+    const widthPx = Math.round(box.width);
+    const heightPx = Math.round(box.height);
+    return `${widthPx}×${heightPx} px`;
   }
 }

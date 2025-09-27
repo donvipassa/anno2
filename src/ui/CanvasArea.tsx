@@ -690,7 +690,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
         }
 
         const isSelected = annotations.selectedObjectId === bbox.id && annotations.selectedObjectType === 'bbox';
-        drawBoundingBox(ctx, bbox, isSelected, imageState.scale, DEFECT_CLASSES, jsonData);
+        drawBoundingBox(ctx, bbox, isSelected, imageState.scale, DEFECT_CLASSES, jsonData, annotations.calibrationLine);
       });
 
       // Рисуем линейки

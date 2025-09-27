@@ -47,6 +47,9 @@ const AppContent: React.FC = () => {
   const [filterActive, setFilterActive] = useState<boolean>(false);
   const [autoAnnotationPerformed, setAutoAnnotationPerformed] = useState<boolean>(false);
 
+  // Состояние для отслеживания рамок, ожидающих заполнения формы
+  const [pendingBboxId, setPendingBboxId] = useState<string | null>(null);
+
   // Состояние для модального окна формы дефекта
   const [defectFormModalState, setDefectFormModalState] = useState<{
     isOpen: boolean;
@@ -408,6 +411,7 @@ const AppContent: React.FC = () => {
 
   const handleSaveDefectRecord = useCallback((bboxId: string, record: DefectRecord, formattedString: string) => {
     updateBoundingBoxDefectRecord(bboxId, record, formattedString);
+    setPendingBboxId(null); // Сбрасываем pending состояние
     setDefectFormModalState({ isOpen: false, bboxId: null, defectClassId: null, initialRecord: null });
   }, [updateBoundingBoxDefectRecord]);
 
