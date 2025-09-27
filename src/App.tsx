@@ -431,22 +431,6 @@ const AppContent: React.FC = () => {
     setDefectFormModalState({ isOpen: false, bboxId: null, defectClassId: null, initialRecord: null });
   }, [pendingBboxId, annotations.boundingBoxes, selectObject, handleDeleteSelected]);
 
-  const handleCloseDefectModal = useCallback(() => {
-    // Если есть pending рамка, удаляем её при отмене
-    if (pendingBboxId) {
-      // Удаляем рамку через AnnotationManager
-      const bboxToDelete = annotations.boundingBoxes.find(bbox => bbox.id === pendingBboxId);
-      if (bboxToDelete) {
-        // Используем функцию удаления из контекста аннотаций
-        selectObject(pendingBboxId, 'bbox');
-        handleDeleteSelected();
-      }
-      setPendingBboxId(null);
-    }
-    
-    setDefectFormModalState({ isOpen: false, bboxId: null, defectClassId: null, initialRecord: null });
-  }, [pendingBboxId, annotations.boundingBoxes, selectObject, handleDeleteSelected]);
-
   const handleHelp = () => {
     showModal('help', 'О программе', 'Автор и разработчик Алексей Сотников\nТехнопарк "Университетские технологии"', [
       { text: 'Ок', action: closeModal }
