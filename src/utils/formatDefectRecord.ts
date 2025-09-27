@@ -61,8 +61,8 @@ export const formatDefectRecord = (
       // Добавляем размеры элементов в цепочке
       if (character.контролируемый_размер_2.includes('диаметр') && record.dimensions.diameter) {
         recordString += record.dimensions.diameter;
-      } else if (character.контролируемый_размер_2.includes('ширина') && record.dimensions.width && record.dimensions.elementLength) {
-        recordString += `${record.dimensions.width}x${record.dimensions.elementLength}`;
+      } else if (character.контролируемый_размер_2.includes('ширина') && record.dimensions.elementLength && record.dimensions.width) {
+        recordString += `${record.dimensions.elementLength}x${record.dimensions.width}`;
       }
       
       // Для цепочек в суммарную длину добавляем длину цепочки × количество
@@ -95,8 +95,8 @@ export const formatDefectRecord = (
       // Добавляем размеры элементов в скоплении
       if (character.контролируемый_размер_2.includes('диаметр') && record.dimensions.diameter) {
         recordString += record.dimensions.diameter;
-      } else if (character.контролируемый_размер_2.includes('ширина') && record.dimensions.width && record.dimensions.elementLength) {
-        recordString += `${record.dimensions.width}x${record.dimensions.elementLength}`;
+      } else if (character.контролируемый_размер_2.includes('ширина') && record.dimensions.elementLength && record.dimensions.width) {
+        recordString += `${record.dimensions.elementLength}x${record.dimensions.width}`;
       }
       
       // Для скоплений в суммарную длину добавляем длину скопления × количество
@@ -129,8 +129,8 @@ export const formatDefectRecord = (
         recordString += record.dimensions.diameter;
         // Для сферических дефектов суммарная длина = диаметр × количество
         totalLength += record.dimensions.diameter * (record.count || 1);
-      } else if (character.контролируемый_размер_1.includes('Ширина') && record.dimensions.width && record.dimensions.elementLength) {
-        recordString += `${record.dimensions.width}x${record.dimensions.elementLength}`;
+      } else if (character.контролируемый_размер_1.includes('Ширина') && record.dimensions.elementLength && record.dimensions.width) {
+        recordString += `${record.dimensions.elementLength}x${record.dimensions.width}`;
         // Для удлиненных дефектов суммарная длина = длина × количество
         totalLength += record.dimensions.elementLength * (record.count || 1);
       } else if (character.контролируемый_размер_1.includes('Длина') && record.dimensions.length) {
