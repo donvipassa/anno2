@@ -508,6 +508,7 @@ const AppContent: React.FC = () => {
       defectClassId: null, 
       initialRecord: null
     });
+  }, []);
 
   const handleHelp = useCallback(() => {
     showModal(MODAL_TYPES.HELP, 'О программе', 'Автор и разработчик Алексей Сотников\nТехнопарк "Университетские технологии"', [
