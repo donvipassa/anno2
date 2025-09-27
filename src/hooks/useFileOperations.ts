@@ -37,44 +37,7 @@ export const useFileOperations = (
     return true;
   }, [showModal, closeModal]);
 
-  const openFileDialog = useCallback(() => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-
-      const validation = validateImageFile(file);
-      if (!validateAndShowError(validation)) return;
-
-      try {
-        await loadImage(file);
-        
-        // Ждем обновления состояния изображения
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Предложение загрузить разметку
-        showModal('confirm', 'Загрузка разметки', 'Открыть файл разметки для данного изображения?', [
-          { text: 'Да', action: () => { 
-            closeModal(); 
-            // Дополнительная задержка перед открытием разметки
-            setTimeout(() => handleOpenMarkup(file.name), 100);
-          } },
-          { text: 'Нет', action: closeModal }
-        ]);
-        
-        // Очистка существующих аннотаций
-        clearAll();
-        setMarkupModifiedState(false);
-        setMarkupFileName(null);
-        setAutoAnnotationPerformed(false);
-      } catch (error) {
-        showModal('error', 'Ошибка', 'Не удалось загрузить изображение', [
-          { text: 'Ок', action: closeModal }
-        ]);
-      }
-    };
+  const handleOpenMarkup = useCallback((imageFileName: string, imageWidth: number, imageHeight: number) => {
     input.click();
   }, [validateAndShowError, loadImage, showModal, closeModal, clearAll, setMarkupModifiedState, setMarkupFileName, setAutoAnnotationPerformed, handleOpenMarkup]);
 
@@ -168,6 +131,43 @@ export const useFileOperations = (
     };
     input.click();
   }, [showModal, closeModal, imageState, setMarkupFileName, setMarkupModifiedState, loadAnnotations]);
+
+  const openFileDialog = useCallback(() => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      const validation = validateImageFile(file);
+      if (!validateAndShowError(validation)) return;
+
+      try {
+        const { width, height } = await loadImage(file);
+        
+        // Предложение загрузить разметку
+        showModal('confirm', 'Загрузка разметки', 'Открыть файл разметки для данного изображения?', [
+          { text: 'Да', action: () => { 
+            closeModal(); 
+            handleOpenMarkup(file.name, width, height);
+          } },
+          { text: 'Нет', action: closeModal }
+        ]);
+        
+        // Очистка существующих аннотаций
+        clearAll();
+        setMarkupModifiedState(false);
+        setMarkupFileName(null);
+        setAutoAnnotationPerformed(false);
+      } catch (error) {
+        showModal('error', 'Ошибка', 'Не удалось загрузить изображение', [
+          { text: 'Ок', action: closeModal }
+        ]);
+      }
+    };
+    input.click();
+  }, [validateAndShowError, loadImage, showModal, closeModal, clearAll, setMarkupModifiedState, setMarkupFileName, setAutoAnnotationPerformed, handleOpenMarkup]);
 
   const handleSaveMarkup = useCallback(() => {
     if (annotations.boundingBoxes.length === 0) return;
