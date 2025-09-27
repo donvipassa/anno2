@@ -93,7 +93,8 @@ const AppContent: React.FC = () => {
     closeModal,
     setMarkupFileName,
     setMarkupModifiedState,
-    setAutoAnnotationPerformed
+    setAutoAnnotationPerformed,
+    imageState
   );
 
   // Эффект синхронизации activeClassId с выделенным объектом
