@@ -51,12 +51,16 @@ export const useFileOperations = (
       try {
         await loadImage(file);
         
-        // Небольшая задержка для обеспечения обновления состояния
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Ждем обновления состояния изображения
+        await new Promise(resolve => setTimeout(resolve, 500));
         
         // Предложение загрузить разметку
         showModal('confirm', 'Загрузка разметки', 'Открыть файл разметки для данного изображения?', [
-          { text: 'Да', action: () => { closeModal(); handleOpenMarkup(file.name); } },
+          { text: 'Да', action: () => { 
+            closeModal(); 
+            // Дополнительная задержка перед открытием разметки
+            setTimeout(() => handleOpenMarkup(file.name), 100);
+          } },
           { text: 'Нет', action: closeModal }
         ]);
         
@@ -85,7 +89,13 @@ export const useFileOperations = (
       console.log('Загрузка файла разметки:', {
         markupFileName: file.name,
         imageFileName: imageFileName,
-        expectedFileName: getMarkupFileName(imageFileName)
+        expectedFileName: getMarkupFileName(imageFileName),
+        imageState: {
+          src: !!imageState.src,
+          width: imageState.width,
+          height: imageState.height,
+          file: imageState.file?.name
+        }
       });
 
       if (!validateMarkupFileName(file.name, imageFileName)) {
@@ -112,8 +122,14 @@ export const useFileOperations = (
             { text: 'Ок', action: closeModal }
           ]);
         } else {
-          // Проверяем, что изображение загружено
-          if (!imageState.width || !imageState.height) {
+          // Проверяем, что изображение загружено полностью
+          if (!imageState.src || !imageState.width || !imageState.height || !imageState.imageElement) {
+            console.error('Изображение не загружено полностью:', {
+              src: !!imageState.src,
+              width: imageState.width,
+              height: imageState.height,
+              imageElement: !!imageState.imageElement
+            });
             showModal('error', 'Ошибка', 'Не удалось загрузить файл разметки. Сначала загрузите изображение', [
               { text: 'Ок', action: closeModal }
             ]);
@@ -137,34 +153,21 @@ export const useFileOperations = (
             return bbox;
           });
           loadAnnotations({ boundingBoxes });
-        }
-        console.log('Проверка состояния изображения:', {
-          src: imageState.src,
-          width: imageState.width,
-          height: imageState.height,
-          file: imageState.file?.name
-        });
-        
           setMarkupFileName(file.name);
-        if (!imageState.src || !imageState.width || !imageState.height) {
-          console.error('Изображение не загружено полностью:', {
-            src: !!imageState.src,
-            width: imageState.width,
-            height: imageState.height
-          });
-
-          showModal('info', 'Успех', 'Файл разметки соответствует файлу изображения. Загрузка подтверждена', [
+          setMarkupModifiedState(false);
+          showModal('info', 'Успех', `Файл разметки загружен. Найдено объектов: ${boundingBoxes.length}`, [
             { text: 'Ок', action: closeModal }
           ]);
         }
       } catch (error) {
+        console.error('Ошибка при загрузке файла разметки:', error);
         showModal('error', 'Ошибка', 'Не удалось загрузить файл разметки. Файл повреждён или имеет неверный формат', [
           { text: 'Ок', action: closeModal }
         ]);
       }
     };
     input.click();
-  }, [showModal, closeModal, imageState.width, imageState.height, setMarkupFileName, setMarkupModifiedState, loadAnnotations]);
+  }, [showModal, closeModal, imageState, setMarkupFileName, setMarkupModifiedState, loadAnnotations]);
 
   const handleSaveMarkup = useCallback(() => {
     if (annotations.boundingBoxes.length === 0) return;

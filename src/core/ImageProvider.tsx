@@ -83,6 +83,12 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       reader.onload = (e) => {
         const img = new Image();
         img.onload = () => {
+          console.log('Изображение загружено:', {
+            width: img.naturalWidth,
+            height: img.naturalHeight,
+            fileName: file.name
+          });
+          
           // Создаем скрытый canvas для чтения пикселей
           if (!hiddenCanvasRef.current) {
             hiddenCanvasRef.current = document.createElement('canvas');
@@ -107,7 +113,12 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             inverted: false,
             imageElement: img
           }));
-          resolve();
+          
+          // Небольшая задержка для обеспечения обновления состояния
+          setTimeout(() => {
+            console.log('Состояние изображения обновлено');
+            resolve();
+          }, 50);
         };
         img.onerror = () => reject(new Error('LOAD_ERROR'));
         img.src = e.target?.result as string;
