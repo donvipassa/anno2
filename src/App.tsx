@@ -668,9 +668,11 @@ const AppContent: React.FC = () => {
         e.preventDefault();
         handleDeleteSelected();
       } else if ('0123456789'.includes(key)) {
-        e.preventDefault();
-        const classId = parseInt(key);
-        handleClassSelect(classId);
+        // Убираем горячие клавиши для классов 1-9
+        if (key === '0') {
+          e.preventDefault();
+          handleClassSelect(0);
+        }
       } else if (key === '-') {
         e.preventDefault();
         handleClassSelect(10);
