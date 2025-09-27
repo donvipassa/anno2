@@ -889,6 +889,10 @@ const AppContent: React.FC = () => {
             Сохранить изображение
           </button>
         </div>
+      )
+      }
+  )
+}
 
 function App() {
   return (
