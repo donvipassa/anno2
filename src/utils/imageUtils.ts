@@ -183,3 +183,17 @@ export const loadImageFromFile = (file: File): Promise<HTMLImageElement> => {
     img.src = URL.createObjectURL(file);
   });
 };
+
+export const validateImageFile = (file: File): { valid: boolean; error?: string } => {
+  const maxSize = 20 * 1024 * 1024; // 20 MB
+  const validTypes = ['image/jpeg', 'image/png', 'image/tiff', 'image/bmp'];
+
+  if (file.size > APP_CONFIG.MAX_FILE_SIZE) {
+    return { valid: false, error: 'FILE_TOO_LARGE' };
+  }
+  if (!APP_CONFIG.SUPPORTED_FORMATS.includes(file.type)) {
+    return { valid: false, error: 'INVALID_FORMAT' };
+  }
+
+  return { valid: true };
+};
