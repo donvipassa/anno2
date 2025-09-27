@@ -140,13 +140,13 @@ export const useFileOperations = (
       if (!validateAndShowError(validation)) return;
 
       try {
-        const { width, height } = await loadImage(file);
+        await loadImage(file);
         
         // Предложение загрузить разметку
         showModal('confirm', 'Загрузка разметки', 'Открыть файл разметки для данного изображения?', [
           { text: 'Да', action: () => { 
             closeModal(); 
-            handleOpenMarkup(file.name, width, height);
+            handleOpenMarkup(file.name);
           } },
           { text: 'Нет', action: closeModal }
         ]);
