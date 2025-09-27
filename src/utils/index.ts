@@ -10,3 +10,4 @@ export * from './annotationUtils';
 export * from './validation';
 export * from './errorHandler';
 export * from './formatDefectRecord';
+export * from './constants';

@@ -3,6 +3,7 @@ import { Modal, ModalButtons, ModalButton } from '../ui/Modal';
 import { Defect, DefectCharacter, DefectRecord, DefectsData } from '../types/defects';
 import { DEFECT_CLASSES } from '../types';
 import { formatDefectRecord } from '../utils/formatDefectRecord';
+import { CALIBRATION } from '../utils/constants';
 import { v4 as uuidv4 } from 'uuid';
 import { AlertTriangle } from 'lucide-react';
 import defectsDataJson from '../data/defects_data.json';
@@ -75,7 +76,7 @@ export const DefectFormModal: React.FC<DefectFormModalProps> = ({
           }
         }
         setSelectedVariety('');
-        setCount(1);
+        setCount(CALIBRATION.DEFAULT_COUNT || 1);
         setDimensions({ diameter: 0, width: 0, length: 0, elementLength: 0 });
       }
       setValidationErrors([]);

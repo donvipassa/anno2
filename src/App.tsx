@@ -17,7 +17,7 @@ import {
 import { useImage } from './core/ImageProvider';
 import { useAnnotations } from './core/AnnotationManager';
 import { useCalibration } from './core/CalibrationManager';
-import { saveImageAsFile } from './utils';
+import { saveImageAsFile, MODAL_TYPES } from './utils';
 import { detectObjects } from './services/api';
 import { mapApiClassToDefectClassId, convertApiBboxToPixels } from './utils';
 import { useModalState } from './hooks/useModalState';
@@ -25,15 +25,6 @@ import { useDefectFormModal } from './hooks/useDefectFormModal';
 import { useContextMenu } from './hooks/useContextMenu';
 import { useFileOperations } from './hooks/useFileOperations';
 import jsonData from './data/defect-classes.json';
-
-// Константы для модальных окон
-const MODAL_TYPES = {
-  INFO: 'info',
-  CONFIRM: 'confirm',
-  ERROR: 'error',
-  CALIBRATION: 'calibration',
-  HELP: 'help'
-} as const;
 
 const AppContent: React.FC = () => {
   // Хуки для управления состоянием

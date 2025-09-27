@@ -8,7 +8,8 @@ import {
   readFileAsText, 
   convertYOLOToPixels,
   validateMarkupFileName,
-  validateYOLOData
+  validateYOLOData,
+  MODAL_TYPES
 } from '../utils';
 import jsonData from '../data/defect-classes.json';
 
@@ -37,7 +38,7 @@ export const useFileOperations = (
         'INVALID_FORMAT': 'Недопустимый формат. Поддерживаются форматы: JPG, PNG, TIFF, BMP'
       };
       const message = errorMessages[validation.error as keyof typeof errorMessages] || 'Неизвестная ошибка';
-      showModal('error', 'Ошибка', message, [
+      showModal(MODAL_TYPES.ERROR, 'Ошибка', message, [
         { text: 'Ок', action: closeModal }
       ]);
       return false;
@@ -71,7 +72,7 @@ export const useFileOperations = (
           imageFileName: imageFileName,
           expected: getMarkupFileName(imageFileName)
         });
-        showModal('error', 'Ошибка', 'Файл разметки не соответствует файлу изображения. Загрузка отменена', [
+        showModal(MODAL_TYPES.ERROR, 'Ошибка', 'Файл разметки не соответствует файлу изображения. Загрузка отменена', [
           { text: 'Ок', action: closeModal }
         ]);
         return;
@@ -85,7 +86,7 @@ export const useFileOperations = (
           // Пустой файл разметки - это нормально
           setMarkupFileName(file.name);
           setMarkupModifiedState(false);
-          showModal('info', 'Успех', 'Файл разметки соответствует файлу изображения. Загрузка подтверждена', [
+          showModal(MODAL_TYPES.INFO, 'Успех', 'Файл разметки соответствует файлу изображения. Загрузка подтверждена', [
             { text: 'Ок', action: closeModal }
           ]);
         } else {
@@ -97,7 +98,7 @@ export const useFileOperations = (
               height: imageStateRef.current.height,
               imageElement: !!imageStateRef.current.imageElement
             });
-            showModal('error', 'Ошибка', 'Не удалось загрузить файл разметки. Сначала загрузите изображение', [
+            showModal(MODAL_TYPES.ERROR, 'Ошибка', 'Не удалось загрузить файл разметки. Сначала загрузите изображение', [
               { text: 'Ок', action: closeModal }
             ]);
             return;
@@ -122,13 +123,13 @@ export const useFileOperations = (
           loadAnnotations({ boundingBoxes });
           setMarkupFileName(file.name);
           setMarkupModifiedState(false);
-          showModal('info', 'Успех', `Файл разметки загружен. Найдено объектов: ${boundingBoxes.length}`, [
+          showModal(MODAL_TYPES.INFO, 'Успех', `Файл разметки загружен. Найдено объектов: ${boundingBoxes.length}`, [
             { text: 'Ок', action: closeModal }
           ]);
         }
       } catch (error) {
         console.error('Ошибка при загрузке файла разметки:', error);
-        showModal('error', 'Ошибка', 'Не удалось загрузить файл разметки. Файл повреждён или имеет неверный формат', [
+        showModal(MODAL_TYPES.ERROR, 'Ошибка', 'Не удалось загрузить файл разметки. Файл повреждён или имеет неверный формат', [
           { text: 'Ок', action: closeModal }
         ]);
       }
@@ -151,7 +152,7 @@ export const useFileOperations = (
         await loadImage(file);
         
         // Предложение загрузить разметку
-        showModal('confirm', 'Загрузка разметки', 'Открыть файл разметки для данного изображения?', [
+        showModal(MODAL_TYPES.CONFIRM, 'Загрузка разметки', 'Открыть файл разметки для данного изображения?', [
           { text: 'Да', action: () => { 
             closeModal(); 
             handleOpenMarkup(file.name);
@@ -165,7 +166,7 @@ export const useFileOperations = (
         setMarkupFileName(null);
         setAutoAnnotationPerformed(false);
       } catch (error) {
-        showModal('error', 'Ошибка', 'Не удалось загрузить изображение', [
+        showModal(MODAL_TYPES.ERROR, 'Ошибка', 'Не удалось загрузить изображение', [
           { text: 'Ок', action: closeModal }
         ]);
       }

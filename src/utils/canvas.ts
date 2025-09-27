@@ -1,4 +1,5 @@
 // Вспомогательные функции для масштабирования и позиционирования
+import { SIZES } from './constants';
 
 // Функция для масштабирования от центра
 export function scaleFromCenter(
@@ -66,10 +67,6 @@ export function scaleFromPoint(
   return { offsetX: newOffsetX, offsetY: newOffsetY };
 }
 
-// Константы для работы с bbox
-export const HANDLE_SIZE_HOVER = 8;
-export const HANDLE_SIZE_VISUAL = 6;
-
 // Проверка попадания точки в рамку
 export function isPointInBox(x: number, y: number, box: any): boolean {
   return x >= box.x && x <= box.x + box.width && y >= box.y && y <= box.y + box.height;
@@ -82,7 +79,7 @@ export function getResizeHandle(
   box: any,
   scale: number
 ): 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'move' | null {
-  const handleSize = HANDLE_SIZE_HOVER / scale;
+  const handleSize = SIZES.HANDLE_SIZE_HOVER / scale;
   const centerX = box.x + box.width / 2;
   const centerY = box.y + box.height / 2;
 
@@ -106,7 +103,7 @@ export function getResizeHandle(
 
 // Отрисовка маркеров изменения размера
 export function drawResizeHandles(ctx: CanvasRenderingContext2D, box: any, scale: number) {
-  const handleSize = HANDLE_SIZE_VISUAL / scale;
+  const handleSize = SIZES.HANDLE_SIZE_VISUAL / scale;
   
   ctx.fillStyle = 'white';
   ctx.strokeStyle = 'black';

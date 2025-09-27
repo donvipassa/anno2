@@ -3,8 +3,7 @@ import { useImage } from '../core/ImageProvider';
 import { useAnnotations } from '../core/AnnotationManager';
 import { useCalibration } from '../core/CalibrationManager';
 import { DEFECT_CLASSES, BoundingBox, Ruler, CalibrationLine, DensityPoint } from '../types';
-import { calculateDistance, pointInRect, clampToImageBounds } from '../utils/geometry';
-import { calculateDensity } from '../utils/imageUtils';
+import { calculateDistance, clampToImageBounds, SIZES } from '../utils';
 import { drawBoundingBox, drawResizeHandles, getResizeHandle, isPointInBox } from '../utils/canvas';
 import { v4 as uuidv4 } from 'uuid';
 import jsonData from '../data/defect-classes.json';
@@ -85,7 +84,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
   // Поиск объекта в точке
   const getObjectAtPoint = useCallback((x: number, y: number) => {
     // Проверяем маркеры линеек и калибровочной линии
-    const markerTolerance = 10 / imageState.scale;
+    const markerTolerance = SIZES.MARKER_TOLERANCE / imageState.scale;
     
     // Проверяем маркеры калибровочной линии
     if (annotations.calibrationLine) {
@@ -124,7 +123,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     }
 
     // Проверяем линейки
-    const rulerTolerance = 15 / imageState.scale;
+    const rulerTolerance = SIZES.RULER_TOLERANCE / imageState.scale;
     for (let i = annotations.rulers.length - 1; i >= 0; i--) {
       const ruler = annotations.rulers[i];
       const distance = Math.abs((ruler.y2 - ruler.y1) * x - (ruler.x2 - ruler.x1) * y + ruler.x2 * ruler.y1 - ruler.y2 * ruler.x1) /
@@ -169,10 +168,10 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
 
   // Определение курсора при наведении
   const getHoverCursor = useCallback((x: number, y: number) => {
-    const markerTolerance = 10 / imageState.scale;
+    const markerTolerance = SIZES.MARKER_TOLERANCE / imageState.scale;
     
     // Проверяем точки плотности
-    const densityTolerance = 25 / imageState.scale;
+    const densityTolerance = SIZES.DENSITY_TOLERANCE / imageState.scale;
     for (let i = annotations.densityPoints.length - 1; i >= 0; i--) {
       const point = annotations.densityPoints[i];
       const distance = calculateDistance(x, y, point.x, point.y);
@@ -223,7 +222,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     for (let i = annotations.boundingBoxes.length - 1; i >= 0; i--) {
       const bbox = annotations.boundingBoxes[i];
       // Проверяем только границы рамки (не внутреннюю область)
-      const borderWidth = 4 / imageState.scale;
+      const borderWidth = SIZES.BORDER_WIDTH / imageState.scale;
       const isOnBorder = (
         // Верхняя граница
         (x >= bbox.x - borderWidth && x <= bbox.x + bbox.width + borderWidth && 
@@ -247,7 +246,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     // Проверяем тело калибровочной линии для перемещения
     if (annotations.calibrationLine) {
       const line = annotations.calibrationLine;
-      const rulerTolerance = 15 / imageState.scale;
+      const rulerTolerance = SIZES.RULER_TOLERANCE / imageState.scale;
       const distance = Math.abs((line.y2 - line.y1) * x - (line.x2 - line.x1) * y + line.x2 * line.y1 - line.y2 * line.x1) /
                       Math.sqrt((line.y2 - line.y1) ** 2 + (line.x2 - line.x1) ** 2);
       
