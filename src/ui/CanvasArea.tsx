@@ -1,960 +1,783 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { ErrorBoundary } from '../components/ErrorBoundary';
-import { ImageProvider } from './core/ImageProvider';
-import { AnnotationProvider } from './core/AnnotationManager';
-import { DefectFormModal } from './components/DefectFormModal';
-import { DefectRecord } from './types/defects';
-import { 
-  Header, 
-  Toolbar, 
-  Sidebar, 
-  CanvasArea, 
-  StatusBar, 
-  Modal, 
-  ModalButtons, 
-  ModalButton 
-} from './ui';
-import { useImage } from './core/ImageProvider';
-import { useAnnotations } from './core/AnnotationManager';
-import { useCalibration } from './core/CalibrationManager';
-import { 
-  validateImageFile, 
-  saveImageAsFile,
-  getMarkupFileName, 
-  downloadFile, 
-  readFileAsText, 
-  convertYOLOToPixels,
-  validateMarkupFileName,
-  validateYOLOData
-} from './utils';
-import { detectObjects } from './services/api';
-import { mapApiClassToDefectClassId, convertApiBboxToPixels } from './utils';
-import jsonData from './data/defect-classes.json';
+import React, { useRef, useEffect, useCallback, useState } from 'react';
+import { useImage } from '../core/ImageProvider';
+import { useAnnotations } from '../core/AnnotationManager';
+import { calculateDistance, pointInRect } from '../utils/geometry';
+import { calculateDensity } from '../utils/imageUtils';
+import { drawBoundingBox, drawResizeHandles, getResizeHandle, isPointInBox } from '../utils/canvas';
+import { DEFECT_CLASSES, BoundingBox } from '../types';
+import jsonData from '../data/defect-classes.json';
 
-// Константы для модальных окон
-const MODAL_TYPES = {
-  INFO: 'info',
-  CONFIRM: 'confirm',
-  ERROR: 'error',
-  CALIBRATION: 'calibration',
-  HELP: 'help'
-} as const;
-
-// Типы для состояния модального окна
-interface ModalState {
-  type: string | null;
-  title: string;
-  message: string;
-  buttons?: Array<{
-    text: string;
-    action: () => void;
-    primary?: boolean;
-  }>;
-  input?: {
-    label: string;
-    value: string;
-    onChange: (value: string) => void;
-  };
+interface CanvasAreaProps {
+  activeTool: string;
+  activeClassId: number;
+  layerVisible: boolean;
+  filterActive: boolean;
+  onToolChange: (tool: string) => void;
+  onSelectClass: (classId: number) => void;
+  onShowContextMenu: (x: number, y: number) => void;
+  onCalibrationLineFinished: (lineData: any, isNew: boolean) => void;
+  onBboxCreated: (bboxData: Omit<BoundingBox, 'id' | 'defectRecord' | 'formattedDefectString'>) => void;
+  onEditDefectBbox: (bboxId: string) => void;
 }
 
-// Типы для состояния формы дефекта
-interface DefectFormState {
-  isOpen: boolean;
-  bboxId: string | null;
-  defectClassId: number | null;
-  initialRecord: DefectRecord | null;
-}
-
-// Типы для контекстного меню
-interface ContextMenuState {
-  visible: boolean;
-  x: number;
-  y: number;
-}
-
-const AppContent: React.FC = () => {
-  // Хуки для управления состоянием
-  const { 
-    imageState, 
-    loadImage, 
-    setScale, 
-    toggleInversion, 
-    resetView, 
-    fitToCanvas, 
-    zoomIn, 
-    zoomOut, 
-    zoomReset, 
-    getOriginalPixelColor 
-  } = useImage();
-  
+export const CanvasArea: React.FC<CanvasAreaProps> = ({
+  activeTool,
+  activeClassId,
+  layerVisible,
+  filterActive,
+  onToolChange,
+  onSelectClass,
+  onShowContextMenu,
+  onCalibrationLineFinished,
+  onBboxCreated,
+  onEditDefectBbox
+}) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const { imageState, setOffset, zoomToPoint, getOriginalPixelColor } = useImage();
   const { 
     annotations, 
-    getYOLOExport, 
-    clearAllRulers, 
-    clearAllDensityPoints, 
-    loadAnnotations, 
-    clearAll, 
     selectObject, 
-    addBoundingBox,
+    addBoundingBox, 
+    updateBoundingBox, 
     deleteBoundingBox,
-    updateBoundingBoxDefectRecord,
+    addRuler, 
+    updateRuler, 
+    deleteRuler,
     setCalibrationLine,
     updateCalibrationLine,
-    markupModified,
-    setMarkupModifiedState
+    deleteCalibrationLine,
+    addDensityPoint, 
+    updateDensityPoint, 
+    deleteDensityPoint 
   } = useAnnotations();
-  
-  const { calibration, setScale: setCalibrationScale, resetScale } = useCalibration();
 
-  // Локальное состояние компонента
-  const [markupFileName, setMarkupFileName] = useState<string | null>(null);
-  const [isProcessingAutoAnnotation, setIsProcessingAutoAnnotation] = useState<boolean>(false);
-  const [activeTool, setActiveTool] = useState<string>('');
-  const [activeClassId, setActiveClassId] = useState<number>(-1);
-  const [layerVisible, setLayerVisible] = useState<boolean>(true);
-  const [filterActive, setFilterActive] = useState<boolean>(false);
-  const [autoAnnotationPerformed, setAutoAnnotationPerformed] = useState<boolean>(false);
-
-  // Состояние модального окна формы дефекта
-  const [defectFormModalState, setDefectFormModalState] = useState<DefectFormState>({
-    isOpen: false,
-    bboxId: null,
-    defectClassId: null,
-    initialRecord: null
+  // Состояние для рисования
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(null);
+  const [currentPoint, setCurrentPoint] = useState<{ x: number; y: number } | null>(null);
+  const [dragState, setDragState] = useState<{
+    isDragging: boolean;
+    dragType: 'move' | 'resize' | 'pan' | null;
+    resizeHandle: string | null;
+    startX: number;
+    startY: number;
+    initialBbox?: any;
+    initialRuler?: any;
+    initialCalibration?: any;
+    initialDensity?: any;
+  }>({
+    isDragging: false,
+    dragType: null,
+    resizeHandle: null,
+    startX: 0,
+    startY: 0
   });
 
-  // Состояние калибровки
-  const [pendingCalibrationLine, setPendingCalibrationLine] = useState<any>(null);
-  const [calibrationInputValue, setCalibrationInputValue] = useState<string>('50');
+  // Преобразование координат экрана в координаты изображения
+  const screenToImage = useCallback((screenX: number, screenY: number) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
 
-  // Состояние модального окна
-  const [modalState, setModalState] = useState<ModalState>({
-    type: null,
-    title: '',
-    message: ''
-  });
+    const rect = canvas.getBoundingClientRect();
+    const canvasX = screenX - rect.left;
+    const canvasY = screenY - rect.top;
 
-  // Состояние контекстного меню
-  const [contextMenu, setContextMenu] = useState<ContextMenuState>({
-    visible: false,
-    x: 0,
-    y: 0
-  });
+    const imageX = (canvasX - imageState.offsetX) / imageState.scale;
+    const imageY = (canvasY - imageState.offsetY) / imageState.scale;
 
-  // Функции для работы с модальными окнами
-  const closeModal = useCallback(() => {
-    setModalState({ type: null, title: '', message: '' });
-  }, []);
+    return { x: imageX, y: imageY };
+  }, [imageState.offsetX, imageState.offsetY, imageState.scale]);
 
-  const showModal = useCallback((
-    type: string, 
-    title: string, 
-    message: string, 
-    buttons?: Array<{ text: string; action: () => void; primary?: boolean }>, 
-    input?: any
-  ) => {
-    setModalState({ type, title, message, buttons, input });
-  }, []);
+  // Отрисовка canvas
+  const draw = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !imageState.imageElement) return;
 
-  // Функции для работы с контекстным меню
-  const handleShowContextMenu = useCallback((x: number, y: number) => {
-    setContextMenu({ visible: true, x, y });
-  }, []);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-  const handleCloseContextMenu = useCallback(() => {
-    setContextMenu({ visible: false, x: 0, y: 0 });
-  }, []);
+    // Очистка canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Эффект синхронизации activeClassId с выделенным объектом
-  useEffect(() => {
-    if (annotations.selectedObjectId) {
-      switch (annotations.selectedObjectType) {
-        case 'bbox':
-          const selectedBbox = annotations.boundingBoxes.find(bbox => bbox.id === annotations.selectedObjectId);
-          if (selectedBbox) {
-            setActiveTool('bbox');
-            if (selectedBbox.classId >= 0 && selectedBbox.classId <= 10) {
-              // Стандартный класс дефекта
-              setActiveClassId(selectedBbox.classId);
-            } else {
-              // API класс
-              setActiveClassId(-1);
-            }
-          }
-          break;
-        case 'ruler':
-          setActiveTool('ruler');
-          setActiveClassId(-1);
-          break;
-        case 'calibration':
-          setActiveTool('calibration');
-          setActiveClassId(-1);
-          break;
-        case 'density':
-          setActiveTool('density');
-          setActiveClassId(-1);
-          break;
-      }
+    // Настройка трансформации
+    ctx.save();
+    ctx.translate(imageState.offsetX, imageState.offsetY);
+    ctx.scale(imageState.scale, imageState.scale);
+
+    // Отрисовка изображения
+    if (imageState.inverted) {
+      ctx.filter = 'invert(1)';
     }
-    // Не сбрасываем инструменты при selectedObjectId === null, 
-    // чтобы пользователь мог продолжить рисование
-  }, [annotations.selectedObjectId, annotations.selectedObjectType, annotations.boundingBoxes]);
+    ctx.drawImage(imageState.imageElement, 0, 0, imageState.width, imageState.height);
+    ctx.filter = 'none';
 
-  // Эффект синхронизации состояния калибровки
-  useEffect(() => {
-    if (!annotations.calibrationLine) {
-      resetScale();
-      setActiveTool(''); // Сбрасываем активный инструмент при удалении калибровочной линии
-    }
-  }, [annotations.calibrationLine, resetScale]);
-
-  // Функции для работы с файлами
-  const validateAndShowError = useCallback((validation: { valid: boolean; error?: string }) => {
-    if (!validation.valid) {
-      const errorMessages = {
-        'FILE_TOO_LARGE': 'Файл слишком большой. Максимум — 20 МБ',
-        'INVALID_FORMAT': 'Недопустимый формат. Поддерживаются форматы: JPG, PNG, TIFF, BMP'
-      };
-      const message = errorMessages[validation.error as keyof typeof errorMessages] || 'Неизвестная ошибка';
-      showModal(MODAL_TYPES.ERROR, 'Ошибка', message, [
-        { text: 'Ок', action: closeModal }
-      ]);
-      return false;
-    }
-    return true;
-  }, [showModal, closeModal]);
-
-  const openFileDialog = useCallback(() => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-
-      const validation = validateImageFile(file);
-      if (!validateAndShowError(validation)) return;
-
-      try {
-        await loadImage(file);
-        
-        // Предложение загрузить разметку
-        showModal(MODAL_TYPES.CONFIRM, 'Загрузка разметки', 'Открыть файл разметки для данного изображения?', [
-          { text: 'Да', action: () => { closeModal(); handleOpenMarkup(file.name); } },
-          { text: 'Нет', action: closeModal }
-        ]);
-        
-        // Очистка существующих аннотаций
-        clearAll();
-        setMarkupModifiedState(false);
-        setActiveTool('');
-        setActiveClassId(-1);
-        setMarkupFileName(null);
-        setAutoAnnotationPerformed(false);
-      } catch (error) {
-        showModal(MODAL_TYPES.ERROR, 'Ошибка', 'Не удалось загрузить изображение', [
-          { text: 'Ок', action: closeModal }
-        ]);
-      }
-    };
-    input.click();
-  }, [validateAndShowError, loadImage, showModal, closeModal, clearAll, setMarkupModifiedState]);
-
-  const handleOpenFile = () => {
-    // Проверка на несохраненные изменения
-    if (markupModified) {
-      showModal(MODAL_TYPES.CONFIRM, 'Несохраненные изменения', 'У вас есть несохраненные изменения в разметке. Что вы хотите сделать?', [
-        { 
-          text: 'Сохранить', 
-          action: () => {
-            handleSaveMarkup();
-            closeModal();
-            // После сохранения открываем новый файл
-            setTimeout(() => openFileDialog(), 100);
-          },
-          primary: true
-        },
-        { 
-          text: 'Не сохранять', 
-          action: () => {
-            closeModal();
-            openFileDialog();
-          }
-        },
-        { 
-          text: 'Отмена', 
-          action: closeModal
-        }
-      ]);
-      return;
-    }
-    
-    openFileDialog();
-  };
-
-  const handleOpenMarkup = useCallback((imageFileName: string) => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.txt';
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-
-      const expectedFileName = getMarkupFileName(imageFileName);
-      if (!validateMarkupFileName(file.name, imageFileName)) {
-        showModal(MODAL_TYPES.ERROR, 'Ошибка', 'Файл разметки не соответствует файлу изображения. Загрузка отменена', [
-          { text: 'Ок', action: closeModal }
-        ]);
-        return;
+    // Отрисовка аннотаций (если слой видим)
+    if (layerVisible) {
+      // Фильтрация объектов
+      let visibleBboxes = annotations.boundingBoxes;
+      if (filterActive && activeClassId >= 0) {
+        visibleBboxes = annotations.boundingBoxes.filter(bbox => bbox.classId === activeClassId);
       }
 
-      try {
-        const content = await readFileAsText(file);
-        const yoloData = validateYOLOData(content);
+      // Отрисовка bounding boxes
+      visibleBboxes.forEach(bbox => {
+        const isSelected = annotations.selectedObjectId === bbox.id && annotations.selectedObjectType === 'bbox';
+        drawBoundingBox(ctx, bbox, isSelected, imageState.scale, DEFECT_CLASSES, jsonData, annotations.calibrationLine);
+      });
+
+      // Отрисовка линеек
+      annotations.rulers.forEach(ruler => {
+        const isSelected = annotations.selectedObjectId === ruler.id && annotations.selectedObjectType === 'ruler';
         
-        if (yoloData.length === 0) {
-          // Пустой файл разметки - это нормально
-          setMarkupFileName(file.name);
-          setMarkupModifiedState(false);
-          showModal(MODAL_TYPES.INFO, 'Успех', 'Файл разметки соответствует файлу изображения. Загрузка подтверждена', [
-            { text: 'Ок', action: closeModal }
-          ]);
+        ctx.strokeStyle = isSelected ? '#FF0000' : '#FFFF00';
+        ctx.lineWidth = (isSelected ? 4 : 3) / imageState.scale;
+        ctx.setLineDash([]);
+        
+        ctx.beginPath();
+        ctx.moveTo(ruler.x1, ruler.y1);
+        ctx.lineTo(ruler.x2, ruler.y2);
+        ctx.stroke();
+
+        // Маркеры на концах
+        ctx.fillStyle = isSelected ? '#FF0000' : '#FFFF00';
+        ctx.beginPath();
+        ctx.arc(ruler.x1, ruler.y1, 4 / imageState.scale, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(ruler.x2, ruler.y2, 4 / imageState.scale, 0, 2 * Math.PI);
+        ctx.fill();
+
+        // Подпись с длиной
+        const length = calculateDistance(ruler.x1, ruler.y1, ruler.x2, ruler.y2);
+        let lengthText = '';
+        if (annotations.calibrationLine) {
+          const pixelLength = Math.sqrt(
+            (annotations.calibrationLine.x2 - annotations.calibrationLine.x1) ** 2 + 
+            (annotations.calibrationLine.y2 - annotations.calibrationLine.y1) ** 2
+          );
+          const scale = annotations.calibrationLine.realLength / pixelLength;
+          const realLength = length * scale;
+          lengthText = `${realLength.toFixed(1)} мм`;
         } else {
-          // Проверяем, что изображение загружено
-          if (!imageState.width || !imageState.height) {
-            showModal(MODAL_TYPES.ERROR, 'Ошибка', 'Не удалось загрузить файл разметки. Сначала загрузите изображение', [
-              { text: 'Ок', action: closeModal }
-            ]);
-            return;
-          }
-
-          // Конвертация YOLO в пиксельные координаты
-          const boundingBoxes = yoloData.map(data => {
-            const bbox = convertYOLOToPixels(data, imageState.width, imageState.height);
-            
-            // Если это класс от API (ID >= 12), добавляем информацию из JSON
-            if (data.classId >= 12) {
-              const jsonEntry = jsonData.find((entry: any) => entry.apiID === data.classId);
-              if (jsonEntry) {
-                bbox.apiClassName = jsonEntry.name;
-                bbox.apiColor = jsonEntry.color;
-                bbox.apiId = jsonEntry.apiID;
-              }
-            }
-            
-            return bbox;
-          });
-          loadAnnotations({ boundingBoxes });
-          setMarkupFileName(file.name);
-          setMarkupModifiedState(false);
-
-          showModal(MODAL_TYPES.INFO, 'Успех', 'Файл разметки соответствует файлу изображения. Загрузка подтверждена', [
-            { text: 'Ок', action: closeModal }
-          ]);
+          lengthText = `${length.toFixed(0)} px`;
         }
-      } catch (error) {
-        showModal(MODAL_TYPES.ERROR, 'Ошибка', 'Не удалось загрузить файл разметки. Файл повреждён или имеет неверный формат', [
-          { text: 'Ок', action: closeModal }
-        ]);
+
+        ctx.fillStyle = isSelected ? '#FF0000' : '#FFFF00';
+        ctx.font = `${Math.max(16 / imageState.scale, 12)}px Arial`;
+        const midX = (ruler.x1 + ruler.x2) / 2;
+        const midY = (ruler.y1 + ruler.y2) / 2;
+        ctx.fillText(lengthText, midX, midY - 10 / imageState.scale);
+      });
+
+      // Отрисовка калибровочной линии
+      if (annotations.calibrationLine) {
+        const line = annotations.calibrationLine;
+        const isSelected = annotations.selectedObjectId === line.id && annotations.selectedObjectType === 'calibration';
+        
+        ctx.strokeStyle = isSelected ? '#FF0000' : '#0000FF';
+        ctx.lineWidth = (isSelected ? 6 : 4) / imageState.scale;
+        ctx.setLineDash([]);
+        
+        ctx.beginPath();
+        ctx.moveTo(line.x1, line.y1);
+        ctx.lineTo(line.x2, line.y2);
+        ctx.stroke();
+
+        // Маркеры на концах
+        ctx.fillStyle = isSelected ? '#FF0000' : '#0000FF';
+        ctx.beginPath();
+        ctx.arc(line.x1, line.y1, 5 / imageState.scale, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(line.x2, line.y2, 5 / imageState.scale, 0, 2 * Math.PI);
+        ctx.fill();
+
+        // Подпись с размером
+        ctx.fillStyle = isSelected ? '#FF0000' : '#0000FF';
+        ctx.font = `${Math.max(16 / imageState.scale, 12)}px Arial`;
+        const midX = (line.x1 + line.x2) / 2;
+        const midY = (line.y1 + line.y2) / 2;
+        ctx.fillText(`${line.realLength} мм`, midX, midY - 10 / imageState.scale);
       }
-    };
-    input.click();
-  }, [showModal, closeModal, imageState.width, imageState.height, setMarkupFileName, setMarkupModifiedState, loadAnnotations]);
 
-  const handleSaveMarkup = useCallback(() => {
-    if (annotations.boundingBoxes.length === 0) return;
-
-    const yoloContent = getYOLOExport(imageState.width, imageState.height);
-    const fileName = getMarkupFileName(imageState.file?.name || 'markup');
-    
-    downloadFile(yoloContent, fileName);
-    setMarkupFileName(fileName);
-    setMarkupModifiedState(false);
-  }, [annotations.boundingBoxes.length, getYOLOExport, imageState.width, imageState.height, imageState.file?.name, setMarkupFileName, setMarkupModifiedState]);
-
-  const handleClassSelect = useCallback((classId: number) => {
-    if (!imageState.src) return;
-    
-    setActiveClassId(classId);
-    setActiveTool('bbox');
-  }, [imageState.src]);
-
-  const handleToolChange = useCallback((tool: string) => {
-    setActiveTool(tool);
-    
-    // Сбрасываем выделение и класс при выборе инструментов измерения
-    if (tool === 'density' || tool === 'ruler' || tool === 'calibration') {
-      selectObject(null, null);
-      setActiveClassId(-1);
-    }
-  }, [selectObject]);
-
-  const handleDeleteSelected = useCallback(() => {
-    // Реализация удаления выделенного объекта
-    if (annotations.selectedObjectId) {
-      // The delete functions in AnnotationManager will call setMarkupModified(true)
-      setMarkupModifiedState(true);
-      // Сбрасываем активный инструмент и класс после удаления объекта
-      setActiveTool('');
-      setActiveClassId(-1);
-    }
-  }, [annotations.selectedObjectId]);
-
-  const handleAutoAnnotate = useCallback(async () => {
-    if (!imageState.file || autoAnnotationPerformed) {
-      showModal(MODAL_TYPES.ERROR, 'Ошибка', 'Сначала загрузите изображение', [
-        { text: 'Ок', action: closeModal }
-      ]);
-      return;
-    }
-
-    setIsProcessingAutoAnnotation(true);
-    showModal(MODAL_TYPES.INFO, 'Обработка', 'Обработка изображения...');
-
-    try {
-      const detections = await detectObjects(imageState.file);
-      
-      // Добавляем обнаруженные объекты как новые bounding boxes
-      detections.forEach(detection => {
-        const bbox = convertApiBboxToPixels(detection.bbox);
+      // Отрисовка точек измерения плотности
+      annotations.densityPoints.forEach(point => {
+        const isSelected = annotations.selectedObjectId === point.id && annotations.selectedObjectType === 'density';
         
-        // Ищем соответствие в JSON файле
-        const jsonEntry = jsonData.find((entry: any) => {
-          const entryName = entry.name.toLowerCase().trim();
-          const detectionClass = detection.class.toLowerCase().trim();
-          return entryName === detectionClass;
-        });
-        
-        // Используем apiID из JSON файла как classId
-        const classId = jsonEntry ? (jsonEntry as any).apiID : 10;
-        
-        addBoundingBox({
-          x: bbox.x,
-          y: bbox.y,
-          width: bbox.width,
-          height: bbox.height,
-          classId,
-          confidence: detection.confidence,
-          apiClassName: detection.class,
-          apiColor: detection.color,
-          apiId: detection.id
-        });
-      });
-      
-      setAutoAnnotationPerformed(true);
-      showModal(MODAL_TYPES.INFO, 'Успех', `Обнаружено объектов: ${detections.length}`, [
-        { text: 'Ок', action: closeModal }
-      ]);
-    } catch (error) {
-      showModal(MODAL_TYPES.ERROR, 'Ошибка', 'Не удалось выполнить автоматическую аннотацию', [
-        { text: 'Ок', action: closeModal }
-      ]);
-    } finally {
-      setIsProcessingAutoAnnotation(false);
-    }
-  }, [imageState.file, addBoundingBox, autoAnnotationPerformed]);
+        ctx.strokeStyle = isSelected ? '#FF0000' : '#FF00FF';
+        ctx.lineWidth = (isSelected ? 4 : 3) / imageState.scale;
 
-  const handleBboxCreated = useCallback((bboxData: Omit<BoundingBox, 'id' | 'defectRecord' | 'formattedDefectString'>) => {
-    // Проверяем, что это дефект (классы 0-9)
-    if (bboxData.classId >= 0 && bboxData.classId <= 9) {
-      const newBboxId = addBoundingBox(bboxData);
-      selectObject(newBboxId, 'bbox');
-      setDefectFormModalState({
-        isOpen: true,
-        bboxId: newBboxId,
-        defectClassId: bboxData.classId,
-        initialRecord: null
-      });
-    } else {
-      // Для других классов создаем рамку без диалога
-      const newBboxId = addBoundingBox(bboxData);
-      selectObject(newBboxId, 'bbox');
-    }
-  }, [addBoundingBox, selectObject]);
+        // Крест
+        const size = 15 / imageState.scale;
+        ctx.beginPath();
+        ctx.moveTo(point.x - size, point.y);
+        ctx.lineTo(point.x + size, point.y);
+        ctx.moveTo(point.x, point.y - size);
+        ctx.lineTo(point.x, point.y + size);
+        ctx.stroke();
 
-  const handleEditDefectBbox = useCallback((bboxId: string) => {
-    const bboxToEdit = annotations.boundingBoxes.find(bbox => bbox.id === bboxId);
-    if (bboxToEdit) {
-      selectObject(bboxId, 'bbox');
-      setDefectFormModalState({
-        isOpen: true,
-        bboxId: bboxId,
-        defectClassId: bboxToEdit.classId,
-        initialRecord: bboxToEdit.defectRecord || null
+        // Вычисление и отображение плотности
+        const originalColor = getOriginalPixelColor(point.x, point.y);
+        if (originalColor) {
+          const [r, g, b] = originalColor;
+          const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+          const density = 1 - (gray / 255);
+
+          ctx.fillStyle = isSelected ? '#FF0000' : '#FF00FF';
+          ctx.font = `${Math.max(16 / imageState.scale, 12)}px Arial`;
+          ctx.fillText(`${density.toFixed(2)}`, point.x + 20 / imageState.scale, point.y - 5 / imageState.scale);
+        }
       });
     }
-  }, [annotations.boundingBoxes, selectObject]);
 
-  const handleSaveDefectRecord = useCallback((bboxId: string, record: DefectRecord, formattedString: string) => {
-    updateBoundingBoxDefectRecord(bboxId, record, formattedString);
-    setDefectFormModalState(prev => ({
-      ...prev,
-      isOpen: false
-    }));
-  }, [updateBoundingBoxDefectRecord]);
+    // Отрисовка текущего рисования
+    if (isDrawing && startPoint && currentPoint) {
+      ctx.strokeStyle = '#FF0000';
+      ctx.lineWidth = 2 / imageState.scale;
+      ctx.setLineDash([5 / imageState.scale, 5 / imageState.scale]);
 
-  const handleCloseDefectModal = useCallback(() => {
-    // Если это новая рамка (без defectRecord) и пользователь закрыл без сохранения - удаляем рамку
-    if (defectFormModalState.bboxId && defectFormModalState.initialRecord === null) {
-      const bbox = annotations.boundingBoxes.find(b => b.id === defectFormModalState.bboxId);
-      if (bbox && !bbox.defectRecord) {
-        deleteBoundingBox(defectFormModalState.bboxId);
+      if (activeTool === 'bbox') {
+        const width = currentPoint.x - startPoint.x;
+        const height = currentPoint.y - startPoint.y;
+        ctx.strokeRect(startPoint.x, startPoint.y, width, height);
+      } else if (activeTool === 'ruler' || activeTool === 'calibration') {
+        ctx.beginPath();
+        ctx.moveTo(startPoint.x, startPoint.y);
+        ctx.lineTo(currentPoint.x, currentPoint.y);
+        ctx.stroke();
       }
     }
-    
-    setDefectFormModalState({
-      isOpen: false, 
-      bboxId: null, 
-      defectClassId: null, 
-      initialRecord: null
-    });
-  }, []);
 
-  const handleHelp = useCallback(() => {
-    showModal(MODAL_TYPES.HELP, 'О программе', 'Автор и разработчик Алексей Сотников\nТехнопарк "Университетские технологии"', [
-      { text: 'Ок', action: closeModal }
-    ]);
-  }, [showModal, closeModal]);
-
-  const handleEditCalibration = useCallback(() => {
-    if (annotations.calibrationLine) {
-      // При редактировании устанавливаем текущее значение
-      const currentValue = annotations.calibrationLine.realLength.toString();
-      console.log('handleEditCalibration: текущее значение', currentValue);
-      
-      showModal(MODAL_TYPES.CALIBRATION, 'Калибровка масштаба', 'Укажите реальный размер эталона для установки масштаба (мм):',
-        [
-          { 
-            text: 'Отмена', 
-            action: () => {
-              console.log('Отмена калибровки');
-              closeModal();
-            }
-          },
-          { 
-            text: 'Применить', 
-            action: () => {
-              // Получаем значение из поля ввода в момент нажатия кнопки
-              const inputElement = document.querySelector('input[type="number"]') as HTMLInputElement;
-              const inputValue = inputElement ? inputElement.value : calibrationInputValue;
-              console.log('Применить нажато, значение:', inputValue);
-              
-              const realLength = parseFloat(inputValue);
-              if (isNaN(realLength) || realLength <= 0) {
-                alert('Пожалуйста, введите корректное положительное число');
-                return;
-              }
-              
-              try {
-                const lineToCalculateFrom = annotations.calibrationLine;
-                console.log('Используем существующую calibrationLine:', lineToCalculateFrom);
-                
-                if (!lineToCalculateFrom) {
-                  console.error('Нет данных линии для расчета');
-                  alert('Ошибка: нет данных линии для расчета');
-                  closeModal();
-                  return;
-                }
-                
-                const pixelLength = Math.sqrt(
-                  (lineToCalculateFrom.x2 - lineToCalculateFrom.x1) ** 2 + 
-                  (lineToCalculateFrom.y2 - lineToCalculateFrom.y1) ** 2
-                );
-                
-                console.log('Пиксельная длина:', pixelLength);
-                
-                updateCalibrationLine({
-                  realLength: realLength
-                });
-                console.log('Обновлена калибровочная линия:', realLength, 'мм');
-                
-                const scale = realLength / pixelLength;
-                setCalibrationScale(pixelLength, realLength);
-                console.log('Установлен масштаб:', scale, 'мм/пиксель');
-
-                setActiveTool(''); // Сбрасываем активный инструмент после успешной калибровки
-                closeModal();
-              } catch (error) {
-                console.error('Ошибка при установке калибровки:', error);
-                closeModal();
-                alert('Произошла ошибка при установке калибровки');
-              }
-            },
-            primary: true
-          }
-        ]
-      );
-      
-      // Устанавливаем значение ПОСЛЕ показа модального окна
-      setTimeout(() => {
-        setCalibrationInputValue(currentValue);
-      }, 100);
-    }
-  }, [annotations.calibrationLine, showModal, closeModal, updateCalibrationLine, setCalibrationScale]);
-
-  const handleCalibrationLineFinished = useCallback((lineData: any, isNew: boolean) => {
-    console.log('handleCalibrationLineFinished вызвана:', { lineData, isNew });
-    
-    // Определяем значение по умолчанию
-    let defaultLength = '50';
-    if (!isNew && annotations.calibrationLine) {
-      // При редактировании существующей линии используем её текущее значение
-      defaultLength = annotations.calibrationLine.realLength.toString();
-    } else if (lineData?.realLength) {
-      // Если в lineData есть realLength, используем его
-      defaultLength = lineData.realLength.toString();
-    }
-    
-    setCalibrationInputValue(defaultLength);
-    showModal(MODAL_TYPES.CALIBRATION, 'Калибровка масштаба', 'Укажите реальный размер эталона для установки масштаба (мм):',
-      [
-        { 
-          text: 'Отмена', 
-          action: () => {
-            setCalibrationInputValue('50');
-            closeModal();
-          }
-        },
-        { 
-          text: 'Применить', 
-          action: () => {
-            // Получаем значение из поля ввода в момент нажатия кнопки
-            const inputElement = document.querySelector('input[type="number"]') as HTMLInputElement;
-            const inputValue = inputElement ? inputElement.value : calibrationInputValue;
-            console.log('Применить нажато, значение:', inputValue);
-            console.log('isNew:', isNew);
-            console.log('lineData:', lineData);
-            console.log('annotations.calibrationLine:', annotations.calibrationLine);
-            
-            const realLength = parseFloat(inputValue);
-            if (isNaN(realLength) || realLength <= 0) {
-              alert('Пожалуйста, введите корректное положительное число');
-              return;
-            }
-            
-            try {
-              // Определяем, какую линию использовать для расчетов
-              let lineToCalculateFrom;
-              if (isNew) {
-                lineToCalculateFrom = lineData;
-                console.log('Используем lineData для новой линии:', lineToCalculateFrom);
-              } else {
-                lineToCalculateFrom = annotations.calibrationLine;
-                console.log('Используем существующую calibrationLine:', lineToCalculateFrom);
-              }
-              
-              if (!lineToCalculateFrom) {
-                console.error('Нет данных линии для расчета. isNew:', isNew, 'lineData:', lineData, 'calibrationLine:', annotations.calibrationLine);
-                alert('Ошибка: нет данных линии для расчета. Попробуйте нарисовать линию заново.');
-                closeModal();
-                return;
-              }
-              
-              // Вычисляем пиксельную длину
-              const pixelLength = Math.sqrt(
-                (lineToCalculateFrom.x2 - lineToCalculateFrom.x1) ** 2 + 
-                (lineToCalculateFrom.y2 - lineToCalculateFrom.y1) ** 2
-              );
-              
-              console.log('Пиксельная длина:', pixelLength);
-              
-              if (isNew) {
-                console.log('Создаем новую калибровочную линию:', lineData);
-                setCalibrationLine({
-                  ...lineData,
-                  realLength: realLength
-                });
-                console.log('Создана новая калибровочная линия:', realLength, 'мм, пиксельная длина:', pixelLength);
-              } else if (!isNew && annotations.calibrationLine) {
-                updateCalibrationLine({
-                  realLength: realLength
-                });
-                console.log('Обновлена калибровочная линия:', realLength, 'мм');
-              }
-              
-              // Устанавливаем масштаб
-              const scale = realLength / pixelLength;
-              setCalibrationScale(pixelLength, realLength);
-              console.log('Установлен масштаб:', scale, 'мм/пиксель');
-
-              closeModal();
-            } catch (error) {
-              console.error('Ошибка при установке калибровки:', error);
-              closeModal();
-              alert('Произошла ошибка при установке калибровки');
-            }
-          },
-          primary: true
-        }
-      ]
-    );
-    
-    // Устанавливаем значение ПОСЛЕ показа модального окна
-    setTimeout(() => {
-      setCalibrationInputValue(defaultLength);
-    }, 100);
-  }, [annotations.calibrationLine, setCalibrationLine, updateCalibrationLine, setCalibrationScale, showModal, closeModal]);
-
-  // Горячие клавиши
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-      // Проверяем, находится ли фокус на элементе ввода
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
-        return;
-      }
-
-      const key = e.key.toLowerCase();
-      const ctrl = e.ctrlKey;
-
-      if (ctrl && key === 'o') {
-        e.preventDefault();
-        handleOpenFile();
-      } else if (ctrl && key === 's') {
-        e.preventDefault();
-        handleSaveMarkup();
-      } else if (ctrl && (key === '+' || key === '=')) {
-        e.preventDefault();
-        zoomIn();
-      } else if (ctrl && key === '-') {
-        e.preventDefault();
-        zoomOut();
-      } else if (ctrl && key === '1') {
-        e.preventDefault();
-        zoomReset();
-      } else if (key === 'f') {
-        e.preventDefault();
-        const canvas = document.querySelector('canvas');
-        if (canvas) {
-          fitToCanvas(canvas.clientWidth, canvas.clientHeight);
-        }
-      } else if (key === 'i') {
-        e.preventDefault();
-        toggleInversion();
-      } else if (key === 'd') {
-        e.preventDefault();
-        handleToolChange('density');
-      } else if (key === 'r') {
-        e.preventDefault();
-        handleToolChange('ruler');
-      } else if (key === 'c') {
-        e.preventDefault();
-        handleToolChange('calibration');
-      } else if (key === 'l') {
-        e.preventDefault();
-        setLayerVisible(!layerVisible);
-      } else if (ctrl && key === 'l') {
-        e.preventDefault();
-        setFilterActive(!filterActive);
-      } else if (key === 'f1' || (ctrl && key === 'h')) {
-        e.preventDefault();
-        handleHelp();
-      } else if (key === 'escape') {
-        e.preventDefault();
-        handleToolChange('');
-        setActiveClassId(-1);
-        // Сброс выделения объектов
-        selectObject(null, null);
-      } else if (key === 'delete') {
-        e.preventDefault();
-        handleDeleteSelected();
-      }
+    ctx.restore();
   }, [
-    handleOpenFile, handleSaveMarkup, zoomIn, zoomOut, zoomReset, fitToCanvas, 
-    toggleInversion, setActiveTool, layerVisible, setLayerVisible, filterActive, 
-    setFilterActive, handleHelp, selectObject, handleDeleteSelected, handleClassSelect, handleToolChange
+    imageState, 
+    annotations, 
+    layerVisible, 
+    filterActive, 
+    activeClassId, 
+    activeTool,
+    isDrawing, 
+    startPoint, 
+    currentPoint,
+    getOriginalPixelColor
   ]);
 
-  useEffect(() => {
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleKeyDown]);
+  // Обработчики мыши
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (!imageState.imageElement) return;
 
-  // Предупреждение при закрытии страницы
+    const { x: imageX, y: imageY } = screenToImage(e.clientX, e.clientY);
+    
+    // Правая кнопка мыши - панорамирование
+    if (e.button === 2) {
+      setDragState({
+        isDragging: true,
+        dragType: 'pan',
+        resizeHandle: null,
+        startX: e.clientX,
+        startY: e.clientY
+      });
+      return;
+    }
+
+    // Левая кнопка мыши
+    if (e.button === 0) {
+      // Проверка попадания в существующие объекты
+      let hitObject = null;
+      let hitType = null;
+      let resizeHandle = null;
+
+      // Проверка bounding boxes
+      for (const bbox of annotations.boundingBoxes) {
+        const handle = getResizeHandle(imageX, imageY, bbox, imageState.scale);
+        if (handle) {
+          hitObject = bbox;
+          hitType = 'bbox';
+          resizeHandle = handle;
+          break;
+        }
+      }
+
+      // Проверка линеек
+      if (!hitObject) {
+        for (const ruler of annotations.rulers) {
+          const tolerance = 15 / imageState.scale;
+          const distToLine = Math.abs(
+            (ruler.y2 - ruler.y1) * imageX - (ruler.x2 - ruler.x1) * imageY + 
+            ruler.x2 * ruler.y1 - ruler.y2 * ruler.x1
+          ) / Math.sqrt((ruler.y2 - ruler.y1) ** 2 + (ruler.x2 - ruler.x1) ** 2);
+          
+          if (distToLine <= tolerance) {
+            const minX = Math.min(ruler.x1, ruler.x2) - tolerance;
+            const maxX = Math.max(ruler.x1, ruler.x2) + tolerance;
+            const minY = Math.min(ruler.y1, ruler.y2) - tolerance;
+            const maxY = Math.max(ruler.y1, ruler.y2) + tolerance;
+            
+            if (imageX >= minX && imageX <= maxX && imageY >= minY && imageY <= maxY) {
+              hitObject = ruler;
+              hitType = 'ruler';
+              break;
+            }
+          }
+        }
+      }
+
+      // Проверка калибровочной линии
+      if (!hitObject && annotations.calibrationLine) {
+        const line = annotations.calibrationLine;
+        const tolerance = 15 / imageState.scale;
+        const distToLine = Math.abs(
+          (line.y2 - line.y1) * imageX - (line.x2 - line.x1) * imageY + 
+          line.x2 * line.y1 - line.y2 * line.x1
+        ) / Math.sqrt((line.y2 - line.y1) ** 2 + (line.x2 - line.x1) ** 2);
+        
+        if (distToLine <= tolerance) {
+          const minX = Math.min(line.x1, line.x2) - tolerance;
+          const maxX = Math.max(line.x1, line.x2) + tolerance;
+          const minY = Math.min(line.y1, line.y2) - tolerance;
+          const maxY = Math.max(line.y1, line.y2) + tolerance;
+          
+          if (imageX >= minX && imageX <= maxX && imageY >= minY && imageY <= maxY) {
+            hitObject = line;
+            hitType = 'calibration';
+          }
+        }
+      }
+
+      // Проверка точек плотности
+      if (!hitObject) {
+        for (const point of annotations.densityPoints) {
+          const distance = calculateDistance(imageX, imageY, point.x, point.y);
+          if (distance <= 25 / imageState.scale) {
+            hitObject = point;
+            hitType = 'density';
+            break;
+          }
+        }
+      }
+
+      // Если попали в объект
+      if (hitObject) {
+        selectObject(hitObject.id, hitType as any);
+        
+        if (resizeHandle && resizeHandle !== 'move') {
+          // Начинаем изменение размера
+          setDragState({
+            isDragging: true,
+            dragType: 'resize',
+            resizeHandle,
+            startX: imageX,
+            startY: imageY,
+            initialBbox: hitType === 'bbox' ? { ...hitObject } : undefined
+          });
+        } else {
+          // Начинаем перемещение
+          setDragState({
+            isDragging: true,
+            dragType: 'move',
+            resizeHandle: null,
+            startX: imageX,
+            startY: imageY,
+            initialBbox: hitType === 'bbox' ? { ...hitObject } : undefined,
+            initialRuler: hitType === 'ruler' ? { ...hitObject } : undefined,
+            initialCalibration: hitType === 'calibration' ? { ...hitObject } : undefined,
+            initialDensity: hitType === 'density' ? { ...hitObject } : undefined
+          });
+        }
+        return;
+      }
+
+      // Если не попали в объект, начинаем рисование нового
+      if (activeTool === 'bbox' && activeClassId >= 0) {
+        selectObject(null, null);
+        setIsDrawing(true);
+        setStartPoint({ x: imageX, y: imageY });
+        setCurrentPoint({ x: imageX, y: imageY });
+      } else if (activeTool === 'ruler') {
+        selectObject(null, null);
+        setIsDrawing(true);
+        setStartPoint({ x: imageX, y: imageY });
+        setCurrentPoint({ x: imageX, y: imageY });
+      } else if (activeTool === 'calibration') {
+        selectObject(null, null);
+        setIsDrawing(true);
+        setStartPoint({ x: imageX, y: imageY });
+        setCurrentPoint({ x: imageX, y: imageY });
+      } else if (activeTool === 'density') {
+        const pointId = addDensityPoint({ x: imageX, y: imageY });
+        selectObject(pointId, 'density');
+      } else {
+        // Сброс выделения при клике в пустое место
+        selectObject(null, null);
+      }
+    }
+  }, [
+    imageState, 
+    screenToImage, 
+    annotations, 
+    activeTool, 
+    activeClassId, 
+    selectObject, 
+    addDensityPoint
+  ]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!imageState.imageElement) return;
+
+    const { x: imageX, y: imageY } = screenToImage(e.clientX, e.clientY);
+
+    // Обработка перетаскивания
+    if (dragState.isDragging) {
+      if (dragState.dragType === 'pan') {
+        const deltaX = e.clientX - dragState.startX;
+        const deltaY = e.clientY - dragState.startY;
+        setOffset(imageState.offsetX + deltaX, imageState.offsetY + deltaY);
+        setDragState(prev => ({ ...prev, startX: e.clientX, startY: e.clientY }));
+      } else if (dragState.dragType === 'move') {
+        const deltaX = imageX - dragState.startX;
+        const deltaY = imageY - dragState.startY;
+
+        if (dragState.initialBbox && annotations.selectedObjectType === 'bbox') {
+          updateBoundingBox(annotations.selectedObjectId!, {
+            x: Math.max(0, Math.min(dragState.initialBbox.x + deltaX, imageState.width - dragState.initialBbox.width)),
+            y: Math.max(0, Math.min(dragState.initialBbox.y + deltaY, imageState.height - dragState.initialBbox.height))
+          });
+        } else if (dragState.initialRuler && annotations.selectedObjectType === 'ruler') {
+          updateRuler(annotations.selectedObjectId!, {
+            x1: dragState.initialRuler.x1 + deltaX,
+            y1: dragState.initialRuler.y1 + deltaY,
+            x2: dragState.initialRuler.x2 + deltaX,
+            y2: dragState.initialRuler.y2 + deltaY
+          });
+        } else if (dragState.initialCalibration && annotations.selectedObjectType === 'calibration') {
+          updateCalibrationLine({
+            x1: dragState.initialCalibration.x1 + deltaX,
+            y1: dragState.initialCalibration.y1 + deltaY,
+            x2: dragState.initialCalibration.x2 + deltaX,
+            y2: dragState.initialCalibration.y2 + deltaY
+          });
+        } else if (dragState.initialDensity && annotations.selectedObjectType === 'density') {
+          updateDensityPoint(annotations.selectedObjectId!, {
+            x: Math.max(0, Math.min(dragState.initialDensity.x + deltaX, imageState.width)),
+            y: Math.max(0, Math.min(dragState.initialDensity.y + deltaY, imageState.height))
+          });
+        }
+      } else if (dragState.dragType === 'resize' && dragState.initialBbox) {
+        const deltaX = imageX - dragState.startX;
+        const deltaY = imageY - dragState.startY;
+        const bbox = dragState.initialBbox;
+        let newBbox = { ...bbox };
+
+        switch (dragState.resizeHandle) {
+          case 'nw':
+            newBbox.x = Math.max(0, bbox.x + deltaX);
+            newBbox.y = Math.max(0, bbox.y + deltaY);
+            newBbox.width = Math.max(10, bbox.width - deltaX);
+            newBbox.height = Math.max(10, bbox.height - deltaY);
+            break;
+          case 'n':
+            newBbox.y = Math.max(0, bbox.y + deltaY);
+            newBbox.height = Math.max(10, bbox.height - deltaY);
+            break;
+          case 'ne':
+            newBbox.y = Math.max(0, bbox.y + deltaY);
+            newBbox.width = Math.max(10, bbox.width + deltaX);
+            newBbox.height = Math.max(10, bbox.height - deltaY);
+            break;
+          case 'e':
+            newBbox.width = Math.max(10, bbox.width + deltaX);
+            break;
+          case 'se':
+            newBbox.width = Math.max(10, bbox.width + deltaX);
+            newBbox.height = Math.max(10, bbox.height + deltaY);
+            break;
+          case 's':
+            newBbox.height = Math.max(10, bbox.height + deltaY);
+            break;
+          case 'sw':
+            newBbox.x = Math.max(0, bbox.x + deltaX);
+            newBbox.width = Math.max(10, bbox.width - deltaX);
+            newBbox.height = Math.max(10, bbox.height + deltaY);
+            break;
+          case 'w':
+            newBbox.x = Math.max(0, bbox.x + deltaX);
+            newBbox.width = Math.max(10, bbox.width - deltaX);
+            break;
+        }
+
+        // Ограничиваем размеры границами изображения
+        if (newBbox.x + newBbox.width > imageState.width) {
+          newBbox.width = imageState.width - newBbox.x;
+        }
+        if (newBbox.y + newBbox.height > imageState.height) {
+          newBbox.height = imageState.height - newBbox.y;
+        }
+
+        updateBoundingBox(annotations.selectedObjectId!, newBbox);
+      }
+    }
+
+    // Обработка рисования
+    if (isDrawing && startPoint) {
+      setCurrentPoint({ x: imageX, y: imageY });
+    }
+
+    // Изменение курсора
+    if (!dragState.isDragging) {
+      let cursor = 'default';
+      
+      // Проверка наведения на handles
+      for (const bbox of annotations.boundingBoxes) {
+        if (annotations.selectedObjectId === bbox.id && annotations.selectedObjectType === 'bbox') {
+          const handle = getResizeHandle(imageX, imageY, bbox, imageState.scale);
+          if (handle) {
+            switch (handle) {
+              case 'nw':
+              case 'se':
+                cursor = 'nw-resize';
+                break;
+              case 'ne':
+              case 'sw':
+                cursor = 'ne-resize';
+                break;
+              case 'n':
+              case 's':
+                cursor = 'n-resize';
+                break;
+              case 'e':
+              case 'w':
+                cursor = 'e-resize';
+                break;
+              case 'move':
+                cursor = 'move';
+                break;
+            }
+            break;
+          }
+        }
+      }
+
+      if (canvasRef.current) {
+        canvasRef.current.style.cursor = cursor;
+      }
+    }
+  }, [
+    imageState, 
+    screenToImage, 
+    dragState, 
+    setOffset, 
+    annotations, 
+    updateBoundingBox, 
+    updateRuler, 
+    updateCalibrationLine, 
+    updateDensityPoint,
+    isDrawing, 
+    startPoint
+  ]);
+
+  const handleMouseUp = useCallback((e: React.MouseEvent) => {
+    if (dragState.isDragging) {
+      setDragState({
+        isDragging: false,
+        dragType: null,
+        resizeHandle: null,
+        startX: 0,
+        startY: 0
+      });
+    }
+
+    if (isDrawing && startPoint && currentPoint) {
+      const { x: imageX, y: imageY } = screenToImage(e.clientX, e.clientY);
+      
+      if (activeTool === 'bbox' && activeClassId >= 0) {
+        const width = Math.abs(imageX - startPoint.x);
+        const height = Math.abs(imageY - startPoint.y);
+        
+        if (width > 10 && height > 10) {
+          const x = Math.min(startPoint.x, imageX);
+          const y = Math.min(startPoint.y, imageY);
+          
+          onBboxCreated({
+            x: Math.max(0, x),
+            y: Math.max(0, y),
+            width: Math.min(width, imageState.width - x),
+            height: Math.min(height, imageState.height - y),
+            classId: activeClassId
+          });
+        }
+      } else if (activeTool === 'ruler') {
+        const length = calculateDistance(startPoint.x, startPoint.y, imageX, imageY);
+        if (length > 5) {
+          const rulerId = addRuler({
+            x1: startPoint.x,
+            y1: startPoint.y,
+            x2: imageX,
+            y2: imageY
+          });
+          selectObject(rulerId, 'ruler');
+        }
+      } else if (activeTool === 'calibration') {
+        const length = calculateDistance(startPoint.x, startPoint.y, imageX, imageY);
+        if (length > 10) {
+          const lineData = {
+            x1: startPoint.x,
+            y1: startPoint.y,
+            x2: imageX,
+            y2: imageY,
+            realLength: 50 // значение по умолчанию
+          };
+          
+          // Если уже есть калибровочная линия, заменяем её
+          if (annotations.calibrationLine) {
+            onCalibrationLineFinished(lineData, false);
+          } else {
+            onCalibrationLineFinished(lineData, true);
+          }
+        }
+      }
+
+      setIsDrawing(false);
+      setStartPoint(null);
+      setCurrentPoint(null);
+    }
+  }, [
+    dragState, 
+    isDrawing, 
+    startPoint, 
+    currentPoint, 
+    screenToImage, 
+    activeTool, 
+    activeClassId, 
+    imageState,
+    onBboxCreated,
+    addRuler, 
+    selectObject, 
+    annotations.calibrationLine,
+    onCalibrationLineFinished
+  ]);
+
+  const handleDoubleClick = useCallback((e: React.MouseEvent) => {
+    console.log('Double click detected');
+    if (!imageState.imageElement) return;
+
+    const { x: imageX, y: imageY } = screenToImage(e.clientX, e.clientY);
+    console.log('Double click at image coordinates:', { imageX, imageY });
+
+    // Проверяем попадание в bounding box
+    for (const bbox of annotations.boundingBoxes) {
+      console.log('Checking bbox:', bbox.id, 'classId:', bbox.classId);
+      if (isPointInBox(imageX, imageY, bbox)) {
+        console.log('Hit bbox:', bbox.id, 'classId:', bbox.classId);
+        // Проверяем, что это дефект (классы 0-9)
+        if (bbox.classId >= 0 && bbox.classId <= 9) {
+          console.log('Opening defect form for bbox:', bbox.id);
+          onEditDefectBbox(bbox.id);
+          return;
+        } else {
+          console.log('Bbox is not a defect class, skipping form');
+        }
+      }
+    }
+    console.log('No bbox hit by double click');
+  }, [imageState.imageElement, screenToImage, annotations.boundingBoxes, onEditDefectBbox]);
+
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    if (!imageState.imageElement) return;
+    
+    e.preventDefault();
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const pointX = e.clientX - rect.left;
+    const pointY = e.clientY - rect.top;
+
+    const zoomIn = e.deltaY < 0;
+    zoomToPoint(pointX, pointY, zoomIn, canvas.clientWidth, canvas.clientHeight);
+  }, [imageState.imageElement, zoomToPoint]);
+
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    onShowContextMenu(e.clientX, e.clientY);
+  }, [onShowContextMenu]);
+
+  // Обработчики клавиатуры для удаления объектов
   useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (markupModified) { // Use markupModified from context
-        e.preventDefault();
-        e.returnValue = '';
-        return '';
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Delete' && annotations.selectedObjectId) {
+        switch (annotations.selectedObjectType) {
+          case 'bbox':
+            deleteBoundingBox(annotations.selectedObjectId);
+            break;
+          case 'ruler':
+            deleteRuler(annotations.selectedObjectId);
+            break;
+          case 'calibration':
+            deleteCalibrationLine();
+            break;
+          case 'density':
+            deleteDensityPoint(annotations.selectedObjectId);
+            break;
+        }
       }
     };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [markupModified]); // Use markupModified from context
-  
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [
+    annotations.selectedObjectId, 
+    annotations.selectedObjectType, 
+    deleteBoundingBox, 
+    deleteRuler, 
+    deleteCalibrationLine, 
+    deleteDensityPoint
+  ]);
+
+  // Обновление размеров canvas
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const resizeCanvas = () => {
+      const container = canvas.parentElement;
+      if (container) {
+        canvas.width = container.clientWidth;
+        canvas.height = container.clientHeight;
+        draw();
+      }
+    };
+
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    return () => window.removeEventListener('resize', resizeCanvas);
+  }, [draw]);
+
+  // Перерисовка при изменении состояния
+  useEffect(() => {
+    draw();
+  }, [draw]);
+
   return (
-    <div className="h-screen flex flex-col bg-gray-100">
-      <Header />
+    <div className="flex-1 relative overflow-hidden bg-gray-200">
+      <canvas
+        ref={canvasRef}
+        className="w-full h-full"
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onDoubleClick={handleDoubleClick}
+        onWheel={handleWheel}
+        onContextMenu={handleContextMenu}
+      />
       
-      <Toolbar
-        activeTool={activeTool}
-        onToolChange={handleToolChange}
-        onOpenFile={handleOpenFile}
-        onSaveMarkup={handleSaveMarkup}
-        onAutoAnnotate={handleAutoAnnotate}
-        onInvertColors={toggleInversion}
-        onHelp={handleHelp}
-        layerVisible={layerVisible}
-        onToggleLayer={() => setLayerVisible(!layerVisible)}
-        filterActive={filterActive}
-        onToggleFilter={() => setFilterActive(!filterActive)}
-        calibrationSet={calibration.isSet}
-        onEditCalibration={handleEditCalibration}
-        autoAnnotationPerformed={autoAnnotationPerformed}
-      />
-
-      <div className="flex-1 flex overflow-hidden">
-        <Sidebar
-          activeClassId={activeClassId}
-          onClassSelect={handleClassSelect}
-          disabled={!imageState.src}
-        />
-        
-        <CanvasArea
-          activeTool={activeTool}
-          activeClassId={activeClassId}
-          layerVisible={layerVisible}
-          filterActive={filterActive}
-          onToolChange={handleToolChange}
-          onSelectClass={setActiveClassId}
-          onShowContextMenu={handleShowContextMenu}
-          onCalibrationLineFinished={handleCalibrationLineFinished}
-          onBboxCreated={handleBboxCreated}
-          onEditDefectBbox={handleEditDefectBbox}
-        />
-      </div>
-
-      <StatusBar markupFileName={markupFileName} />
-
-      {/* Модальные окна */}
-      <Modal
-        isOpen={modalState.type !== null || isProcessingAutoAnnotation}
-        title={modalState.title}
-        onClose={closeModal}
-      >
-        {modalState.message && (
-          <p className="whitespace-pre-line mb-4">{modalState.message}</p>
-        )}
-        
-        {modalState.type === MODAL_TYPES.CALIBRATION && (
-          <div className="mt-4">
-            <input
-              type="number"
-              step="0.1"
-              min="0.1"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={calibrationInputValue}
-              onChange={(e) => setCalibrationInputValue(e.target.value)}
-              placeholder="Введите размер в мм"
-            />
+      {!imageState.src && (
+        <div className="absolute inset-0 flex items-center justify-center text-gray-500">
+          <div className="text-center">
+            <p className="text-lg mb-2">Загрузите изображение для начала работы</p>
+            <p className="text-sm">Используйте кнопку "Открыть файл" или нажмите Ctrl+O</p>
           </div>
-        )}
-        
-        <ModalButtons>
-          {modalState.buttons?.map((button, index) => (
-            <ModalButton
-              key={index}
-              onClick={button.action}
-              primary={button.primary}
-            >
-              {button.text}
-            </ModalButton>
-          ))}
-        </ModalButtons>
-      </Modal>
-
-      {/* Модальное окно для формы дефекта */}
-      <DefectFormModal
-        isOpen={defectFormModalState.isOpen}
-        onClose={handleCloseDefectModal}
-        bboxId={defectFormModalState.bboxId}
-        defectClassId={defectFormModalState.defectClassId}
-        initialRecord={defectFormModalState.initialRecord}
-        onSaveRecord={handleSaveDefectRecord}
-      />
-
-      {/* Контекстное меню */}
-      {contextMenu.visible && (
-        <div
-          className="fixed bg-white border border-gray-200 rounded shadow-lg z-50"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
-        >
-          <button
-            className={`block w-full text-left px-4 py-2 text-sm ${
-              annotations.densityPoints.length === 0 
-                ? 'text-gray-400 cursor-not-allowed' 
-                : 'hover:bg-gray-100 text-gray-900'
-            }`}
-            onClick={() => {
-              if (annotations.densityPoints.length > 0) {
-                clearAllDensityPoints();
-                handleCloseContextMenu();
-              }
-            }}
-            disabled={annotations.densityPoints.length === 0}
-          >
-            Очистить все измерения плотности
-          </button>
-          <button
-            className={`block w-full text-left px-4 py-2 text-sm ${
-              annotations.rulers.length === 0 
-                ? 'text-gray-400 cursor-not-allowed' 
-                : 'hover:bg-gray-100 text-gray-900'
-            }`}
-            onClick={() => {
-              if (annotations.rulers.length > 0) {
-                clearAllRulers();
-                handleCloseContextMenu();
-              }
-            }}
-            disabled={annotations.rulers.length === 0}
-          >
-            Очистить все линейки
-          </button>
-          <button
-            className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
-            onClick={() => {
-              if (imageState.imageElement && imageState.file) {
-                saveImageAsFile(
-                  imageState.imageElement, 
-                  imageState.width, 
-                  imageState.height, 
-                  annotations, 
-                  `annotated_${imageState.file.name}`,
-                  getOriginalPixelColor
-                );
-              }
-              handleCloseContextMenu();
-            }}
-            disabled={!imageState.src}
-          >
-            Сохранить изображение
-          </button>
         </div>
-      )}
-
-      {/* Закрытие контекстного меню при клике вне */}
-      {contextMenu.visible && (
-        <div
-          className="fixed inset-0 z-40"
-          onClick={handleCloseContextMenu}
-        />
       )}
     </div>
   );
 };
-
-function App() {
-  return (
-    <ErrorBoundary>
-      <ImageProvider>
-        <AnnotationProvider>
-          <AppContent />
-        </AnnotationProvider>
-      </ImageProvider>
-    </ErrorBoundary>
-  );
-}
-
-export default App;
