@@ -413,18 +413,23 @@ const AppContent: React.FC = () => {
 
   const handleSaveDefectRecord = useCallback((bboxId: string, record: DefectRecord, formattedString: string) => {
     updateBoundingBoxDefectRecord(bboxId, record, formattedString);
-    // Сначала сбрасываем pending состояние, ЗАТЕМ закрываем модал
+    // Сбрасываем pending состояние перед закрытием модала
     setPendingBboxId(null);
-    setDefectFormModalState({ isOpen: false, bboxId: null, defectClassId: null, initialRecord: null });
+    // Закрываем модал без вызова handleCloseDefectModal
+    setDefectFormModalState(prev => ({ ...prev, isOpen: false }));
   }, [updateBoundingBoxDefectRecord]);
 
   const handleCloseDefectModal = useCallback(() => {
-    // Удаляем рамку только если это новая рамка (pendingBboxId существует) И у неё нет записи дефекта
+    console.log('handleCloseDefectModal called, pendingBboxId:', pendingBboxId);
     if (pendingBboxId) {
       const bboxToCheck = annotations.boundingBoxes.find(bbox => bbox.id === pendingBboxId);
+      console.log('bboxToCheck:', bboxToCheck);
       // Удаляем только если у рамки нет записи дефекта
       if (bboxToCheck && !bboxToCheck.formattedDefectString) {
+        console.log('Deleting bbox because no defect record');
         deleteBoundingBox(pendingBboxId);
+      } else {
+        console.log('Not deleting bbox - has defect record');
       }
     }
     
