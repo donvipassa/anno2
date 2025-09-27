@@ -65,6 +65,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
   const [lineHandle, setLineHandle] = useState<'start' | 'end' | null>(null);
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState<{ x: number; y: number; offsetX: number; offsetY: number } | null>(null);
+  const [hoverCursor, setHoverCursor] = useState<string>('default');
 
   // Получение координат изображения из координат мыши
   const getImageCoords = useCallback((clientX: number, clientY: number) => {
@@ -166,6 +167,74 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     return null;
   }, [annotations, imageState.scale]);
 
+  // Определение курсора при наведении
+  const getHoverCursor = useCallback((x: number, y: number) => {
+    const markerTolerance = 10 / imageState.scale;
+    
+    // Проверяем маркеры калибровочной линии
+    if (annotations.calibrationLine) {
+      const line = annotations.calibrationLine;
+      const distToStart = calculateDistance(x, y, line.x1, line.y1);
+      const distToEnd = calculateDistance(x, y, line.x2, line.y2);
+      
+      if (distToStart <= markerTolerance || distToEnd <= markerTolerance) {
+        return 'pointer';
+      }
+    }
+    
+    // Проверяем маркеры линеек
+    for (let i = annotations.rulers.length - 1; i >= 0; i--) {
+      const ruler = annotations.rulers[i];
+      const distToStart = calculateDistance(x, y, ruler.x1, ruler.y1);
+      const distToEnd = calculateDistance(x, y, ruler.x2, ruler.y2);
+      
+      if (distToStart <= markerTolerance || distToEnd <= markerTolerance) {
+        return 'pointer';
+      }
+    }
+
+    // Проверяем маркеры изменения размера bbox
+    for (let i = annotations.boundingBoxes.length - 1; i >= 0; i--) {
+      const bbox = annotations.boundingBoxes[i];
+      const handle = getResizeHandle(x, y, bbox, imageState.scale);
+      if (handle && handle !== 'move') {
+        const cursorMap = {
+          'nw': 'nw-resize', 'n': 'n-resize', 'ne': 'ne-resize',
+          'e': 'e-resize', 'se': 'se-resize', 's': 's-resize',
+          'sw': 'sw-resize', 'w': 'w-resize'
+        };
+        return cursorMap[handle] || 'default';
+      }
+    }
+
+    // Проверяем границы bbox для перемещения
+    for (let i = annotations.boundingBoxes.length - 1; i >= 0; i--) {
+      const bbox = annotations.boundingBoxes[i];
+      // Проверяем только границы рамки (не внутреннюю область)
+      const borderWidth = 4 / imageState.scale;
+      const isOnBorder = (
+        // Верхняя граница
+        (x >= bbox.x - borderWidth && x <= bbox.x + bbox.width + borderWidth && 
+         y >= bbox.y - borderWidth && y <= bbox.y + borderWidth) ||
+        // Нижняя граница
+        (x >= bbox.x - borderWidth && x <= bbox.x + bbox.width + borderWidth && 
+         y >= bbox.y + bbox.height - borderWidth && y <= bbox.y + bbox.height + borderWidth) ||
+        // Левая граница
+        (x >= bbox.x - borderWidth && x <= bbox.x + borderWidth && 
+         y >= bbox.y - borderWidth && y <= bbox.y + bbox.height + borderWidth) ||
+        // Правая граница
+        (x >= bbox.x + bbox.width - borderWidth && x <= bbox.x + bbox.width + borderWidth && 
+         y >= bbox.y - borderWidth && y <= bbox.y + bbox.height + borderWidth)
+      );
+      
+      if (isOnBorder) {
+        return 'move';
+      }
+    }
+
+    return 'default';
+  }, [annotations, imageState.scale]);
+
   // Обработчик нажатия мыши
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (!imageState.imageElement) return;
@@ -200,6 +269,30 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
             setIsDragging(true);
             setDragStart(coords);
             return;
+          } else if (handle === 'move') {
+            // Проверяем, что клик был именно на границе рамки
+            const bbox = clickedObject.object;
+            const borderWidth = 4 / imageState.scale;
+            const isOnBorder = (
+              // Верхняя граница
+              (coords.x >= bbox.x - borderWidth && coords.x <= bbox.x + bbox.width + borderWidth && 
+               coords.y >= bbox.y - borderWidth && coords.y <= bbox.y + borderWidth) ||
+              // Нижняя граница
+              (coords.x >= bbox.x - borderWidth && coords.x <= bbox.x + bbox.width + borderWidth && 
+               coords.y >= bbox.y + bbox.height - borderWidth && coords.y <= bbox.y + bbox.height + borderWidth) ||
+              // Левая граница
+              (coords.x >= bbox.x - borderWidth && coords.x <= bbox.x + borderWidth && 
+               coords.y >= bbox.y - borderWidth && coords.y <= bbox.y + bbox.height + borderWidth) ||
+              // Правая граница
+              (coords.x >= bbox.x + bbox.width - borderWidth && coords.x <= bbox.x + bbox.width + borderWidth && 
+               coords.y >= bbox.y - borderWidth && coords.y <= bbox.y + bbox.height + borderWidth)
+            );
+            
+            if (isOnBorder) {
+              setIsDragging(true);
+              setDragStart(coords);
+              return;
+            }
           }
         }
         
@@ -239,6 +332,14 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     if (!imageState.imageElement) return;
 
     const coords = getImageCoords(e.clientX, e.clientY);
+
+    // Обновляем курсор при движении мыши
+    if (!isDragging && !isPanning && !isDrawing) {
+      const newCursor = getHoverCursor(coords.x, coords.y);
+      if (newCursor !== hoverCursor) {
+        setHoverCursor(newCursor);
+      }
+    }
 
     // Панорамирование
     if (isPanning && panStart) {
@@ -376,7 +477,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
         setCurrentLine({ ...currentLine, x2: coords.x, y2: coords.y });
       }
     }
-  }, [imageState, getImageCoords, isPanning, panStart, setOffset, isDragging, dragStart, annotations, resizeHandle, updateBoundingBox, updateRuler, updateCalibrationLine, updateDensityPoint, isDrawing, currentBox, currentLine]);
+  }, [imageState, getImageCoords, getHoverCursor, hoverCursor, isPanning, panStart, setOffset, isDragging, dragStart, annotations, resizeHandle, updateBoundingBox, updateRuler, updateCalibrationLine, updateDensityPoint, isDrawing, currentBox, currentLine]);
 
   // Обработчик отпускания мыши
   const handleMouseUp = useCallback((e: React.MouseEvent) => {
@@ -700,7 +801,15 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
   const getCursor = () => {
     if (isPanning) return 'grabbing';
     if (isDragging) {
-      if (lineHandle) return 'crosshair';
+      if (lineHandle) return 'pointer';
+      if (resizeHandle) {
+        const cursorMap = {
+          'nw': 'nw-resize', 'n': 'n-resize', 'ne': 'ne-resize',
+          'e': 'e-resize', 'se': 'se-resize', 's': 's-resize',
+          'sw': 'sw-resize', 'w': 'w-resize'
+        };
+        return cursorMap[resizeHandle] || 'grabbing';
+      }
       return 'grabbing';
     }
     
@@ -708,7 +817,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     if (activeTool === 'ruler' || activeTool === 'calibration') return 'crosshair';
     if (activeTool === 'density') return 'crosshair';
 
-    return 'default';
+    return hoverCursor;
   };
 
   return (
