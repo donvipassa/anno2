@@ -89,7 +89,6 @@ const AppContent: React.FC = () => {
 
   // Хук для файловых операций
   const { openFileDialog, handleSaveMarkup } = useFileOperations(
-  const { openFileDialog, handleSaveMarkup, handleOpenMarkup } = useFileOperations(
     showModal,
     closeModal,
     setMarkupFileName,
