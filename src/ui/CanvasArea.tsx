@@ -171,6 +171,16 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
   const getHoverCursor = useCallback((x: number, y: number) => {
     const markerTolerance = 10 / imageState.scale;
     
+    // Проверяем точки плотности
+    const densityTolerance = 25 / imageState.scale;
+    for (let i = annotations.densityPoints.length - 1; i >= 0; i--) {
+      const point = annotations.densityPoints[i];
+      const distance = calculateDistance(x, y, point.x, point.y);
+      if (distance <= densityTolerance) {
+        return 'pointer';
+      }
+    }
+
     // Проверяем маркеры калибровочной линии
     if (annotations.calibrationLine) {
       const line = annotations.calibrationLine;
@@ -196,14 +206,16 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     // Проверяем маркеры изменения размера bbox
     for (let i = annotations.boundingBoxes.length - 1; i >= 0; i--) {
       const bbox = annotations.boundingBoxes[i];
-      const handle = getResizeHandle(x, y, bbox, imageState.scale);
-      if (handle && handle !== 'move') {
-        const cursorMap = {
-          'nw': 'nw-resize', 'n': 'n-resize', 'ne': 'ne-resize',
-          'e': 'e-resize', 'se': 'se-resize', 's': 's-resize',
-          'sw': 'sw-resize', 'w': 'w-resize'
-        };
-        return cursorMap[handle] || 'default';
+      if (annotations.selectedObjectId === bbox.id && annotations.selectedObjectType === 'bbox') {
+        const handle = getResizeHandle(x, y, bbox, imageState.scale);
+        if (handle && handle !== 'move') {
+          const cursorMap = {
+            'nw': 'nw-resize', 'n': 'n-resize', 'ne': 'ne-resize',
+            'e': 'e-resize', 'se': 'se-resize', 's': 's-resize',
+            'sw': 'sw-resize', 'w': 'w-resize'
+          };
+          return cursorMap[handle] || 'default';
+        }
       }
     }
 
@@ -668,7 +680,9 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
 
         // Подпись с длиной
         const length = calculateDistance(ruler.x1, ruler.y1, ruler.x2, ruler.y2);
-        const lengthInfo = getLength(length);
+        const lengthInfo = calibration.isSet ? 
+          { value: length * calibration.scale, unit: 'мм' } : 
+          { value: length, unit: 'px' };
         const midX = (ruler.x1 + ruler.x2) / 2;
         const midY = (ruler.y1 + ruler.y2) / 2;
         
