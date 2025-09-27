@@ -37,10 +37,6 @@ export const useFileOperations = (
     return true;
   }, [showModal, closeModal]);
 
-  const handleOpenMarkup = useCallback((imageFileName: string, imageWidth: number, imageHeight: number) => {
-    input.click();
-  }, [validateAndShowError, loadImage, showModal, closeModal, clearAll, setMarkupModifiedState, setMarkupFileName, setAutoAnnotationPerformed, handleOpenMarkup]);
-
   const handleOpenMarkup = useCallback((imageFileName: string) => {
     const input = document.createElement('input');
     input.type = 'file';
