@@ -4,7 +4,6 @@ import { ImageProvider } from './core/ImageProvider';
 import { AnnotationProvider } from './core/AnnotationManager';
 import { DefectFormModal } from './components/DefectFormModal';
 import { DefectRecord } from './types/defects';
-import { BoundingBox } from './types';
 import { 
   Header, 
   Toolbar, 

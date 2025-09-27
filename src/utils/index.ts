@@ -1,9 +1,12 @@
-// Export utility functions
-export * from './fileUtils';
-export * from './validation';
-export * from './geometry';
+/**
+ * Экспорт всех утилит
+ */
+
 export * from './canvas';
-export * from './annotationUtils';
+export * from './fileUtils';
 export * from './imageUtils';
+export * from './geometry';
+export * from './annotationUtils';
+export * from './validation';
 export * from './errorHandler';
 export * from './formatDefectRecord';
