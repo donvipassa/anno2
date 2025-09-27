@@ -1,628 +1,960 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Modal, ModalButtons, ModalButton } from '../ui/Modal';
-import { Defect, DefectCharacter, DefectRecord, DefectsData } from '../types/defects';
-import { DEFECT_CLASSES } from '../types';
-import { formatDefectRecord } from '../utils/formatDefectRecord';
-import { v4 as uuidv4 } from 'uuid';
-import { AlertTriangle } from 'lucide-react';
-import defectsDataJson from '../data/defects_data.json';
+import React, { useState, useCallback, useEffect } from 'react';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { ImageProvider } from './core/ImageProvider';
+import { AnnotationProvider } from './core/AnnotationManager';
+import { DefectFormModal } from './components/DefectFormModal';
+import { DefectRecord } from './types/defects';
+import { 
+  Header, 
+  Toolbar, 
+  Sidebar, 
+  CanvasArea, 
+  StatusBar, 
+  Modal, 
+  ModalButtons, 
+  ModalButton 
+} from './ui';
+import { useImage } from './core/ImageProvider';
+import { useAnnotations } from './core/AnnotationManager';
+import { useCalibration } from './core/CalibrationManager';
+import { 
+  validateImageFile, 
+  saveImageAsFile,
+  getMarkupFileName, 
+  downloadFile, 
+  readFileAsText, 
+  convertYOLOToPixels,
+  validateMarkupFileName,
+  validateYOLOData
+} from './utils';
+import { detectObjects } from './services/api';
+import { mapApiClassToDefectClassId, convertApiBboxToPixels } from './utils';
+import jsonData from './data/defect-classes.json';
 
-interface DefectFormModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  bboxId: string | null;
-  defectClassId: number | null; // ID из DEFECT_CLASSES (0-10)
-  initialRecord: DefectRecord | null;
-  onSaveRecord: (bboxId: string, record: DefectRecord, formattedString: string) => void;
+// Константы для модальных окон
+const MODAL_TYPES = {
+  INFO: 'info',
+  CONFIRM: 'confirm',
+  ERROR: 'error',
+  CALIBRATION: 'calibration',
+  HELP: 'help'
+} as const;
+
+// Типы для состояния модального окна
+interface ModalState {
+  type: string | null;
+  title: string;
+  message: string;
+  buttons?: Array<{
+    text: string;
+    action: () => void;
+    primary?: boolean;
+  }>;
+  input?: {
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+  };
 }
 
-export const DefectFormModal: React.FC<DefectFormModalProps> = ({
-  isOpen,
-  onClose,
-  bboxId,
-  defectClassId,
-  initialRecord,
-  onSaveRecord,
-}) => {
-  const [selectedDefect, setSelectedDefect] = useState<Defect | null>(null);
-  const [selectedCharacter, setSelectedCharacter] = useState<DefectCharacter | null>(null);
-  const [selectedVariety, setSelectedVariety] = useState<string>('');
-  const [count, setCount] = useState<number>(1);
-  const [dimensions, setDimensions] = useState<DefectRecord['dimensions']>({
-    diameter: 0,
-    width: 0,
-    length: 0,
-    elementLength: 0,
+// Типы для состояния формы дефекта
+interface DefectFormState {
+  isOpen: boolean;
+  bboxId: string | null;
+  defectClassId: number | null;
+  initialRecord: DefectRecord | null;
+}
+
+// Типы для контекстного меню
+interface ContextMenuState {
+  visible: boolean;
+  x: number;
+  y: number;
+}
+
+const AppContent: React.FC = () => {
+  // Хуки для управления состоянием
+  const { 
+    imageState, 
+    loadImage, 
+    setScale, 
+    toggleInversion, 
+    resetView, 
+    fitToCanvas, 
+    zoomIn, 
+    zoomOut, 
+    zoomReset, 
+    getOriginalPixelColor 
+  } = useImage();
+  
+  const { 
+    annotations, 
+    getYOLOExport, 
+    clearAllRulers, 
+    clearAllDensityPoints, 
+    loadAnnotations, 
+    clearAll, 
+    selectObject, 
+    addBoundingBox,
+    deleteBoundingBox,
+    updateBoundingBoxDefectRecord,
+    setCalibrationLine,
+    updateCalibrationLine,
+    markupModified,
+    setMarkupModifiedState
+  } = useAnnotations();
+  
+  const { calibration, setScale: setCalibrationScale, resetScale } = useCalibration();
+
+  // Локальное состояние компонента
+  const [markupFileName, setMarkupFileName] = useState<string | null>(null);
+  const [isProcessingAutoAnnotation, setIsProcessingAutoAnnotation] = useState<boolean>(false);
+  const [activeTool, setActiveTool] = useState<string>('');
+  const [activeClassId, setActiveClassId] = useState<number>(-1);
+  const [layerVisible, setLayerVisible] = useState<boolean>(true);
+  const [filterActive, setFilterActive] = useState<boolean>(false);
+  const [autoAnnotationPerformed, setAutoAnnotationPerformed] = useState<boolean>(false);
+
+  // Состояние модального окна формы дефекта
+  const [defectFormModalState, setDefectFormModalState] = useState<DefectFormState>({
+    isOpen: false,
+    bboxId: null,
+    defectClassId: null,
+    initialRecord: null
   });
-  const [validationErrors, setValidationErrors] = useState<string[]>([]);
-  const [formattedRecordString, setFormattedRecordString] = useState<string>('');
 
-  const defectsData = defectsDataJson as DefectsData;
+  // Состояние калибровки
+  const [pendingCalibrationLine, setPendingCalibrationLine] = useState<any>(null);
+  const [calibrationInputValue, setCalibrationInputValue] = useState<string>('50');
 
-  // Проверяем, является ли дефект простым (без характера)
-  const isSimpleDefect = (): boolean => {
-    if (!selectedDefect) return false;
-    const simpleDefectIds = [6, 7, 8, 9, 10]; // Окисные включения, Вогнутость корня шва, Выпуклость корня шва, Подрез, Смещение кромок
-    return simpleDefectIds.includes(selectedDefect.id);
-  };
+  // Состояние модального окна
+  const [modalState, setModalState] = useState<ModalState>({
+    type: null,
+    title: '',
+    message: ''
+  });
 
-  // Инициализация формы при открытии или изменении initialRecord
+  // Состояние контекстного меню
+  const [contextMenu, setContextMenu] = useState<ContextMenuState>({
+    visible: false,
+    x: 0,
+    y: 0
+  });
+
+  // Функции для работы с модальными окнами
+  const closeModal = useCallback(() => {
+    setModalState({ type: null, title: '', message: '' });
+  }, []);
+
+  const showModal = useCallback((
+    type: string, 
+    title: string, 
+    message: string, 
+    buttons?: Array<{ text: string; action: () => void; primary?: boolean }>, 
+    input?: any
+  ) => {
+    setModalState({ type, title, message, buttons, input });
+  }, []);
+
+  // Функции для работы с контекстным меню
+  const handleShowContextMenu = useCallback((x: number, y: number) => {
+    setContextMenu({ visible: true, x, y });
+  }, []);
+
+  const handleCloseContextMenu = useCallback(() => {
+    setContextMenu({ visible: false, x: 0, y: 0 });
+  }, []);
+
+  // Эффект синхронизации activeClassId с выделенным объектом
   useEffect(() => {
-    if (isOpen && defectClassId !== null) {
-      // Находим соответствующий дефект из defects_data.json по имени
-      const defectClassName = DEFECT_CLASSES.find(dc => dc.id === defectClassId)?.name;
-      const initialDefect = defectsData.defects.find(d => d.вид_дефекта === defectClassName);
-      setSelectedDefect(initialDefect || null);
-
-      if (initialRecord) {
-        // Редактирование существующей записи
-        if (initialDefect) {
-          const char = initialDefect.характер_дефекта.find(c => 
-            c.id === initialRecord.characterId && 
-            (initialRecord.variety ? c.разновидность_дефекта === initialRecord.variety : true)
-          );
-          setSelectedCharacter(char || null);
-          setSelectedVariety(initialRecord.variety || '');
-          setCount(initialRecord.count);
-          setDimensions(initialRecord.dimensions);
-        }
-      } else {
-        // Новая запись - автоматически выбираем первый характер
-        if (initialDefect) {
-          const uniqueCharacters = getUniqueCharacters(initialDefect);
-          if (uniqueCharacters.length > 0) {
-            setSelectedCharacter(uniqueCharacters[0]);
-            // Для простых дефектов (без характера) не выбираем автоматически
-            if (isSimpleDefect()) {
-              setSelectedCharacter(initialDefect.характер_дефекта[0] || null);
+    if (annotations.selectedObjectId) {
+      switch (annotations.selectedObjectType) {
+        case 'bbox':
+          const selectedBbox = annotations.boundingBoxes.find(bbox => bbox.id === annotations.selectedObjectId);
+          if (selectedBbox) {
+            setActiveTool('bbox');
+            if (selectedBbox.classId >= 0 && selectedBbox.classId <= 10) {
+              // Стандартный класс дефекта
+              setActiveClassId(selectedBbox.classId);
+            } else {
+              // API класс
+              setActiveClassId(-1);
             }
-          } else {
-            setSelectedCharacter(null);
           }
-        }
-        setSelectedVariety('');
-        setCount(1);
-        setDimensions({ diameter: 0, width: 0, length: 0, elementLength: 0 });
+          break;
+        case 'ruler':
+          setActiveTool('ruler');
+          setActiveClassId(-1);
+          break;
+        case 'calibration':
+          setActiveTool('calibration');
+          setActiveClassId(-1);
+          break;
+        case 'density':
+          setActiveTool('density');
+          setActiveClassId(-1);
+          break;
       }
-      setValidationErrors([]);
     }
-  }, [isOpen, defectClassId, initialRecord, defectsData.defects]);
+    // Не сбрасываем инструменты при selectedObjectId === null, 
+    // чтобы пользователь мог продолжить рисование
+  }, [annotations.selectedObjectId, annotations.selectedObjectType, annotations.boundingBoxes]);
 
-  // Сброс размеров при смене характера или разновидности
+  // Эффект синхронизации состояния калибровки
   useEffect(() => {
-    if (selectedCharacter) {
-      setDimensions({ diameter: 0, width: 0, length: 0, elementLength: 0 });
-      setValidationErrors([]);
+    if (!annotations.calibrationLine) {
+      resetScale();
+      setActiveTool(''); // Сбрасываем активный инструмент при удалении калибровочной линии
     }
-  }, [selectedCharacter, selectedVariety]);
+  }, [annotations.calibrationLine, resetScale]);
 
-  // Обновление отформатированной строки при изменении данных
-  useEffect(() => {
-    if (selectedDefect && selectedCharacter && bboxId) {
-      const currentRecord: DefectRecord = {
-        id: initialRecord?.id || uuidv4(),
-        defectId: selectedDefect.id,
-        characterId: selectedCharacter.id,
-        variety: selectedVariety || undefined,
-        count: count,
-        dimensions: dimensions,
+  // Функции для работы с файлами
+  const validateAndShowError = useCallback((validation: { valid: boolean; error?: string }) => {
+    if (!validation.valid) {
+      const errorMessages = {
+        'FILE_TOO_LARGE': 'Файл слишком большой. Максимум — 20 МБ',
+        'INVALID_FORMAT': 'Недопустимый формат. Поддерживаются форматы: JPG, PNG, TIFF, BMP'
       };
-      const formatted = formatDefectRecord([currentRecord], defectsData);
-      setFormattedRecordString(formatted);
-    } else {
-      setFormattedRecordString('');
-    }
-  }, [selectedDefect, selectedCharacter, selectedVariety, count, dimensions, bboxId, initialRecord]);
-
-  // Получаем уникальные характеры дефектов
-  const getUniqueCharacters = (defect: Defect) => {
-    const uniqueCharacters = new Map();
-    defect.характер_дефекта.forEach(char => {
-      if (!uniqueCharacters.has(char.id)) {
-        uniqueCharacters.set(char.id, char);
-      }
-    });
-    return Array.from(uniqueCharacters.values());
-  };
-
-  // Получаем уникальные разновидности для выбранного характера
-  const getVarieties = () => {
-    if (!selectedCharacter || !selectedDefect) return [];
-    
-    const varieties = selectedDefect.характер_дефекта
-      .filter(char => char.id === selectedCharacter.id)
-      .map(char => char.разновидность_дефекта)
-      .filter(variety => variety !== '-');
-    
-    return [...new Set(varieties)];
-  };
-
-  // Получаем активный характер с учетом выбранной разновидности
-  const getActiveCharacter = (): DefectCharacter | null => {
-    if (!selectedCharacter || !selectedDefect) return null;
-    
-    const varieties = getVarieties();
-    if (varieties.length > 0 && selectedVariety) {
-      return selectedDefect.характер_дефекта.find(char => 
-        char.id === selectedCharacter.id && char.разновидность_дефекта === selectedVariety
-      ) || null;
-    }
-    
-    return selectedCharacter;
-  };
-
-  // Проверяем, выбраны ли характер и разновидность (если нужна)
-  const isCharacterAndVarietySelected = (): boolean => {
-    if (!selectedCharacter) return false;
-    
-    const varieties = getVarieties();
-    if (varieties.length > 0 && !selectedVariety) {
+      const message = errorMessages[validation.error as keyof typeof errorMessages] || 'Неизвестная ошибка';
+      showModal(MODAL_TYPES.ERROR, 'Ошибка', message, [
+        { text: 'Ок', action: closeModal }
+      ]);
       return false;
     }
-    
     return true;
-  };
+  }, [showModal, closeModal]);
 
-  // Валидация параметров дефекта
-  const validateParameters = (): string[] => {
-    const errors: string[] = [];
-    
-    if (!selectedCharacter) {
-      errors.push('Выберите характер дефекта');
-      return errors;
-    }
+  const openFileDialog = useCallback(() => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
 
-    const varieties = getVarieties();
-    if (varieties.length > 0 && !selectedVariety) {
-      errors.push('Выберите разновидность дефекта');
-      return errors;
-    }
+      const validation = validateImageFile(file);
+      if (!validateAndShowError(validation)) return;
 
-    const activeCharacter = getActiveCharacter();
-    if (!activeCharacter) {
-      errors.push('Не удалось определить параметры дефекта');
-      return errors;
-    }
-
-    if (count <= 0) {
-      errors.push('Количество должно быть больше нуля');
-    }
-
-    const isChainOrCluster = activeCharacter.название_характера.includes('Цепочка') || 
-                            activeCharacter.название_характера.includes('Скопление');
-
-    if (isChainOrCluster) {
-      if (dimensions.length <= 0) {
-        const type = activeCharacter.название_характера.includes('Цепочка') ? 'цепочки' : 'скопления';
-        errors.push(`Длина ${type} должна быть больше нуля`);
+      try {
+        await loadImage(file);
+        
+        // Предложение загрузить разметку
+        showModal(MODAL_TYPES.CONFIRM, 'Загрузка разметки', 'Открыть файл разметки для данного изображения?', [
+          { text: 'Да', action: () => { closeModal(); handleOpenMarkup(file.name); } },
+          { text: 'Нет', action: closeModal }
+        ]);
+        
+        // Очистка существующих аннотаций
+        clearAll();
+        setMarkupModifiedState(false);
+        setActiveTool('');
+        setActiveClassId(-1);
+        setMarkupFileName(null);
+        setAutoAnnotationPerformed(false);
+      } catch (error) {
+        showModal(MODAL_TYPES.ERROR, 'Ошибка', 'Не удалось загрузить изображение', [
+          { text: 'Ок', action: closeModal }
+        ]);
       }
+    };
+    input.click();
+  }, [validateAndShowError, loadImage, showModal, closeModal, clearAll, setMarkupModifiedState]);
 
-      if (activeCharacter.контролируемый_размер_2 && activeCharacter.контролируемый_размер_2 !== '-') {
-        if (activeCharacter.контролируемый_размер_2.includes('диаметр')) {
-          if (dimensions.diameter <= 0) {
-            errors.push('Максимальный диаметр элементов должен быть больше нуля');
+  const handleOpenFile = () => {
+    // Проверка на несохраненные изменения
+    if (markupModified) {
+      showModal(MODAL_TYPES.CONFIRM, 'Несохраненные изменения', 'У вас есть несохраненные изменения в разметке. Что вы хотите сделать?', [
+        { 
+          text: 'Сохранить', 
+          action: () => {
+            handleSaveMarkup();
+            closeModal();
+            // После сохранения открываем новый файл
+            setTimeout(() => openFileDialog(), 100);
+          },
+          primary: true
+        },
+        { 
+          text: 'Не сохранять', 
+          action: () => {
+            closeModal();
+            openFileDialog();
           }
-        } else if (activeCharacter.контролируемый_размер_2.includes('ширина')) {
-          if (dimensions.width <= 0) {
-            errors.push('Максимальная ширина элементов должна быть больше нуля');
-          }
-          if (activeCharacter.контролируемый_размер_3 && dimensions.elementLength <= 0) {
-            errors.push('Максимальная длина элементов должна быть больше нуля');
-          }
+        },
+        { 
+          text: 'Отмена', 
+          action: closeModal
         }
-      }
-    } else {
-      if (activeCharacter.контролируемый_размер_1.includes('Диаметр')) {
-        if (dimensions.diameter <= 0) {
-          errors.push('Диаметр должен быть больше нуля');
-        }
-      }
-
-      if (activeCharacter.контролируемый_размер_1.includes('Ширина')) {
-        if (dimensions.width <= 0) {
-          errors.push('Ширина должна быть больше нуля');
-        }
-        if (activeCharacter.контролируемый_размер_2 && activeCharacter.контролируемый_размер_2.includes('Длина')) {
-          if (dimensions.elementLength <= 0) {
-            errors.push('Длина должна быть больше нуля');
-          }
-        }
-      }
-
-      if (activeCharacter.контролируемый_размер_1.includes('Длина')) {
-        if (dimensions.length <= 0) {
-          errors.push('Длина должна быть больше нуля');
-        }
-      }
-    }
-
-    return errors;
-  };
-
-  // Обработка изменения числовых значений с валидацией
-  const handleNumberChange = (field: string, value: string) => {
-    const numValue = parseFloat(value) || 0;
-    
-    if (field === 'count') {
-      setCount(Math.max(0, Math.floor(numValue)));
-    } else {
-      setDimensions(prev => ({
-        ...prev,
-        [field]: Math.max(0, numValue)
-      }));
+      ]);
+      return;
     }
     
-    setValidationErrors([]);
+    openFileDialog();
   };
 
-  const handleSave = useCallback(() => {
-    if (!bboxId || !selectedDefect || !selectedCharacter) {
+  const handleOpenMarkup = useCallback((imageFileName: string) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.txt';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      const expectedFileName = getMarkupFileName(imageFileName);
+      if (!validateMarkupFileName(file.name, imageFileName)) {
+        showModal(MODAL_TYPES.ERROR, 'Ошибка', 'Файл разметки не соответствует файлу изображения. Загрузка отменена', [
+          { text: 'Ок', action: closeModal }
+        ]);
+        return;
+      }
+
+      try {
+        const content = await readFileAsText(file);
+        const yoloData = validateYOLOData(content);
+        
+        if (yoloData.length === 0) {
+          // Пустой файл разметки - это нормально
+          setMarkupFileName(file.name);
+          setMarkupModifiedState(false);
+          showModal(MODAL_TYPES.INFO, 'Успех', 'Файл разметки соответствует файлу изображения. Загрузка подтверждена', [
+            { text: 'Ок', action: closeModal }
+          ]);
+        } else {
+          // Проверяем, что изображение загружено
+          if (!imageState.width || !imageState.height) {
+            showModal(MODAL_TYPES.ERROR, 'Ошибка', 'Не удалось загрузить файл разметки. Сначала загрузите изображение', [
+              { text: 'Ок', action: closeModal }
+            ]);
+            return;
+          }
+
+          // Конвертация YOLO в пиксельные координаты
+          const boundingBoxes = yoloData.map(data => {
+            const bbox = convertYOLOToPixels(data, imageState.width, imageState.height);
+            
+            // Если это класс от API (ID >= 12), добавляем информацию из JSON
+            if (data.classId >= 12) {
+              const jsonEntry = jsonData.find((entry: any) => entry.apiID === data.classId);
+              if (jsonEntry) {
+                bbox.apiClassName = jsonEntry.name;
+                bbox.apiColor = jsonEntry.color;
+                bbox.apiId = jsonEntry.apiID;
+              }
+            }
+            
+            return bbox;
+          });
+          loadAnnotations({ boundingBoxes });
+          setMarkupFileName(file.name);
+          setMarkupModifiedState(false);
+
+          showModal(MODAL_TYPES.INFO, 'Успех', 'Файл разметки соответствует файлу изображения. Загрузка подтверждена', [
+            { text: 'Ок', action: closeModal }
+          ]);
+        }
+      } catch (error) {
+        showModal(MODAL_TYPES.ERROR, 'Ошибка', 'Не удалось загрузить файл разметки. Файл повреждён или имеет неверный формат', [
+          { text: 'Ок', action: closeModal }
+        ]);
+      }
+    };
+    input.click();
+  }, [showModal, closeModal, imageState.width, imageState.height, setMarkupFileName, setMarkupModifiedState, loadAnnotations]);
+
+  const handleSaveMarkup = useCallback(() => {
+    if (annotations.boundingBoxes.length === 0) return;
+
+    const yoloContent = getYOLOExport(imageState.width, imageState.height);
+    const fileName = getMarkupFileName(imageState.file?.name || 'markup');
+    
+    downloadFile(yoloContent, fileName);
+    setMarkupFileName(fileName);
+    setMarkupModifiedState(false);
+  }, [annotations.boundingBoxes.length, getYOLOExport, imageState.width, imageState.height, imageState.file?.name, setMarkupFileName, setMarkupModifiedState]);
+
+  const handleClassSelect = useCallback((classId: number) => {
+    if (!imageState.src) return;
+    
+    setActiveClassId(classId);
+    setActiveTool('bbox');
+  }, [imageState.src]);
+
+  const handleToolChange = useCallback((tool: string) => {
+    setActiveTool(tool);
+    
+    // Сбрасываем выделение и класс при выборе инструментов измерения
+    if (tool === 'density' || tool === 'ruler' || tool === 'calibration') {
+      selectObject(null, null);
+      setActiveClassId(-1);
+    }
+  }, [selectObject]);
+
+  const handleDeleteSelected = useCallback(() => {
+    // Реализация удаления выделенного объекта
+    if (annotations.selectedObjectId) {
+      // The delete functions in AnnotationManager will call setMarkupModified(true)
+      setMarkupModifiedState(true);
+      // Сбрасываем активный инструмент и класс после удаления объекта
+      setActiveTool('');
+      setActiveClassId(-1);
+    }
+  }, [annotations.selectedObjectId]);
+
+  const handleAutoAnnotate = useCallback(async () => {
+    if (!imageState.file || autoAnnotationPerformed) {
+      showModal(MODAL_TYPES.ERROR, 'Ошибка', 'Сначала загрузите изображение', [
+        { text: 'Ок', action: closeModal }
+      ]);
       return;
     }
 
-    const errors = validateParameters();
-    if (errors.length > 0) {
-      setValidationErrors(errors);
-      return;
-    }
+    setIsProcessingAutoAnnotation(true);
+    showModal(MODAL_TYPES.INFO, 'Обработка', 'Обработка изображения...');
 
-    const record: DefectRecord = {
-      id: initialRecord?.id || uuidv4(),
-      defectId: selectedDefect.id,
-      characterId: selectedCharacter.id,
-      variety: selectedVariety || undefined,
-      count: count,
-      dimensions: dimensions,
+    try {
+      const detections = await detectObjects(imageState.file);
+      
+      // Добавляем обнаруженные объекты как новые bounding boxes
+      detections.forEach(detection => {
+        const bbox = convertApiBboxToPixels(detection.bbox);
+        
+        // Ищем соответствие в JSON файле
+        const jsonEntry = jsonData.find((entry: any) => {
+          const entryName = entry.name.toLowerCase().trim();
+          const detectionClass = detection.class.toLowerCase().trim();
+          return entryName === detectionClass;
+        });
+        
+        // Используем apiID из JSON файла как classId
+        const classId = jsonEntry ? (jsonEntry as any).apiID : 10;
+        
+        addBoundingBox({
+          x: bbox.x,
+          y: bbox.y,
+          width: bbox.width,
+          height: bbox.height,
+          classId,
+          confidence: detection.confidence,
+          apiClassName: detection.class,
+          apiColor: detection.color,
+          apiId: detection.id
+        });
+      });
+      
+      setAutoAnnotationPerformed(true);
+      showModal(MODAL_TYPES.INFO, 'Успех', `Обнаружено объектов: ${detections.length}`, [
+        { text: 'Ок', action: closeModal }
+      ]);
+    } catch (error) {
+      showModal(MODAL_TYPES.ERROR, 'Ошибка', 'Не удалось выполнить автоматическую аннотацию', [
+        { text: 'Ок', action: closeModal }
+      ]);
+    } finally {
+      setIsProcessingAutoAnnotation(false);
+    }
+  }, [imageState.file, addBoundingBox, autoAnnotationPerformed]);
+
+  const handleBboxCreated = useCallback((bboxData: Omit<BoundingBox, 'id' | 'defectRecord' | 'formattedDefectString'>) => {
+    // Проверяем, что это дефект (классы 0-9)
+    if (bboxData.classId >= 0 && bboxData.classId <= 9) {
+      const newBboxId = addBoundingBox(bboxData);
+      selectObject(newBboxId, 'bbox');
+      setDefectFormModalState({
+        isOpen: true,
+        bboxId: newBboxId,
+        defectClassId: bboxData.classId,
+        initialRecord: null
+      });
+    } else {
+      // Для других классов создаем рамку без диалога
+      const newBboxId = addBoundingBox(bboxData);
+      selectObject(newBboxId, 'bbox');
+    }
+  }, [addBoundingBox, selectObject]);
+
+  const handleEditDefectBbox = useCallback((bboxId: string) => {
+    const bboxToEdit = annotations.boundingBoxes.find(bbox => bbox.id === bboxId);
+    if (bboxToEdit) {
+      selectObject(bboxId, 'bbox');
+      setDefectFormModalState({
+        isOpen: true,
+        bboxId: bboxId,
+        defectClassId: bboxToEdit.classId,
+        initialRecord: bboxToEdit.defectRecord || null
+      });
+    }
+  }, [annotations.boundingBoxes, selectObject]);
+
+  const handleSaveDefectRecord = useCallback((bboxId: string, record: DefectRecord, formattedString: string) => {
+    updateBoundingBoxDefectRecord(bboxId, record, formattedString);
+    setDefectFormModalState(prev => ({
+      ...prev,
+      isOpen: false
+    }));
+  }, [updateBoundingBoxDefectRecord]);
+
+  const handleCloseDefectModal = useCallback(() => {
+    // Если это новая рамка (без defectRecord) и пользователь закрыл без сохранения - удаляем рамку
+    if (defectFormModalState.bboxId && defectFormModalState.initialRecord === null) {
+      const bbox = annotations.boundingBoxes.find(b => b.id === defectFormModalState.bboxId);
+      if (bbox && !bbox.defectRecord) {
+        deleteBoundingBox(defectFormModalState.bboxId);
+      }
+    }
+    
+    setDefectFormModalState({
+      isOpen: false, 
+      bboxId: null, 
+      defectClassId: null, 
+      initialRecord: null
+    });
+  }, []);
+
+  const handleHelp = useCallback(() => {
+    showModal(MODAL_TYPES.HELP, 'О программе', 'Автор и разработчик Алексей Сотников\nТехнопарк "Университетские технологии"', [
+      { text: 'Ок', action: closeModal }
+    ]);
+  }, [showModal, closeModal]);
+
+  const handleEditCalibration = useCallback(() => {
+    if (annotations.calibrationLine) {
+      // При редактировании устанавливаем текущее значение
+      const currentValue = annotations.calibrationLine.realLength.toString();
+      console.log('handleEditCalibration: текущее значение', currentValue);
+      
+      showModal(MODAL_TYPES.CALIBRATION, 'Калибровка масштаба', 'Укажите реальный размер эталона для установки масштаба (мм):',
+        [
+          { 
+            text: 'Отмена', 
+            action: () => {
+              console.log('Отмена калибровки');
+              closeModal();
+            }
+          },
+          { 
+            text: 'Применить', 
+            action: () => {
+              // Получаем значение из поля ввода в момент нажатия кнопки
+              const inputElement = document.querySelector('input[type="number"]') as HTMLInputElement;
+              const inputValue = inputElement ? inputElement.value : calibrationInputValue;
+              console.log('Применить нажато, значение:', inputValue);
+              
+              const realLength = parseFloat(inputValue);
+              if (isNaN(realLength) || realLength <= 0) {
+                alert('Пожалуйста, введите корректное положительное число');
+                return;
+              }
+              
+              try {
+                const lineToCalculateFrom = annotations.calibrationLine;
+                console.log('Используем существующую calibrationLine:', lineToCalculateFrom);
+                
+                if (!lineToCalculateFrom) {
+                  console.error('Нет данных линии для расчета');
+                  alert('Ошибка: нет данных линии для расчета');
+                  closeModal();
+                  return;
+                }
+                
+                const pixelLength = Math.sqrt(
+                  (lineToCalculateFrom.x2 - lineToCalculateFrom.x1) ** 2 + 
+                  (lineToCalculateFrom.y2 - lineToCalculateFrom.y1) ** 2
+                );
+                
+                console.log('Пиксельная длина:', pixelLength);
+                
+                updateCalibrationLine({
+                  realLength: realLength
+                });
+                console.log('Обновлена калибровочная линия:', realLength, 'мм');
+                
+                const scale = realLength / pixelLength;
+                setCalibrationScale(pixelLength, realLength);
+                console.log('Установлен масштаб:', scale, 'мм/пиксель');
+
+                setActiveTool(''); // Сбрасываем активный инструмент после успешной калибровки
+                closeModal();
+              } catch (error) {
+                console.error('Ошибка при установке калибровки:', error);
+                closeModal();
+                alert('Произошла ошибка при установке калибровки');
+              }
+            },
+            primary: true
+          }
+        ]
+      );
+      
+      // Устанавливаем значение ПОСЛЕ показа модального окна
+      setTimeout(() => {
+        setCalibrationInputValue(currentValue);
+      }, 100);
+    }
+  }, [annotations.calibrationLine, showModal, closeModal, updateCalibrationLine, setCalibrationScale]);
+
+  const handleCalibrationLineFinished = useCallback((lineData: any, isNew: boolean) => {
+    console.log('handleCalibrationLineFinished вызвана:', { lineData, isNew });
+    
+    // Определяем значение по умолчанию
+    let defaultLength = '50';
+    if (!isNew && annotations.calibrationLine) {
+      // При редактировании существующей линии используем её текущее значение
+      defaultLength = annotations.calibrationLine.realLength.toString();
+    } else if (lineData?.realLength) {
+      // Если в lineData есть realLength, используем его
+      defaultLength = lineData.realLength.toString();
+    }
+    
+    setCalibrationInputValue(defaultLength);
+    showModal(MODAL_TYPES.CALIBRATION, 'Калибровка масштаба', 'Укажите реальный размер эталона для установки масштаба (мм):',
+      [
+        { 
+          text: 'Отмена', 
+          action: () => {
+            setCalibrationInputValue('50');
+            closeModal();
+          }
+        },
+        { 
+          text: 'Применить', 
+          action: () => {
+            // Получаем значение из поля ввода в момент нажатия кнопки
+            const inputElement = document.querySelector('input[type="number"]') as HTMLInputElement;
+            const inputValue = inputElement ? inputElement.value : calibrationInputValue;
+            console.log('Применить нажато, значение:', inputValue);
+            console.log('isNew:', isNew);
+            console.log('lineData:', lineData);
+            console.log('annotations.calibrationLine:', annotations.calibrationLine);
+            
+            const realLength = parseFloat(inputValue);
+            if (isNaN(realLength) || realLength <= 0) {
+              alert('Пожалуйста, введите корректное положительное число');
+              return;
+            }
+            
+            try {
+              // Определяем, какую линию использовать для расчетов
+              let lineToCalculateFrom;
+              if (isNew) {
+                lineToCalculateFrom = lineData;
+                console.log('Используем lineData для новой линии:', lineToCalculateFrom);
+              } else {
+                lineToCalculateFrom = annotations.calibrationLine;
+                console.log('Используем существующую calibrationLine:', lineToCalculateFrom);
+              }
+              
+              if (!lineToCalculateFrom) {
+                console.error('Нет данных линии для расчета. isNew:', isNew, 'lineData:', lineData, 'calibrationLine:', annotations.calibrationLine);
+                alert('Ошибка: нет данных линии для расчета. Попробуйте нарисовать линию заново.');
+                closeModal();
+                return;
+              }
+              
+              // Вычисляем пиксельную длину
+              const pixelLength = Math.sqrt(
+                (lineToCalculateFrom.x2 - lineToCalculateFrom.x1) ** 2 + 
+                (lineToCalculateFrom.y2 - lineToCalculateFrom.y1) ** 2
+              );
+              
+              console.log('Пиксельная длина:', pixelLength);
+              
+              if (isNew) {
+                console.log('Создаем новую калибровочную линию:', lineData);
+                setCalibrationLine({
+                  ...lineData,
+                  realLength: realLength
+                });
+                console.log('Создана новая калибровочная линия:', realLength, 'мм, пиксельная длина:', pixelLength);
+              } else if (!isNew && annotations.calibrationLine) {
+                updateCalibrationLine({
+                  realLength: realLength
+                });
+                console.log('Обновлена калибровочная линия:', realLength, 'мм');
+              }
+              
+              // Устанавливаем масштаб
+              const scale = realLength / pixelLength;
+              setCalibrationScale(pixelLength, realLength);
+              console.log('Установлен масштаб:', scale, 'мм/пиксель');
+
+              closeModal();
+            } catch (error) {
+              console.error('Ошибка при установке калибровки:', error);
+              closeModal();
+              alert('Произошла ошибка при установке калибровки');
+            }
+          },
+          primary: true
+        }
+      ]
+    );
+    
+    // Устанавливаем значение ПОСЛЕ показа модального окна
+    setTimeout(() => {
+      setCalibrationInputValue(defaultLength);
+    }, 100);
+  }, [annotations.calibrationLine, setCalibrationLine, updateCalibrationLine, setCalibrationScale, showModal, closeModal]);
+
+  // Горячие клавиши
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+      // Проверяем, находится ли фокус на элементе ввода
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        return;
+      }
+
+      const key = e.key.toLowerCase();
+      const ctrl = e.ctrlKey;
+
+      if (ctrl && key === 'o') {
+        e.preventDefault();
+        handleOpenFile();
+      } else if (ctrl && key === 's') {
+        e.preventDefault();
+        handleSaveMarkup();
+      } else if (ctrl && (key === '+' || key === '=')) {
+        e.preventDefault();
+        zoomIn();
+      } else if (ctrl && key === '-') {
+        e.preventDefault();
+        zoomOut();
+      } else if (ctrl && key === '1') {
+        e.preventDefault();
+        zoomReset();
+      } else if (key === 'f') {
+        e.preventDefault();
+        const canvas = document.querySelector('canvas');
+        if (canvas) {
+          fitToCanvas(canvas.clientWidth, canvas.clientHeight);
+        }
+      } else if (key === 'i') {
+        e.preventDefault();
+        toggleInversion();
+      } else if (key === 'd') {
+        e.preventDefault();
+        handleToolChange('density');
+      } else if (key === 'r') {
+        e.preventDefault();
+        handleToolChange('ruler');
+      } else if (key === 'c') {
+        e.preventDefault();
+        handleToolChange('calibration');
+      } else if (key === 'l') {
+        e.preventDefault();
+        setLayerVisible(!layerVisible);
+      } else if (ctrl && key === 'l') {
+        e.preventDefault();
+        setFilterActive(!filterActive);
+      } else if (key === 'f1' || (ctrl && key === 'h')) {
+        e.preventDefault();
+        handleHelp();
+      } else if (key === 'escape') {
+        e.preventDefault();
+        handleToolChange('');
+        setActiveClassId(-1);
+        // Сброс выделения объектов
+        selectObject(null, null);
+      } else if (key === 'delete') {
+        e.preventDefault();
+        handleDeleteSelected();
+      }
+  }, [
+    handleOpenFile, handleSaveMarkup, zoomIn, zoomOut, zoomReset, fitToCanvas, 
+    toggleInversion, setActiveTool, layerVisible, setLayerVisible, filterActive, 
+    setFilterActive, handleHelp, selectObject, handleDeleteSelected, handleClassSelect, handleToolChange
+  ]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
+
+  // Предупреждение при закрытии страницы
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (markupModified) { // Use markupModified from context
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+      }
     };
 
-    onSaveRecord(bboxId, record, formattedRecordString);
-    onClose();
-  }, [bboxId, selectedDefect, selectedCharacter, selectedVariety, count, dimensions, formattedRecordString, onSaveRecord, onClose, initialRecord, validateParameters]);
-
-  if (!selectedDefect) {
-    return null;
-  }
-
-  const uniqueCharacters = getUniqueCharacters(selectedDefect);
-  const varieties = getVarieties();
-  const activeCharacter = getActiveCharacter();
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [markupModified]); // Use markupModified from context
   
-  const isChainOrCluster = activeCharacter?.название_характера.includes('Цепочка') || 
-                          activeCharacter?.название_характера.includes('Скопление');
-
-  // Получаем изображение для отображения
-  const getDisplayImage = (): string => {
-    if (activeCharacter) {
-      return activeCharacter.файл_изображение;
-    }
-    if (selectedCharacter) {
-      return selectedCharacter.файл_изображение;
-    }
-    return '';
-  };
-
-  const displayImage = getDisplayImage();
-
   return (
-    <Modal isOpen={isOpen} title="Параметры дефекта" onClose={onClose} maxWidth="max-w-5xl">
-      <div className="max-h-[80vh] overflow-y-auto">
-        {/* Ошибки валидации */}
-        {validationErrors.length > 0 && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <div className="flex items-center gap-2 mb-2">
-              <AlertTriangle className="w-5 h-5 text-red-600" />
-              <h3 className="font-medium text-red-800">Необходимо исправить ошибки:</h3>
-            </div>
-            <ul className="list-disc list-inside text-sm text-red-700 space-y-1">
-              {validationErrors.map((error, index) => (
-                <li key={index}>{error}</li>
-              ))}
-            </ul>
-          </div>
-        )}
+    <div className="h-screen flex flex-col bg-gray-100">
+      <Header />
+      
+      <Toolbar
+        activeTool={activeTool}
+        onToolChange={handleToolChange}
+        onOpenFile={handleOpenFile}
+        onSaveMarkup={handleSaveMarkup}
+        onAutoAnnotate={handleAutoAnnotate}
+        onInvertColors={toggleInversion}
+        onHelp={handleHelp}
+        layerVisible={layerVisible}
+        onToggleLayer={() => setLayerVisible(!layerVisible)}
+        filterActive={filterActive}
+        onToggleFilter={() => setFilterActive(!filterActive)}
+        calibrationSet={calibration.isSet}
+        onEditCalibration={handleEditCalibration}
+        autoAnnotationPerformed={autoAnnotationPerformed}
+      />
 
-        <div className="flex gap-8 min-w-fit h-full">
-          {/* Изображение дефекта */}
-          <div className="flex-shrink-0 w-64 min-w-64 flex flex-col">
-            <h3 className="font-medium text-gray-700 mb-3">{selectedDefect.вид_дефекта}</h3>
-            {displayImage && (
-              <div className="bg-gray-100 rounded-lg p-4 flex items-center justify-center flex-grow">
-                <img
-                  src={`/${displayImage}`}
-                  alt={activeCharacter?.название_характера || selectedDefect.вид_дефекта}
-                  className="w-full h-full object-contain"
-                  onError={(e) => {
-                    console.error(`Ошибка загрузки изображения: ${displayImage}`);
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
-              </div>
-            )}
-            {!displayImage && (
-              <div className="bg-gray-100 rounded-lg p-4 flex items-center justify-center flex-grow">
-                <span className="text-gray-500 text-sm">Изображение не найдено</span>
-              </div>
-            )}
-          </div>
-
-          {/* Правая часть с полями */}
-          <div className="flex-1 flex flex-col min-w-fit">
-            <div className="flex gap-8 flex-1 min-w-fit">
-              {/* Характер дефекта и количество */}
-              <div className="flex-1 min-w-80">
-                {/* Характер дефекта - показываем только для сложных дефектов */}
-                {!isSimpleDefect() && (
-                  <div className="mb-6">
-                    <h3 className="font-medium text-gray-700 mb-3">Характер дефекта</h3>
-                    
-                    {/* Показываем выбор характера только если их больше одного */}
-                    {uniqueCharacters.length > 1 ? (
-                      <div className="space-y-2">
-                        {uniqueCharacters.map((character) => (
-                          <label key={character.id} className="flex items-center space-x-3 cursor-pointer">
-                            <input
-                              type="radio"
-                              name="character"
-                              value={character.id}
-                              checked={selectedCharacter?.id === character.id}
-                              onChange={() => {
-                                setSelectedCharacter(character);
-                                setSelectedVariety('');
-                                setValidationErrors([]);
-                              }}
-                              className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                            />
-                            <span className="text-sm text-gray-700 break-words">
-                              {character.название_характера !== '-' ? character.название_характера : selectedDefect.вид_дефекта}
-                            </span>
-                          </label>
-                        ))}
-                      </div>
-                    ) : uniqueCharacters.length === 1 ? (
-                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                        <span className="text-sm text-blue-800 font-medium break-words">
-                          {uniqueCharacters[0].название_характера !== '-' ? uniqueCharacters[0].название_характера : selectedDefect.вид_дефекта}
-                        </span>
-                      </div>
-                    ) : null}
-
-                    {/* Разновидности */}
-                    {varieties.length > 0 && (
-                      <div className="mt-4">
-                        <div className="space-y-2">
-                          {varieties.map((variety) => (
-                            <label key={variety} className="flex items-center space-x-3 cursor-pointer">
-                              <input
-                                type="radio"
-                                name="variety"
-                                value={variety}
-                                checked={selectedVariety === variety}
-                                onChange={(e) => setSelectedVariety(e.target.value)}
-                                className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                              />
-                              <span className="text-sm text-gray-700 break-words">{variety}</span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Количество однотипных дефектов */}
-                {selectedCharacter && (isSimpleDefect() || isCharacterAndVarietySelected()) && (
-                  <div>
-                    <h3 className="font-medium text-gray-700 mb-3">Количество</h3>
-                    <label className="flex items-center space-x-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={count > 1}
-                        onChange={(e) => setCount(e.target.checked ? 2 : 1)}
-                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                      />
-                      <span className="text-sm text-gray-700 break-words">
-                        Количество однотипных дефектов, шт.
-                      </span>
-                    </label>
-                    {count > 1 && (
-                      <input
-                        type="number"
-                        min="1"
-                        value={count}
-                        onChange={(e) => handleNumberChange('count', e.target.value)}
-                        className="mt-2 w-20 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Размеры дефекта */}
-              <div className="flex-1 min-w-64">
-                <h3 className="font-medium text-gray-700 mb-3">Размеры дефекта</h3>
-                
-                {selectedCharacter && (isSimpleDefect() || isCharacterAndVarietySelected()) && activeCharacter && (
-                  <div className="space-y-4">
-                    {isChainOrCluster ? (
-                      // Для цепочек и скоплений
-                      <>
-                        {/* Длина цепочки/скопления */}
-                        <div>
-                          <label className="block text-sm text-gray-600 mb-1 break-words">
-                            {activeCharacter.контролируемый_размер_1}, мм
-                          </label>
-                          <input
-                            type="number"
-                            min="0.1"
-                            step="0.1"
-                            value={dimensions.length || ''}
-                            onChange={(e) => handleNumberChange('length', e.target.value)}
-                            className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 ${
-                              validationErrors.some(error => error.includes('цепочки') || error.includes('скопления')) 
-                                ? 'border-red-300 bg-red-50' 
-                                : 'border-gray-300'
-                            }`}
-                            placeholder="Введите значение больше 0"
-                          />
-                        </div>
-
-                        {/* Максимальные размеры элементов в цепочке/скоплении */}
-                        {activeCharacter.контролируемый_размер_2 && activeCharacter.контролируемый_размер_2 !== '-' && (
-                          <div>
-                            <label className="block text-sm text-gray-600 mb-1 break-words">
-                              {activeCharacter.контролируемый_размер_2}, мм
-                            </label>
-                            <input
-                              type="number"
-                              min="0.1"
-                              step="0.1"
-                              value={activeCharacter.контролируемый_размер_2.includes('диаметр') ? (dimensions.diameter || '') : (dimensions.width || '')}
-                              onChange={(e) => handleNumberChange(
-                                activeCharacter.контролируемый_размер_2.includes('диаметр') ? 'diameter' : 'width', 
-                                e.target.value
-                              )}
-                              className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 ${
-                                validationErrors.some(error => 
-                                  error.includes('Максимальный диаметр') || error.includes('Максимальная ширина')
-                                ) ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                              }`}
-                              placeholder="Введите значение больше 0"
-                            />
-                          </div>
-                        )}
-
-                        {/* Максимальная длина элементов (только для удлиненных) */}
-                        {activeCharacter.контролируемый_размер_3 && activeCharacter.контролируемый_размер_3 !== '-' && (
-                          <div>
-                            <label className="block text-sm text-gray-600 mb-1 break-words">
-                              {activeCharacter.контролируемый_размер_3}, мм
-                            </label>
-                            <input
-                              type="number"
-                              min="0.1"
-                              step="0.1"
-                              value={dimensions.elementLength || ''}
-                              onChange={(e) => handleNumberChange('elementLength', e.target.value)}
-                              className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 ${
-                                validationErrors.some(error => error.includes('Максимальная длина элементов')) 
-                                  ? 'border-red-300 bg-red-50' 
-                                  : 'border-gray-300'
-                              }`}
-                              placeholder="Введите значение больше 0"
-                            />
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      // Для обычных дефектов
-                      <>
-                        {activeCharacter.контролируемый_размер_1.includes('Диаметр') && (
-                          <div>
-                            <label className="block text-sm text-gray-600 mb-1">
-                              {activeCharacter.контролируемый_размер_1}, мм
-                            </label>
-                            <input
-                              type="number"
-                              min="0.1"
-                              step="0.1"
-                              value={dimensions.diameter || ''}
-                              onChange={(e) => handleNumberChange('diameter', e.target.value)}
-                              className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 ${
-                                validationErrors.some(error => error.includes('Диаметр')) 
-                                  ? 'border-red-300 bg-red-50' 
-                                  : 'border-gray-300'
-                              }`}
-                              placeholder="Введите значение больше 0"
-                            />
-                          </div>
-                        )}
-
-                        {activeCharacter.контролируемый_размер_1.includes('Ширина') && (
-                          <div>
-                            <label className="block text-sm text-gray-600 mb-1">
-                              {activeCharacter.контролируемый_размер_1}, мм
-                            </label>
-                            <input
-                              type="number"
-                              min="0.1"
-                              step="0.1"
-                              value={dimensions.width || ''}
-                              onChange={(e) => handleNumberChange('width', e.target.value)}
-                              className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 ${
-                                validationErrors.some(error => error.includes('Ширина')) 
-                                  ? 'border-red-300 bg-red-50' 
-                                  : 'border-gray-300'
-                              }`}
-                              placeholder="Введите значение больше 0"
-                            />
-                          </div>
-                        )}
-
-                        {activeCharacter.контролируемый_размер_1.includes('Длина') && (
-                          <div>
-                            <label className="block text-sm text-gray-600 mb-1">
-                              {activeCharacter.контролируемый_размер_1}, мм
-                            </label>
-                            <input
-                              type="number"
-                              min="0.1"
-                              step="0.1"
-                              value={dimensions.length || ''}
-                              onChange={(e) => handleNumberChange('length', e.target.value)}
-                              className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 ${
-                                validationErrors.some(error => error.includes('Длина')) 
-                                  ? 'border-red-300 bg-red-50' 
-                                  : 'border-gray-300'
-                              }`}
-                              placeholder="Введите значение больше 0"
-                            />
-                          </div>
-                        )}
-
-                        {activeCharacter.контролируемый_размер_2 !== '-' && activeCharacter.контролируемый_размер_2.includes('Длина') && (
-                          <div>
-                            <label className="block text-sm text-gray-600 mb-1">
-                              {activeCharacter.контролируемый_размер_2}, мм
-                            </label>
-                            <input
-                              type="number"
-                              min="0.1"
-                              step="0.1"
-                              value={dimensions.elementLength || ''}
-                              onChange={(e) => handleNumberChange('elementLength', e.target.value)}
-                              className={`w-full px-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 ${
-                                validationErrors.some(error => error.includes('Длина')) 
-                                  ? 'border-red-300 bg-red-50' 
-                                  : 'border-gray-300'
-                              }`}
-                              placeholder="Введите значение больше 0"
-                            />
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Предварительный просмотр записи */}
-            {formattedRecordString && (
-              <div className="mt-6 p-3 bg-blue-50 border border-blue-200 rounded-md text-blue-800 text-sm">
-                <span className="font-semibold">Итоговая запись:</span> {formattedRecordString}
-              </div>
-            )}
-          </div>
-        </div>
-
+      <div className="flex-1 flex overflow-hidden">
+        <Sidebar
+          activeClassId={activeClassId}
+          onClassSelect={handleClassSelect}
+          disabled={!imageState.src}
+        />
+        
+        <CanvasArea
+          activeTool={activeTool}
+          activeClassId={activeClassId}
+          layerVisible={layerVisible}
+          filterActive={filterActive}
+          onToolChange={handleToolChange}
+          onSelectClass={setActiveClassId}
+          onShowContextMenu={handleShowContextMenu}
+          onCalibrationLineFinished={handleCalibrationLineFinished}
+          onBboxCreated={handleBboxCreated}
+          onEditDefectBbox={handleEditDefectBbox}
+        />
       </div>
 
-      <ModalButtons>
-        <ModalButton onClick={onClose}>Отмена</ModalButton>
-        <ModalButton onClick={handleSave} primary disabled={!selectedCharacter}>
-          Сохранить
-        </ModalButton>
-      </ModalButtons>
-    </Modal>
+      <StatusBar markupFileName={markupFileName} />
+
+      {/* Модальные окна */}
+      <Modal
+        isOpen={modalState.type !== null || isProcessingAutoAnnotation}
+        title={modalState.title}
+        onClose={closeModal}
+      >
+        {modalState.message && (
+          <p className="whitespace-pre-line mb-4">{modalState.message}</p>
+        )}
+        
+        {modalState.type === MODAL_TYPES.CALIBRATION && (
+          <div className="mt-4">
+            <input
+              type="number"
+              step="0.1"
+              min="0.1"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={calibrationInputValue}
+              onChange={(e) => setCalibrationInputValue(e.target.value)}
+              placeholder="Введите размер в мм"
+            />
+          </div>
+        )}
+        
+        <ModalButtons>
+          {modalState.buttons?.map((button, index) => (
+            <ModalButton
+              key={index}
+              onClick={button.action}
+              primary={button.primary}
+            >
+              {button.text}
+            </ModalButton>
+          ))}
+        </ModalButtons>
+      </Modal>
+
+      {/* Модальное окно для формы дефекта */}
+      <DefectFormModal
+        isOpen={defectFormModalState.isOpen}
+        onClose={handleCloseDefectModal}
+        bboxId={defectFormModalState.bboxId}
+        defectClassId={defectFormModalState.defectClassId}
+        initialRecord={defectFormModalState.initialRecord}
+        onSaveRecord={handleSaveDefectRecord}
+      />
+
+      {/* Контекстное меню */}
+      {contextMenu.visible && (
+        <div
+          className="fixed bg-white border border-gray-200 rounded shadow-lg z-50"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+        >
+          <button
+            className={`block w-full text-left px-4 py-2 text-sm ${
+              annotations.densityPoints.length === 0 
+                ? 'text-gray-400 cursor-not-allowed' 
+                : 'hover:bg-gray-100 text-gray-900'
+            }`}
+            onClick={() => {
+              if (annotations.densityPoints.length > 0) {
+                clearAllDensityPoints();
+                handleCloseContextMenu();
+              }
+            }}
+            disabled={annotations.densityPoints.length === 0}
+          >
+            Очистить все измерения плотности
+          </button>
+          <button
+            className={`block w-full text-left px-4 py-2 text-sm ${
+              annotations.rulers.length === 0 
+                ? 'text-gray-400 cursor-not-allowed' 
+                : 'hover:bg-gray-100 text-gray-900'
+            }`}
+            onClick={() => {
+              if (annotations.rulers.length > 0) {
+                clearAllRulers();
+                handleCloseContextMenu();
+              }
+            }}
+            disabled={annotations.rulers.length === 0}
+          >
+            Очистить все линейки
+          </button>
+          <button
+            className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+            onClick={() => {
+              if (imageState.imageElement && imageState.file) {
+                saveImageAsFile(
+                  imageState.imageElement, 
+                  imageState.width, 
+                  imageState.height, 
+                  annotations, 
+                  `annotated_${imageState.file.name}`,
+                  getOriginalPixelColor
+                );
+              }
+              handleCloseContextMenu();
+            }}
+            disabled={!imageState.src}
+          >
+            Сохранить изображение
+          </button>
+        </div>
+      )}
+
+      {/* Закрытие контекстного меню при клике вне */}
+      {contextMenu.visible && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={handleCloseContextMenu}
+        />
+      )}
+    </div>
   );
 };
+
+function App() {
+  return (
+    <ErrorBoundary>
+      <ImageProvider>
+        <AnnotationProvider>
+          <AppContent />
+        </AnnotationProvider>
+      </ImageProvider>
+    </ErrorBoundary>
+  );
+}
+
+export default App;
