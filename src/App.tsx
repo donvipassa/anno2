@@ -50,6 +50,7 @@ const AppContent: React.FC = () => {
 
   // Состояние для отслеживания рамок, ожидающих заполнения формы
   const [pendingBboxId, setPendingBboxId] = useState<string | null>(null);
+  const [isClosingFromSave, setIsClosingFromSave] = useState<boolean>(false);
 
   // Состояние для модального окна формы дефекта
   const [defectFormModalState, setDefectFormModalState] = useState<{
@@ -413,6 +414,7 @@ const AppContent: React.FC = () => {
 
   const handleSaveDefectRecord = useCallback((bboxId: string, record: DefectRecord, formattedString: string) => {
     updateBoundingBoxDefectRecord(bboxId, record, formattedString);
+    setIsClosingFromSave(true); // Устанавливаем флаг сохранения
     setPendingBboxId(null); // Сбрасываем pending состояние
     // Не вызываем handleCloseDefectModal, а закрываем модал напрямую
     setDefectFormModalState({ isOpen: false, bboxId: null, defectClassId: null, initialRecord: null });
@@ -420,7 +422,8 @@ const AppContent: React.FC = () => {
 
   const handleCloseDefectModal = useCallback(() => {
     // Удаляем рамку только если это новая рамка (pendingBboxId существует)
-    if (pendingBboxId) {
+    // Удаляем рамку только если это новая рамка И модал закрывается НЕ из-за сохранения
+    if (pendingBboxId && !isClosingFromSave) {
       const bboxToCheck = annotations.boundingBoxes.find(bbox => bbox.id === pendingBboxId);
       // Удаляем только если у рамки нет записи дефекта (значит, пользователь нажал "Отмена")
       if (bboxToCheck && !bboxToCheck.formattedDefectString) {
@@ -430,6 +433,7 @@ const AppContent: React.FC = () => {
     
     setDefectFormModalState({ isOpen: false, bboxId: null, defectClassId: null, initialRecord: null });
     setPendingBboxId(null);
+    setIsClosingFromSave(false); // Сбрасываем флаг
   }, [pendingBboxId, annotations.boundingBoxes, deleteBoundingBox]);
 
   const handleHelp = () => {
