@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
 import { useImage } from '../core/ImageProvider';
 import { useAnnotations } from '../core/AnnotationManager';
 import { 
@@ -21,6 +21,14 @@ export const useFileOperations = (
 ) => {
   const { imageState, loadImage } = useImage();
   const { annotations, loadAnnotations, clearAll, getYOLOExport } = useAnnotations();
+  
+  // Use ref to store latest imageState to avoid stale closures
+  const imageStateRef = useRef(imageState);
+  
+  // Update ref whenever imageState changes
+  useEffect(() => {
+    imageStateRef.current = imageState;
+  }, [imageState]);
 
   const validateAndShowError = useCallback((validation: { valid: boolean; error?: string }) => {
     if (!validation.valid) {
@@ -82,12 +90,12 @@ export const useFileOperations = (
           ]);
         } else {
           // Проверяем, что изображение загружено полностью
-          if (!imageState.src || !imageState.width || !imageState.height || !imageState.imageElement) {
+          if (!imageStateRef.current.src || !imageStateRef.current.width || !imageStateRef.current.height || !imageStateRef.current.imageElement) {
             console.error('Изображение не загружено полностью:', {
-              src: !!imageState.src,
-              width: imageState.width,
-              height: imageState.height,
-              imageElement: !!imageState.imageElement
+              src: !!imageStateRef.current.src,
+              width: imageStateRef.current.width,
+              height: imageStateRef.current.height,
+              imageElement: !!imageStateRef.current.imageElement
             });
             showModal('error', 'Ошибка', 'Не удалось загрузить файл разметки. Сначала загрузите изображение', [
               { text: 'Ок', action: closeModal }
@@ -97,7 +105,7 @@ export const useFileOperations = (
 
           // Конвертация YOLO в пиксельные координаты
           const boundingBoxes = yoloData.map(data => {
-            const bbox = convertYOLOToPixels(data, imageState.width, imageState.height);
+            const bbox = convertYOLOToPixels(data, imageStateRef.current.width, imageStateRef.current.height);
             
             // Если это класс от API (ID >= 12), добавляем информацию из JSON
             if (data.classId >= 12) {
@@ -126,7 +134,7 @@ export const useFileOperations = (
       }
     };
     input.click();
-  }, [showModal, closeModal, imageState, setMarkupFileName, setMarkupModifiedState, loadAnnotations]);
+  }, [showModal, closeModal, setMarkupFileName, setMarkupModifiedState, loadAnnotations]);
 
   const openFileDialog = useCallback(() => {
     const input = document.createElement('input');
