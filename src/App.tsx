@@ -414,13 +414,15 @@ const AppContent: React.FC = () => {
   const handleSaveDefectRecord = useCallback((bboxId: string, record: DefectRecord, formattedString: string) => {
     updateBoundingBoxDefectRecord(bboxId, record, formattedString);
     setPendingBboxId(null); // Сбрасываем pending состояние
+    // Не вызываем handleCloseDefectModal, а закрываем модал напрямую
     setDefectFormModalState({ isOpen: false, bboxId: null, defectClassId: null, initialRecord: null });
   }, [updateBoundingBoxDefectRecord]);
 
   const handleCloseDefectModal = useCallback(() => {
-    // Удаляем рамку только если это отмена (не сохранение) и это новая рамка без записи
-    if (pendingBboxId && defectFormModalState.bboxId === pendingBboxId) {
+    // Удаляем рамку только если это новая рамка (pendingBboxId существует)
+    if (pendingBboxId) {
       const bboxToCheck = annotations.boundingBoxes.find(bbox => bbox.id === pendingBboxId);
+      // Удаляем только если у рамки нет записи дефекта (значит, пользователь нажал "Отмена")
       if (bboxToCheck && !bboxToCheck.formattedDefectString) {
         deleteBoundingBox(pendingBboxId);
       }
@@ -428,7 +430,6 @@ const AppContent: React.FC = () => {
     
     setDefectFormModalState({ isOpen: false, bboxId: null, defectClassId: null, initialRecord: null });
     setPendingBboxId(null);
-  }, [pendingBboxId, defectFormModalState.bboxId, annotations.boundingBoxes, deleteBoundingBox]);
 
   const handleHelp = () => {
     showModal('help', 'О программе', 'Автор и разработчик Алексей Сотников\nТехнопарк "Университетские технологии"', [
