@@ -26,6 +26,7 @@ import {
   convertYOLOToPixels,
   validateMarkupFileName,
   validateYOLOData
+} from '../utils';
 
 // Константы для модальных окон
 const MODAL_TYPES = {
