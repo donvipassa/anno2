@@ -418,18 +418,17 @@ const AppContent: React.FC = () => {
   }, [updateBoundingBoxDefectRecord]);
 
   const handleCloseDefectModal = useCallback(() => {
-    // Если есть pending рамка (новая рамка без сохраненной записи), удаляем её при отмене
-    if (defectFormModalState.bboxId) {
-      const bboxToCheck = annotations.boundingBoxes.find(bbox => bbox.id === defectFormModalState.bboxId);
-      // Удаляем рамку только если у неё нет сохраненной записи дефекта (это новая рамка)
+    // Удаляем рамку только если это отмена (не сохранение) и это новая рамка без записи
+    if (pendingBboxId && defectFormModalState.bboxId === pendingBboxId) {
+      const bboxToCheck = annotations.boundingBoxes.find(bbox => bbox.id === pendingBboxId);
       if (bboxToCheck && !bboxToCheck.formattedDefectString) {
-        deleteBoundingBox(defectFormModalState.bboxId);
+        deleteBoundingBox(pendingBboxId);
       }
     }
     
     setDefectFormModalState({ isOpen: false, bboxId: null, defectClassId: null, initialRecord: null });
     setPendingBboxId(null);
-  }, [defectFormModalState.bboxId, annotations.boundingBoxes, deleteBoundingBox]);
+  }, [pendingBboxId, defectFormModalState.bboxId, annotations.boundingBoxes, deleteBoundingBox]);
 
   const handleHelp = () => {
     showModal('help', 'О программе', 'Автор и разработчик Алексей Сотников\nТехнопарк "Университетские технологии"', [
