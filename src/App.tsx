@@ -17,13 +17,16 @@ import {
 import { useImage } from './core/ImageProvider';
 import { useAnnotations } from './core/AnnotationManager';
 import { useCalibration } from './core/CalibrationManager';
-import { saveImageAsFile, MODAL_TYPES } from './utils';
+import { saveImageAsFile } from './utils';
+import { MODAL_TYPES } from './utils/constants';
 import { detectObjects } from './services/api';
 import { mapApiClassToDefectClassId, convertApiBboxToPixels } from './utils';
 import { useModalState } from './hooks/useModalState';
 import { useDefectFormModal } from './hooks/useDefectFormModal';
 import { useContextMenu } from './hooks/useContextMenu';
 import { useFileOperations } from './hooks/useFileOperations';
+import { useAppState } from './hooks/useAppState';
+import { useCalibrationHandlers } from './hooks/useCalibrationHandlers';
 import jsonData from './data/defect-classes.json';
 
 const AppContent: React.FC = () => {
