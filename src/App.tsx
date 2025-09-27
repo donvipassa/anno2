@@ -413,7 +413,6 @@ const AppContent: React.FC = () => {
 
   const handleSaveDefectRecord = useCallback((bboxId: string, record: DefectRecord, formattedString: string) => {
     updateBoundingBoxDefectRecord(bboxId, record, formattedString);
-    // Просто закрываем модал, не сбрасывая активный инструмент
     setDefectFormModalState(prev => ({ 
       ...prev,
       isOpen: false
