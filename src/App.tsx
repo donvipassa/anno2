@@ -504,7 +504,6 @@ const AppContent: React.FC = () => {
                 console.log('Установлен масштаб:', scale, 'мм/пиксель');
 
                 setActiveTool(''); // Сбрасываем активный инструмент после успешной калибровки
-                setActiveTool(''); // Сбрасываем активный инструмент после успешной калибровки
                 closeModal();
               } catch (error) {
                 console.error('Ошибка при установке калибровки:', error);
