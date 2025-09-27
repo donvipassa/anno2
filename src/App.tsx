@@ -2,7 +2,6 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ImageProvider } from './core/ImageProvider';
 import { AnnotationProvider } from './core/AnnotationManager';
-import { DefectFormModal } from './components/DefectFormModal';
 import { DefectRecord } from './types/defects';
 import { 
   Header, 
@@ -116,12 +115,12 @@ const AppContent: React.FC = () => {
   const [autoAnnotationPerformed, setAutoAnnotationPerformed] = useState<boolean>(false);
 
   // Состояние модального окна формы дефекта
-  const [defectFormModalState, setDefectFormModalState] = useState<DefectFormState>({
-    isOpen: false,
-    bboxId: null,
-    defectClassId: null,
-    initialRecord: null
-  });
+  // const [defectFormModalState, setDefectFormModalState] = useState<DefectFormState>({
+  //   isOpen: false,
+  //   bboxId: null,
+  //   defectClassId: null,
+  //   initialRecord: null
+  // });
 
   // Состояние калибровки
   const [pendingCalibrationLine, setPendingCalibrationLine] = useState<any>(null);
@@ -455,59 +454,24 @@ const AppContent: React.FC = () => {
   }, [imageState.file, addBoundingBox, autoAnnotationPerformed]);
 
   const handleBboxCreated = useCallback((bboxData: Omit<BoundingBox, 'id' | 'defectRecord' | 'formattedDefectString'>) => {
-    // Проверяем, что это дефект (классы 0-9)
-    if (bboxData.classId >= 0 && bboxData.classId <= 9) {
-      const newBboxId = addBoundingBox(bboxData);
-      selectObject(newBboxId, 'bbox');
-      setDefectFormModalState({
-        isOpen: true,
-        bboxId: newBboxId,
-        defectClassId: bboxData.classId,
-        initialRecord: null
-      });
-    } else {
-      // Для других классов создаем рамку без диалога
-      const newBboxId = addBoundingBox(bboxData);
-      selectObject(newBboxId, 'bbox');
-    }
+    // Создаем рамку без диалога
+    const newBboxId = addBoundingBox(bboxData);
+    selectObject(newBboxId, 'bbox');
   }, [addBoundingBox, selectObject]);
 
   const handleEditDefectBbox = useCallback((bboxId: string) => {
-    const bboxToEdit = annotations.boundingBoxes.find(bbox => bbox.id === bboxId);
-    if (bboxToEdit) {
-      selectObject(bboxId, 'bbox');
-      setDefectFormModalState({
-        isOpen: true,
-        bboxId: bboxId,
-        defectClassId: bboxToEdit.classId,
-        initialRecord: bboxToEdit.defectRecord || null
-      });
-    }
+    // Временно отключено
+    console.log('Edit defect bbox:', bboxId);
   }, [annotations.boundingBoxes, selectObject]);
 
   const handleSaveDefectRecord = useCallback((bboxId: string, record: DefectRecord, formattedString: string) => {
-    updateBoundingBoxDefectRecord(bboxId, record, formattedString);
-    setDefectFormModalState(prev => ({
-      ...prev,
-      isOpen: false
-    }));
+    // Временно отключено
+    console.log('Save defect record:', bboxId, record, formattedString);
   }, [updateBoundingBoxDefectRecord]);
 
   const handleCloseDefectModal = useCallback(() => {
-    // Если это новая рамка (без defectRecord) и пользователь закрыл без сохранения - удаляем рамку
-    if (defectFormModalState.bboxId && defectFormModalState.initialRecord === null) {
-      const bbox = annotations.boundingBoxes.find(b => b.id === defectFormModalState.bboxId);
-      if (bbox && !bbox.defectRecord) {
-        deleteBoundingBox(defectFormModalState.bboxId);
-      }
-    }
-    
-    setDefectFormModalState({
-      isOpen: false, 
-      bboxId: null, 
-      defectClassId: null, 
-      initialRecord: null
-    });
+    // Временно отключено
+    console.log('Close defect modal');
   }, []);
 
   const handleHelp = useCallback(() => {
@@ -865,14 +829,7 @@ const AppContent: React.FC = () => {
       </Modal>
 
       {/* Модальное окно для формы дефекта */}
-      <DefectFormModal
-        isOpen={defectFormModalState.isOpen}
-        onClose={handleCloseDefectModal}
-        bboxId={defectFormModalState.bboxId}
-        defectClassId={defectFormModalState.defectClassId}
-        initialRecord={defectFormModalState.initialRecord}
-        onSaveRecord={handleSaveDefectRecord}
-      />
+      {/* Временно отключено */}
 
       {/* Контекстное меню */}
       {contextMenu.visible && (
