@@ -9,7 +9,7 @@ import defectsDataJson from '../data/defects_data.json';
 
 interface DefectFormModalProps {
   isOpen: boolean;
-  onClose: () => void;
+  onClose: (shouldDelete?: boolean) => void;
   bboxId: string | null;
   defectClassId: number | null; // ID из DEFECT_CLASSES (0-10)
   initialRecord: DefectRecord | null;

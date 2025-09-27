@@ -266,6 +266,16 @@ const AppContent: React.FC = () => {
     }
   }, [addBoundingBox, selectObject]);
 
+  const handleCloseDefectModal = useCallback((shouldDelete: boolean = false) => {
+    // Если нужно удалить рамку (при отмене), удаляем её
+    if (shouldDelete && defectFormModalState.bboxId) {
+      deleteBoundingBox(defectFormModalState.bboxId);
+      selectObject(null, null);
+    }
+    
+    closeDefectFormModal();
+  }, [defectFormModalState.bboxId, deleteBoundingBox, selectObject, closeDefectFormModal]);
+
   const handleEditDefectBbox = useCallback((bboxId: string) => {
     const bboxToEdit = annotations.boundingBoxes.find(bbox => bbox.id === bboxId);
     if (bboxToEdit) {
@@ -276,8 +286,8 @@ const AppContent: React.FC = () => {
 
   const handleSaveDefectRecord = useCallback((bboxId: string, record: DefectRecord, formattedString: string) => {
     updateBoundingBoxDefectRecord(bboxId, record, formattedString);
-    closeDefectFormModal();
-  }, [updateBoundingBoxDefectRecord]);
+    handleCloseDefectModal(false); // Не удаляем при сохранении
+  }, [updateBoundingBoxDefectRecord, handleCloseDefectModal]);
 
   const handleHelp = useCallback(() => {
     showModal(MODAL_TYPES.HELP, 'О программе', 'Автор и разработчик Алексей Сотников\nТехнопарк "Университетские технологии"', [
@@ -636,7 +646,7 @@ const AppContent: React.FC = () => {
       {/* Модальное окно для формы дефекта */}
       <DefectFormModal
         isOpen={defectFormModalState.isOpen}
-        onClose={closeDefectFormModal}
+        onClose={handleCloseDefectModal}
         bboxId={defectFormModalState.bboxId}
         defectClassId={defectFormModalState.defectClassId}
         initialRecord={defectFormModalState.initialRecord}
