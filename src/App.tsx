@@ -32,6 +32,7 @@ const AppContent: React.FC = () => {
     clearAll, 
     selectObject, 
     addBoundingBox,
+    deleteBoundingBox,
     updateBoundingBoxDefectRecord,
     setCalibrationLine,
     updateCalibrationLine,
