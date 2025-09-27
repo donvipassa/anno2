@@ -51,6 +51,9 @@ export const useFileOperations = (
       try {
         await loadImage(file);
         
+        // Небольшая задержка для обеспечения обновления состояния
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         // Предложение загрузить разметку
         showModal('confirm', 'Загрузка разметки', 'Открыть файл разметки для данного изображения?', [
           { text: 'Да', action: () => { closeModal(); handleOpenMarkup(file.name); } },
@@ -79,7 +82,18 @@ export const useFileOperations = (
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
 
+      console.log('Загрузка файла разметки:', {
+        markupFileName: file.name,
+        imageFileName: imageFileName,
+        expectedFileName: getMarkupFileName(imageFileName)
+      });
+
       if (!validateMarkupFileName(file.name, imageFileName)) {
+        console.error('Валидация имени файла не прошла:', {
+          markupFileName: file.name,
+          imageFileName: imageFileName,
+          expected: getMarkupFileName(imageFileName)
+        });
         showModal('error', 'Ошибка', 'Файл разметки не соответствует файлу изображения. Загрузка отменена', [
           { text: 'Ок', action: closeModal }
         ]);
@@ -123,8 +137,20 @@ export const useFileOperations = (
             return bbox;
           });
           loadAnnotations({ boundingBoxes });
+        console.log('Проверка состояния изображения:', {
+          src: imageState.src,
+          width: imageState.width,
+          height: imageState.height,
+          file: imageState.file?.name
+        });
+        
           setMarkupFileName(file.name);
-          setMarkupModifiedState(false);
+        if (!imageState.src || !imageState.width || !imageState.height) {
+          console.error('Изображение не загружено полностью:', {
+            src: !!imageState.src,
+            width: imageState.width,
+            height: imageState.height
+          });
 
           showModal('info', 'Успех', 'Файл разметки соответствует файлу изображения. Загрузка подтверждена', [
             { text: 'Ок', action: closeModal }

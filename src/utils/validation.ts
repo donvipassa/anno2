@@ -32,7 +32,11 @@ export const validateImageFile = (file: File): ValidationResult => {
  * @returns true если имена соответствуют
  */
 export const validateMarkupFileName = (markupFileName: string, imageFileName: string): boolean => {
-  return markupFileName === `${imageFileName}.txt`;
+  // Более гибкая проверка - убираем расширение из имени файла разметки и сравниваем
+  const markupBaseName = markupFileName.replace(/\.txt$/i, '');
+  const imageBaseName = imageFileName;
+  
+  return markupBaseName === imageBaseName || markupFileName === `${imageFileName}.txt`;
 };
 
 /**
