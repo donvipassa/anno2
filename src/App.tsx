@@ -487,22 +487,27 @@ const AppContent: React.FC = () => {
 
   const handleSaveDefectRecord = useCallback((bboxId: string, record: DefectRecord, formattedString: string) => {
     updateBoundingBoxDefectRecord(bboxId, record, formattedString);
-    setDefectFormModalState({
-      isOpen: false,
-      bboxId: null,
-      defectClassId: null,
-      initialRecord: null
-    });
+    setDefectFormModalState(prev => ({
+      ...prev,
+      isOpen: false
+    }));
   }, [updateBoundingBoxDefectRecord]);
 
   const handleCloseDefectModal = useCallback(() => {
+    // Если это новая рамка (без defectRecord) и пользователь закрыл без сохранения - удаляем рамку
+    if (defectFormModalState.bboxId && defectFormModalState.initialRecord === null) {
+      const bbox = annotations.boundingBoxes.find(b => b.id === defectFormModalState.bboxId);
+      if (bbox && !bbox.defectRecord) {
+        deleteBoundingBox(defectFormModalState.bboxId);
+      }
+    }
+    
     setDefectFormModalState({
       isOpen: false, 
       bboxId: null, 
       defectClassId: null, 
       initialRecord: null
     });
-  }, []);
 
   const handleHelp = useCallback(() => {
     showModal(MODAL_TYPES.HELP, 'О программе', 'Автор и разработчик Алексей Сотников\nТехнопарк "Университетские технологии"', [
