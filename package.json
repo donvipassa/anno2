@@ -10,7 +10,9 @@
     "lint:fix": "eslint . --fix",
     "type-check": "tsc --noEmit",
     "preview": "vite preview",
-    "test": "echo 'No tests specified yet'"
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest run"
   },
   "dependencies": {
     "@types/uuid": "^10.0.0",
