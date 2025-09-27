@@ -163,8 +163,6 @@ const AppContent: React.FC = () => {
         },
         { 
           text: 'Отмена', 
-          action: closeModal
-    id: yoloData.id || require('uuid').v4(),
         }
       ]);
       return;
@@ -558,9 +556,9 @@ const AppContent: React.FC = () => {
     <div className="h-screen flex flex-col bg-gray-100">
       <Header />
       
-      (bbox as any).apiClassName = jsonEntry.name;
-      (bbox as any).apiColor = jsonEntry.color;
-      (bbox as any).apiId = jsonEntry.apiID;
+      <Toolbar
+        activeTool={activeTool}
+        onToolChange={handleToolChange}
         onOpenFile={handleOpenFile}
         onSaveMarkup={handleSaveMarkup}
         onAutoAnnotate={handleAutoAnnotate}
