@@ -62,6 +62,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
   const [resizeHandle, setResizeHandle] = useState<string | null>(null);
+  const [lineHandle, setLineHandle] = useState<'start' | 'end' | null>(null);
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState<{ x: number; y: number; offsetX: number; offsetY: number } | null>(null);
 
@@ -82,6 +83,37 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
 
   // Поиск объекта в точке
   const getObjectAtPoint = useCallback((x: number, y: number) => {
+    // Проверяем маркеры линеек и калибровочной линии
+    const markerTolerance = 10 / imageState.scale;
+    
+    // Проверяем маркеры калибровочной линии
+    if (annotations.calibrationLine) {
+      const line = annotations.calibrationLine;
+      const distToStart = calculateDistance(x, y, line.x1, line.y1);
+      const distToEnd = calculateDistance(x, y, line.x2, line.y2);
+      
+      if (distToStart <= markerTolerance) {
+        return { type: 'calibration', object: line, handle: 'start' };
+      }
+      if (distToEnd <= markerTolerance) {
+        return { type: 'calibration', object: line, handle: 'end' };
+      }
+    }
+    
+    // Проверяем маркеры линеек
+    for (let i = annotations.rulers.length - 1; i >= 0; i--) {
+      const ruler = annotations.rulers[i];
+      const distToStart = calculateDistance(x, y, ruler.x1, ruler.y1);
+      const distToEnd = calculateDistance(x, y, ruler.x2, ruler.y2);
+      
+      if (distToStart <= markerTolerance) {
+        return { type: 'ruler', object: ruler, handle: 'start' };
+      }
+      if (distToEnd <= markerTolerance) {
+        return { type: 'ruler', object: ruler, handle: 'end' };
+      }
+    }
+
     // Проверяем bounding boxes
     for (let i = annotations.boundingBoxes.length - 1; i >= 0; i--) {
       const bbox = annotations.boundingBoxes[i];
@@ -158,7 +190,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
 
       if (clickedObject) {
         // Выделяем объект
-        selectObject(clickedObject.object.id, clickedObject.type as any);
+        selectObject(clickedObject.object.id, clickedObject.type.split('-')[0] as any);
         
         // Проверяем, можно ли изменить размер bbox
         if (clickedObject.type === 'bbox') {
@@ -169,6 +201,14 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
             setDragStart(coords);
             return;
           }
+        }
+        
+        // Проверяем маркеры линеек и калибровочной линии
+        if (clickedObject.handle) {
+          setLineHandle(clickedObject.handle);
+          setIsDragging(true);
+          setDragStart(coords);
+          return;
         }
 
         // Начинаем перетаскивание
@@ -268,23 +308,48 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
           }
         }
       } else if (annotations.selectedObjectType === 'ruler') {
-        const ruler = annotations.rulers.find(r => r.id === annotations.selectedObjectId);
-        if (ruler) {
-          updateRuler(ruler.id, {
-            x1: ruler.x1 + deltaX,
-            y1: ruler.y1 + deltaY,
-            x2: ruler.x2 + deltaX,
-            y2: ruler.y2 + deltaY
-          });
+        if (lineHandle) {
+          // Изменение размера линейки за маркер
+          const ruler = annotations.rulers.find(r => r.id === annotations.selectedObjectId);
+          if (ruler) {
+            if (lineHandle === 'start') {
+              updateRuler(ruler.id, { x1: coords.x, y1: coords.y });
+            } else if (lineHandle === 'end') {
+              updateRuler(ruler.id, { x2: coords.x, y2: coords.y });
+            }
+          }
+        } else {
+          // Перемещение всей линейки
+          const ruler = annotations.rulers.find(r => r.id === annotations.selectedObjectId);
+          if (ruler) {
+            updateRuler(ruler.id, {
+              x1: ruler.x1 + deltaX,
+              y1: ruler.y1 + deltaY,
+              x2: ruler.x2 + deltaX,
+              y2: ruler.y2 + deltaY
+            });
+          }
         }
       } else if (annotations.selectedObjectType === 'calibration') {
-        if (annotations.calibrationLine) {
-          updateCalibrationLine({
-            x1: annotations.calibrationLine.x1 + deltaX,
-            y1: annotations.calibrationLine.y1 + deltaY,
-            x2: annotations.calibrationLine.x2 + deltaX,
-            y2: annotations.calibrationLine.y2 + deltaY
-          });
+        if (lineHandle) {
+          // Изменение размера калибровочной линии за маркер
+          if (annotations.calibrationLine) {
+            if (lineHandle === 'start') {
+              updateCalibrationLine({ x1: coords.x, y1: coords.y });
+            } else if (lineHandle === 'end') {
+              updateCalibrationLine({ x2: coords.x, y2: coords.y });
+            }
+          }
+        } else {
+          // Перемещение всей калибровочной линии
+          if (annotations.calibrationLine) {
+            updateCalibrationLine({
+              x1: annotations.calibrationLine.x1 + deltaX,
+              y1: annotations.calibrationLine.y1 + deltaY,
+              x2: annotations.calibrationLine.x2 + deltaX,
+              y2: annotations.calibrationLine.y2 + deltaY
+            });
+          }
         }
       } else if (annotations.selectedObjectType === 'density') {
         const point = annotations.densityPoints.find(p => p.id === annotations.selectedObjectId);
@@ -296,7 +361,9 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
         }
       }
 
-      setDragStart(coords);
+      if (!lineHandle) {
+        setDragStart(coords);
+      }
     }
 
     // Рисование новых объектов
@@ -323,6 +390,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
       setIsDragging(false);
       setDragStart(null);
       setResizeHandle(null);
+      setLineHandle(null);
       return;
     }
 
@@ -631,7 +699,10 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
   // Курсор
   const getCursor = () => {
     if (isPanning) return 'grabbing';
-    if (isDragging) return 'grabbing';
+    if (isDragging) {
+      if (lineHandle) return 'crosshair';
+      return 'grabbing';
+    }
     
     if (activeTool === 'bbox' && activeClassId >= 0) return 'crosshair';
     if (activeTool === 'ruler' || activeTool === 'calibration') return 'crosshair';
