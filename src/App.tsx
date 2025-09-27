@@ -430,6 +430,7 @@ const AppContent: React.FC = () => {
     
     setDefectFormModalState({ isOpen: false, bboxId: null, defectClassId: null, initialRecord: null });
     setPendingBboxId(null);
+  }, [pendingBboxId, annotations.boundingBoxes, deleteBoundingBox]);
 
   const handleHelp = () => {
     showModal('help', 'О программе', 'Автор и разработчик Алексей Сотников\nТехнопарк "Университетские технологии"', [
