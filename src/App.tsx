@@ -781,7 +781,7 @@ const AppContent: React.FC = () => {
       {/* Модальное окно для формы дефекта */}
       <DefectFormModal
         isOpen={defectFormModalState.isOpen}
-        onClose={() => setDefectFormModalState({ isOpen: false, bboxId: null, defectClassId: null, initialRecord: null })}
+        onClose={handleCloseDefectModal}
         bboxId={defectFormModalState.bboxId}
         defectClassId={defectFormModalState.defectClassId}
         initialRecord={defectFormModalState.initialRecord}
