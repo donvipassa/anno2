@@ -76,7 +76,7 @@ export const useFileOperations = (
       }
     };
     input.click();
-  }, [validateAndShowError, loadImage, showModal, closeModal, clearAll, setMarkupModifiedState, setMarkupFileName, setAutoAnnotationPerformed]);
+  }, [validateAndShowError, loadImage, showModal, closeModal, clearAll, setMarkupModifiedState, setMarkupFileName, setAutoAnnotationPerformed, handleOpenMarkup]);
 
   const handleOpenMarkup = useCallback((imageFileName: string) => {
     const input = document.createElement('input');
