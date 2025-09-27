@@ -137,6 +137,7 @@ export const useFileOperations = (
             return bbox;
           });
           loadAnnotations({ boundingBoxes });
+        }
         console.log('Проверка состояния изображения:', {
           src: imageState.src,
           width: imageState.width,
