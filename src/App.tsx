@@ -54,11 +54,13 @@ const AppContent: React.FC = () => {
     bboxId: string | null;
     defectClassId: number | null;
     initialRecord: DefectRecord | null;
+    isNewBbox: boolean;
   }>({
     isOpen: false,
     bboxId: null,
     defectClassId: null,
-    initialRecord: null
+    initialRecord: null,
+    isNewBbox: false
   });
 
   // Состояние для калибровки
@@ -385,7 +387,8 @@ const AppContent: React.FC = () => {
         isOpen: true,
         bboxId: newBboxId,
         defectClassId: bboxData.classId,
-        initialRecord: null
+        initialRecord: null,
+        isNewBbox: true
       });
     } else {
       // Для API классов создаем рамку как обычно
@@ -402,19 +405,40 @@ const AppContent: React.FC = () => {
         isOpen: true,
         bboxId: bboxId,
         defectClassId: bboxToEdit.classId,
-        initialRecord: bboxToEdit.defectRecord || null
+        initialRecord: bboxToEdit.defectRecord || null,
+        isNewBbox: false
       });
     }
   }, [annotations.boundingBoxes, selectObject]);
 
   const handleSaveDefectRecord = useCallback((bboxId: string, record: DefectRecord, formattedString: string) => {
     updateBoundingBoxDefectRecord(bboxId, record, formattedString);
-    setDefectFormModalState({ isOpen: false, bboxId: null, defectClassId: null, initialRecord: null });
+    setDefectFormModalState({ 
+      isOpen: false, 
+      bboxId: null, 
+      defectClassId: null, 
+      initialRecord: null,
+      isNewBbox: false
+    });
   }, [updateBoundingBoxDefectRecord]);
 
   const handleCloseDefectModal = useCallback(() => {
-    setDefectFormModalState({ isOpen: false, bboxId: null, defectClassId: null, initialRecord: null });
-  }, []);
+    // Если это новая рамка без сохраненной записи дефекта, удаляем её
+    if (defectFormModalState.isNewBbox && defectFormModalState.bboxId) {
+      const bbox = annotations.boundingBoxes.find(b => b.id === defectFormModalState.bboxId);
+      if (bbox && !bbox.defectRecord) {
+        deleteBoundingBox(defectFormModalState.bboxId);
+      }
+    }
+    
+    setDefectFormModalState({ 
+      isOpen: false, 
+      bboxId: null, 
+      defectClassId: null, 
+      initialRecord: null,
+      isNewBbox: false
+    });
+  }, [defectFormModalState.isNewBbox, defectFormModalState.bboxId, annotations.boundingBoxes, deleteBoundingBox]);
 
   const handleHelp = () => {
     showModal('help', 'О программе', 'Автор и разработчик Алексей Сотников\nТехнопарк "Университетские технологии"', [
