@@ -56,20 +56,26 @@ export const DefectFormModal: React.FC<DefectFormModalProps> = ({
 
       if (initialRecord) {
         // Редактирование существующей записи
-        const char = initialDefect?.характер_дефекта.find(c => 
-          c.id === initialRecord.characterId && 
-          (initialRecord.variety ? c.разновидность_дефекта === initialRecord.variety : true)
-        );
-        setSelectedCharacter(char || null);
-        setSelectedVariety(initialRecord.variety || '');
-        setCount(initialRecord.count);
-        setDimensions(initialRecord.dimensions);
+        if (initialDefect) {
+          const char = initialDefect.характер_дефекта.find(c => 
+            c.id === initialRecord.characterId && 
+            (initialRecord.variety ? c.разновидность_дефекта === initialRecord.variety : true)
+          );
+          setSelectedCharacter(char || null);
+          setSelectedVariety(initialRecord.variety || '');
+          setCount(initialRecord.count);
+          setDimensions(initialRecord.dimensions);
+        }
       } else {
         // Новая запись - автоматически выбираем первый характер
         if (initialDefect) {
           const uniqueCharacters = getUniqueCharacters(initialDefect);
           if (uniqueCharacters.length > 0) {
             setSelectedCharacter(uniqueCharacters[0]);
+            // Для простых дефектов (без характера) не выбираем автоматически
+            if (isSimpleDefect()) {
+              setSelectedCharacter(initialDefect.характер_дефекта[0] || null);
+            }
           } else {
             setSelectedCharacter(null);
           }
@@ -80,7 +86,7 @@ export const DefectFormModal: React.FC<DefectFormModalProps> = ({
       }
       setValidationErrors([]);
     }
-  }, [isOpen, defectClassId, initialRecord]);
+  }, [isOpen, defectClassId, initialRecord, defectsData.defects]);
 
   // Сброс размеров при смене характера или разновидности
   useEffect(() => {
