@@ -89,13 +89,11 @@ const AppContent: React.FC = () => {
 
   // Хук для файловых операций
   const { openFileDialog, handleSaveMarkup, handleOpenMarkup } = useFileOperations(
-    imageState,
     showModal,
     closeModal,
     setMarkupFileName,
     setMarkupModifiedState,
-    setAutoAnnotationPerformed,
-    loadAnnotations
+    setAutoAnnotationPerformed
   );
 
   // Эффект синхронизации activeClassId с выделенным объектом
