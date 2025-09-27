@@ -413,27 +413,32 @@ const AppContent: React.FC = () => {
   }, [annotations.boundingBoxes, selectObject]);
 
   const handleSaveDefectRecord = useCallback((bboxId: string, record: DefectRecord, formattedString: string) => {
+    console.log('handleSaveDefectRecord called, setting isClosingFromSave to true');
+    setIsClosingFromSave(true);
     updateBoundingBoxDefectRecord(bboxId, record, formattedString);
-    setIsClosingFromSave(true); // Устанавливаем флаг сохранения
     setPendingBboxId(null); // Сбрасываем pending состояние
-    // Не вызываем handleCloseDefectModal, а закрываем модал напрямую
-    setDefectFormModalState({ isOpen: false, bboxId: null, defectClassId: null, initialRecord: null });
+    setDefectFormModalState(prev => ({ ...prev, isOpen: false }));
   }, [updateBoundingBoxDefectRecord]);
 
   const handleCloseDefectModal = useCallback(() => {
-    // Удаляем рамку только если это новая рамка (pendingBboxId существует)
-    // Удаляем рамку только если это новая рамка И модал закрывается НЕ из-за сохранения
+    console.log('handleCloseDefectModal called', { pendingBboxId, isClosingFromSave });
+    
     if (pendingBboxId && !isClosingFromSave) {
+      console.log('Checking bbox for deletion');
       const bboxToCheck = annotations.boundingBoxes.find(bbox => bbox.id === pendingBboxId);
-      // Удаляем только если у рамки нет записи дефекта (значит, пользователь нажал "Отмена")
       if (bboxToCheck && !bboxToCheck.formattedDefectString) {
+        console.log('Deleting bbox because no defect record');
         deleteBoundingBox(pendingBboxId);
+      } else {
+        console.log('Not deleting bbox - has defect record');
       }
+    } else {
+      console.log('Not deleting bbox - either no pendingBboxId or isClosingFromSave is true');
     }
     
     setDefectFormModalState({ isOpen: false, bboxId: null, defectClassId: null, initialRecord: null });
     setPendingBboxId(null);
-    setIsClosingFromSave(false); // Сбрасываем флаг
+    setIsClosingFromSave(false);
   }, [pendingBboxId, annotations.boundingBoxes, deleteBoundingBox]);
 
   const handleHelp = () => {
