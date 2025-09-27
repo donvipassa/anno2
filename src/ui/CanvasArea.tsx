@@ -625,8 +625,8 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     
     if (clickedObject && clickedObject.type === 'bbox') {
       const bbox = clickedObject.object as BoundingBox;
-      // Проверяем, что это рамка дефекта (классы 0-9)
-      if (bbox.classId >= 0 && bbox.classId <= 9) {
+      // Проверяем, что это рамка дефекта (классы 0-10) или что у неё есть запись дефекта
+      if ((bbox.classId >= 0 && bbox.classId <= 10) || bbox.defectRecord) {
         onEditDefectBbox(bbox.id);
       }
     }
