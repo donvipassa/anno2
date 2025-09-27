@@ -1,196 +1,158 @@
 import { useCallback } from 'react';
+import { useImage } from '../core/ImageProvider';
+import { useAnnotations } from '../core/AnnotationManager';
+import { 
+  validateImageFile, 
+  getMarkupFileName, 
+  downloadFile, 
+  readFileAsText, 
+  convertYOLOToPixels,
+  validateMarkupFileName,
+  validateYOLOData
+} from '../utils';
+import jsonData from '../data/defect-classes.json';
 
 export const useFileOperations = (
-  imageState: any,
-  showModal: any,
-  closeModal: any,
-  setMarkupFileName: any,
-  setMarkupModifiedState: any,
-  setAutoAnnotationPerformed: any,
-  loadImage: any,
-  clearAll: any,
-  getYOLOExport: any,
-  loadAnnotations: any
+  showModal: (type: string, title: string, message: string, buttons?: any[]) => void,
+  closeModal: () => void,
+  setMarkupFileName: (fileName: string | null) => void,
+  setMarkupModifiedState: (modified: boolean) => void,
+  setAutoAnnotationPerformed: (performed: boolean) => void
 ) => {
+  const { imageState, loadImage } = useImage();
+  const { annotations, loadAnnotations, clearAll, getYOLOExport } = useAnnotations();
+
+  const validateAndShowError = useCallback((validation: { valid: boolean; error?: string }) => {
+    if (!validation.valid) {
+      const errorMessages = {
+        'FILE_TOO_LARGE': 'Файл слишком большой. Максимум — 20 МБ',
+        'INVALID_FORMAT': 'Недопустимый формат. Поддерживаются форматы: JPG, PNG, TIFF, BMP'
+      };
+      const message = errorMessages[validation.error as keyof typeof errorMessages] || 'Неизвестная ошибка';
+      showModal('error', 'Ошибка', message, [
+        { text: 'Ок', action: closeModal }
+      ]);
+      return false;
+    }
+    return true;
+  }, [showModal, closeModal]);
+
   const openFileDialog = useCallback(() => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        try {
-          await loadImage(file);
-          setMarkupModifiedState(false);
-          setAutoAnnotationPerformed(false);
-          clearAll();
-          setMarkupFileName(null);
-          
-          // Предложить загрузить файл разметки
-          showModal('confirm', 'Загрузка разметки', `Хотите загрузить файл разметки для изображения "${file.name}"?`, [
-            {
-              text: 'Да',
-              action: () => {
-                closeModal();
-                handleOpenMarkup();
-              },
-              primary: true
-            },
-            {
-              text: 'Нет',
-              action: closeModal
-            }
-          ]);
-        } catch (error) {
-          showModal('error', 'Ошибка', 'Не удалось загрузить изображение', [
-            { text: 'Ок', action: closeModal }
-          ]);
-        }
+      if (!file) return;
+
+      const validation = validateImageFile(file);
+      if (!validateAndShowError(validation)) return;
+
+      try {
+        await loadImage(file);
+        
+        // Предложение загрузить разметку
+        showModal('confirm', 'Загрузка разметки', 'Открыть файл разметки для данного изображения?', [
+          { text: 'Да', action: () => { closeModal(); handleOpenMarkup(file.name); } },
+          { text: 'Нет', action: closeModal }
+        ]);
+        
+        // Очистка существующих аннотаций
+        clearAll();
+        setMarkupModifiedState(false);
+        setMarkupFileName(null);
+        setAutoAnnotationPerformed(false);
+      } catch (error) {
+        showModal('error', 'Ошибка', 'Не удалось загрузить изображение', [
+          { text: 'Ок', action: closeModal }
+        ]);
       }
     };
     input.click();
-  }, [loadImage, setMarkupModifiedState, setAutoAnnotationPerformed, clearAll, setMarkupFileName, showModal, closeModal]);
+  }, [validateAndShowError, loadImage, showModal, closeModal, clearAll, setMarkupModifiedState, setMarkupFileName, setAutoAnnotationPerformed]);
 
-  const handleSaveMarkup = useCallback(() => {
-    if (!imageState.src) {
-      showModal('error', 'Ошибка', 'Сначала загрузите изображение', [
-        { text: 'Ок', action: closeModal }
-      ]);
-      return;
-    }
-
-    try {
-      const yoloData = getYOLOExport();
-      const blob = new Blob([yoloData], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      
-      const a = document.createElement('a');
-      a.href = url;
-      
-      // Генерируем имя файла на основе имени изображения
-      const imageName = imageState.file?.name || 'image';
-      const baseName = imageName.replace(/\.[^/.]+$/, '');
-      a.download = `${baseName}.txt`;
-      
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      
-      setMarkupModifiedState(false);
-      setMarkupFileName(`${baseName}.txt`);
-      
-      showModal('info', 'Успех', 'Разметка сохранена', [
-        { text: 'Ок', action: closeModal }
-      ]);
-    } catch (error) {
-      showModal('error', 'Ошибка', 'Не удалось сохранить разметку', [
-        { text: 'Ок', action: closeModal }
-      ]);
-    }
-  }, [imageState.src, imageState.file, getYOLOExport, setMarkupModifiedState, setMarkupFileName, showModal, closeModal]);
-
-  const loadMarkupFile = useCallback(async (file: File) => {
-    try {
-      const text = await file.text();
-      const lines = text.split('\n').filter(line => line.trim());
-      
-      const annotations = lines.map(line => {
-        const parts = line.trim().split(/\s+/);
-        if (parts.length >= 5) {
-          const classId = parseInt(parts[0]);
-          const centerX = parseFloat(parts[1]);
-          const centerY = parseFloat(parts[2]);
-          const width = parseFloat(parts[3]);
-          const height = parseFloat(parts[4]);
-          const confidence = parts.length > 5 ? parseFloat(parts[5]) : undefined;
-          
-          // Конвертируем из нормализованных координат YOLO в пиксели
-          const imgWidth = imageState.width;
-          const imgHeight = imageState.height;
-          
-          const pixelX = (centerX - width / 2) * imgWidth;
-          const pixelY = (centerY - height / 2) * imgHeight;
-          const pixelWidth = width * imgWidth;
-          const pixelHeight = height * imgHeight;
-          
-          return {
-            classId,
-            x: pixelX,
-            y: pixelY,
-            width: pixelWidth,
-            height: pixelHeight,
-            confidence
-          };
-        }
-        return null;
-      }).filter(Boolean);
-      
-      // Загружаем аннотации
-      loadAnnotations(annotations);
-      setMarkupFileName(file.name);
-      setMarkupModifiedState(false);
-      
-      showModal('info', 'Успех', `Загружено аннотаций: ${annotations.length}`, [
-        { text: 'Ок', action: closeModal }
-      ]);
-    } catch (error) {
-      showModal('error', 'Ошибка', 'Не удалось обработать файл разметки', [
-        { text: 'Ок', action: closeModal }
-      ]);
-    }
-  }, [imageState.width, imageState.height, loadAnnotations, setMarkupFileName, setMarkupModifiedState, showModal, closeModal]);
-
-  const handleOpenMarkup = useCallback(() => {
-    if (!imageState.src) {
-      showModal('error', 'Ошибка', 'Сначала загрузите изображение', [
-        { text: 'Ок', action: closeModal }
-      ]);
-      return;
-    }
-
+  const handleOpenMarkup = useCallback((imageFileName: string) => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.txt';
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        try {
-          // Проверяем соответствие имени файла разметки и изображения
-          const markupBaseName = file.name.replace(/\.[^/.]+$/, '');
-          const imageBaseName = imageState.file?.name?.replace(/\.[^/.]+$/, '') || '';
-          
-          if (markupBaseName !== imageBaseName) {
-            showModal('confirm', 'Предупреждение', 
-              `Имя файла разметки "${file.name}" не соответствует имени изображения "${imageState.file?.name}". Продолжить загрузку?`, [
-              {
-                text: 'Да',
-                action: () => {
-                  closeModal();
-                  loadMarkupFile(file);
-                }
-              },
-              {
-                text: 'Отмена',
-                action: closeModal
-              }
+      if (!file) return;
+
+      if (!validateMarkupFileName(file.name, imageFileName)) {
+        showModal('error', 'Ошибка', 'Файл разметки не соответствует файлу изображения. Загрузка отменена', [
+          { text: 'Ок', action: closeModal }
+        ]);
+        return;
+      }
+
+      try {
+        const content = await readFileAsText(file);
+        const yoloData = validateYOLOData(content);
+        
+        if (yoloData.length === 0) {
+          // Пустой файл разметки - это нормально
+          setMarkupFileName(file.name);
+          setMarkupModifiedState(false);
+          showModal('info', 'Успех', 'Файл разметки соответствует файлу изображения. Загрузка подтверждена', [
+            { text: 'Ок', action: closeModal }
+          ]);
+        } else {
+          // Проверяем, что изображение загружено
+          if (!imageState.width || !imageState.height) {
+            showModal('error', 'Ошибка', 'Не удалось загрузить файл разметки. Сначала загрузите изображение', [
+              { text: 'Ок', action: closeModal }
             ]);
-          } else {
-            loadMarkupFile(file);
+            return;
           }
-        } catch (error) {
-          showModal('error', 'Ошибка', 'Не удалось загрузить файл разметки', [
+
+          // Конвертация YOLO в пиксельные координаты
+          const boundingBoxes = yoloData.map(data => {
+            const bbox = convertYOLOToPixels(data, imageState.width, imageState.height);
+            
+            // Если это класс от API (ID >= 12), добавляем информацию из JSON
+            if (data.classId >= 12) {
+              const jsonEntry = jsonData.find((entry: any) => entry.apiID === data.classId);
+              if (jsonEntry) {
+                bbox.apiClassName = jsonEntry.name;
+                bbox.apiColor = jsonEntry.color;
+                bbox.apiId = jsonEntry.apiID;
+              }
+            }
+            
+            return bbox;
+          });
+          loadAnnotations({ boundingBoxes });
+          setMarkupFileName(file.name);
+          setMarkupModifiedState(false);
+
+          showModal('info', 'Успех', 'Файл разметки соответствует файлу изображения. Загрузка подтверждена', [
             { text: 'Ок', action: closeModal }
           ]);
         }
+      } catch (error) {
+        showModal('error', 'Ошибка', 'Не удалось загрузить файл разметки. Файл повреждён или имеет неверный формат', [
+          { text: 'Ок', action: closeModal }
+        ]);
       }
     };
     input.click();
-  }, [imageState.src, imageState.file, showModal, closeModal, loadMarkupFile]);
+  }, [showModal, closeModal, imageState.width, imageState.height, setMarkupFileName, setMarkupModifiedState, loadAnnotations]);
+
+  const handleSaveMarkup = useCallback(() => {
+    if (annotations.boundingBoxes.length === 0) return;
+
+    const yoloContent = getYOLOExport(imageState.width, imageState.height);
+    const fileName = getMarkupFileName(imageState.file?.name || 'markup');
+    
+    downloadFile(yoloContent, fileName);
+    setMarkupFileName(fileName);
+    setMarkupModifiedState(false);
+  }, [annotations.boundingBoxes.length, getYOLOExport, imageState.width, imageState.height, imageState.file?.name, setMarkupFileName, setMarkupModifiedState]);
 
   return {
     openFileDialog,
-    handleSaveMarkup,
-    handleOpenMarkup
+    handleOpenMarkup,
+    handleSaveMarkup
   };
 };
