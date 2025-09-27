@@ -345,12 +345,10 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
 
     const coords = getImageCoords(e.clientX, e.clientY);
 
-    // Обновляем курсор при движении мыши
-    if (!isDragging && !isPanning && !isDrawing) {
-      const newCursor = getHoverCursor(coords.x, coords.y);
-      if (newCursor !== hoverCursor) {
-        setHoverCursor(newCursor);
-      }
+    // Обновляем курсор при движении мыши (всегда, кроме активного перетаскивания)
+    const newCursor = getHoverCursor(coords.x, coords.y);
+    if (newCursor !== hoverCursor) {
+      setHoverCursor(newCursor);
     }
 
     // Панорамирование
@@ -680,9 +678,14 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
 
         // Подпись с длиной
         const length = calculateDistance(ruler.x1, ruler.y1, ruler.x2, ruler.y2);
-        const lengthInfo = calibration.isSet ? 
-          { value: length * calibration.scale, unit: 'мм' } : 
-          { value: length, unit: 'px' };
+        const lengthInfo = annotations.calibrationLine ? (() => {
+          const pixelLength = Math.sqrt(
+            (annotations.calibrationLine.x2 - annotations.calibrationLine.x1) ** 2 + 
+            (annotations.calibrationLine.y2 - annotations.calibrationLine.y1) ** 2
+          );
+          const scale = annotations.calibrationLine.realLength / pixelLength;
+          return { value: length * scale, unit: 'мм' };
+        })() : { value: length, unit: 'px' };
         const midX = (ruler.x1 + ruler.x2) / 2;
         const midY = (ruler.y1 + ruler.y2) / 2;
         
@@ -826,12 +829,23 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
       }
       return 'grabbing';
     }
+    if (isDrawing) {
+      if (activeTool === 'bbox' && activeClassId >= 0) return 'crosshair';
+      if (activeTool === 'ruler' || activeTool === 'calibration') return 'crosshair';
+      if (activeTool === 'density') return 'crosshair';
+    }
     
+    // Возвращаем курсор на основе наведения
+    if (!isDragging && !isPanning && !isDrawing) {
+      return hoverCursor;
+    }
+
+    // Курсоры для активных инструментов
     if (activeTool === 'bbox' && activeClassId >= 0) return 'crosshair';
     if (activeTool === 'ruler' || activeTool === 'calibration') return 'crosshair';
     if (activeTool === 'density') return 'crosshair';
-
-    return hoverCursor;
+    
+    return 'default';
   };
 
   return (
