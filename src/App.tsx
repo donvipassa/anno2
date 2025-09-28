@@ -88,6 +88,7 @@ const AppContent: React.FC = () => {
 
   // Состояние калибровки
   const [calibrationInputValue, setCalibrationInputValue] = useState<string>('50');
+  const [pendingCalibrationLine, setPendingCalibrationLine] = useState<any>(null);
 
   // Refs для безопасного доступа к DOM
   const calibrationInputRef = useRef<HTMLInputElement>(null);
@@ -103,16 +104,11 @@ const AppContent: React.FC = () => {
   );
 
   // Общая логика калибровки
-  const processCalibration = useCallback((
-    lineData: any, 
-    realLength: number, 
-    isNew: boolean
-  ) => {
+  const processCalibration = useCallback((realLength: number, isNew: boolean) => {
     try {
-      // Определяем, какую линию использовать для расчетов
       let lineToCalculateFrom;
       if (isNew) {
-        lineToCalculateFrom = lineData;
+        lineToCalculateFrom = pendingCalibrationLine;
       } else {
         lineToCalculateFrom = annotations.calibrationLine;
       }
@@ -129,7 +125,7 @@ const AppContent: React.FC = () => {
       
       if (isNew) {
         setCalibrationLine({
-          ...lineData,
+          ...lineToCalculateFrom,
           realLength: realLength
         });
       } else if (!isNew && annotations.calibrationLine) {
@@ -147,7 +143,14 @@ const AppContent: React.FC = () => {
       closeModal();
       alert('Произошла ошибка при установке калибровки');
     }
-  }, [annotations.calibrationLine, setCalibrationLine, updateCalibrationLine, setCalibrationScale, closeModal]);
+  }, [
+    pendingCalibrationLine,
+    annotations.calibrationLine,
+    setCalibrationLine,
+    updateCalibrationLine,
+    setCalibrationScale,
+    closeModal
+  ]);
 
   // Эффект для отслеживания монтирования компонента
   useEffect(() => {
@@ -369,7 +372,6 @@ const AppContent: React.FC = () => {
 
   const handleEditCalibration = useCallback(() => {
     if (annotations.calibrationLine) {
-      // При редактировании устанавливаем текущее значение
       const currentValue = annotations.calibrationLine.realLength.toString();
       setCalibrationInputValue(currentValue);
       
@@ -382,7 +384,6 @@ const AppContent: React.FC = () => {
           { 
             text: 'Применить', 
             action: () => {
-              // Получаем значение из ref
               const inputValue = calibrationInputRef.current?.value || calibrationInputValue;
               const realLength = parseFloat(inputValue);
               
@@ -391,26 +392,34 @@ const AppContent: React.FC = () => {
                 return;
               }
               
-              processCalibration(null, realLength, false);
+              processCalibration(realLength, false);
             },
             primary: true
           }
         ]
       );
     }
-  }, [annotations.calibrationLine, calibrationInputValue, processCalibration, showModal, closeModal]);
+  }, [
+    annotations.calibrationLine,
+    calibrationInputValue,
+    processCalibration,
+    showModal,
+    closeModal
+  ]);
 
   const handleCalibrationLineFinished = useCallback((lineData: any, isNew: boolean) => {
-    // Определяем значение по умолчанию
     let defaultLength = '50';
     if (!isNew && annotations.calibrationLine) {
-      // При редактировании существующей линии используем её текущее значение
       defaultLength = annotations.calibrationLine.realLength.toString();
     } else if (lineData?.realLength) {
-      // Если в lineData есть realLength, используем его
       defaultLength = lineData.realLength.toString();
     }
     
+    // Сохраняем данные новой линии
+    if (isNew) {
+      setPendingCalibrationLine(lineData);
+    }
+
     setCalibrationInputValue(defaultLength);
     showModal(MODAL_TYPES.CALIBRATION, 'Калибровка масштаба', 'Укажите реальный размер эталона для установки масштаба (мм):',
       [
@@ -418,13 +427,13 @@ const AppContent: React.FC = () => {
           text: 'Отмена', 
           action: () => {
             setCalibrationInputValue('50');
+            if (isNew) setPendingCalibrationLine(null); // очищаем при отмене
             closeModal();
           }
         },
         { 
           text: 'Применить', 
           action: () => {
-            // Получаем значение из ref
             const inputValue = calibrationInputRef.current?.value || calibrationInputValue;
             const realLength = parseFloat(inputValue);
             
@@ -433,13 +442,19 @@ const AppContent: React.FC = () => {
               return;
             }
             
-            processCalibration(lineData, realLength, isNew);
+            processCalibration(realLength, isNew);
           },
           primary: true
         }
       ]
     );
-  }, [annotations.calibrationLine, calibrationInputValue, processCalibration, showModal, closeModal]);
+  }, [
+    annotations.calibrationLine,
+    calibrationInputValue,
+    processCalibration,
+    showModal,
+    closeModal
+  ]);
 
   // Горячие клавиши
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
