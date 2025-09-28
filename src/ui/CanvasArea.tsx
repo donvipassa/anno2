@@ -144,7 +144,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     const resizeCanvas = () => {
       canvas.width = container.clientWidth;
       canvas.height = container.clientHeight;
-      draw();
+      draw(canvasRef);
     };
 
     resizeCanvas();
@@ -153,7 +153,7 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     resizeObserver.observe(container);
     
     return () => resizeObserver.disconnect();
-  }, [draw]);
+  }, [draw, canvasRef]);
 
   return (
     <div 
