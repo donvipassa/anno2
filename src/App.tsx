@@ -87,11 +87,6 @@ const AppContent: React.FC = () => {
     setAutoAnnotationPerformed
   );
 
-  // Эффект синхронизации activeClassId с выделенным объектом
-  useEffect(() => {
-
-  }, []);
-
   // Эффект синхронизации состояния калибровки
   useEffect(() => {
     if (!annotations.calibrationLine) {
@@ -500,8 +495,8 @@ const AppContent: React.FC = () => {
       }
   }, [
     handleOpenFile, handleSaveMarkup, zoomIn, zoomOut, zoomReset, fitToCanvas, 
-    toggleInversion, setActiveTool, layerVisible, setLayerVisible, filterActive, 
-    setFilterActive, handleHelp, selectObject, handleDeleteSelected, handleClassSelect, handleToolChange
+    toggleInversion, handleToolChange, layerVisible, setLayerVisible, filterActive, 
+    setFilterActive, handleHelp, selectObject, handleDeleteSelected, handleClassSelect
   ]);
 
   useEffect(() => {
