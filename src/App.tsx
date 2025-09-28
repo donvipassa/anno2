@@ -4,6 +4,8 @@ import { ImageProvider } from './core/ImageProvider';
 import { AnnotationProvider } from './core/AnnotationManager';
 import { DefectFormModal } from './components/DefectFormModal';
 import { DefectRecord } from './types/defects';
+import { MODAL_TYPES } from './constants/modalTypes';
+import { ModalState, DefectFormState, ContextMenuState } from './types/modalTypes';
 import { 
   Header, 
   Toolbar, 
@@ -17,7 +19,7 @@ import {
 import { useImage } from './core/ImageProvider';
 import { useAnnotations } from './core/AnnotationManager';
 import { useCalibration } from './core/CalibrationManager';
-import { saveImageAsFile, MODAL_TYPES } from './utils';
+import { saveImageAsFile } from './utils';
 import { detectObjects } from './services/api';
 import { mapApiClassToDefectClassId, convertApiBboxToPixels } from './utils';
 import { useModalState } from './hooks/useModalState';
@@ -26,44 +28,6 @@ import { useContextMenu } from './hooks/useContextMenu';
 import { useFileOperations } from './hooks/useFileOperations';
 import jsonData from './data/defect-classes.json';
 
-const AppContent: React.FC = () => {
-  // Хуки для управления состоянием
-  const { 
-    imageState, 
-    loadImage, 
-    setScale, 
-    toggleInversion, 
-    resetView, 
-    fitToCanvas, 
-    zoomIn, 
-    zoomOut, 
-    zoomReset, 
-    getOriginalPixelColor 
-  } = useImage();
-  
-  const { 
-    annotations, 
-    getYOLOExport, 
-    clearAllRulers, 
-    clearAllDensityPoints, 
-    loadAnnotations, 
-    clearAll, 
-    selectObject, 
-    addBoundingBox,
-    deleteBoundingBox,
-    updateBoundingBoxDefectRecord,
-    setCalibrationLine,
-    updateCalibrationLine,
-    markupModified,
-    setMarkupModifiedState
-  } = useAnnotations();
-  
-  const { calibration, setScale: setCalibrationScale, resetScale } = useCalibration();
-
-  // Хуки для управления UI состоянием
-  const { modalState, closeModal, showModal } = useModalState();
-  const { defectFormModalState, openDefectFormModal, closeDefectFormModal } = useDefectFormModal();
-  const { contextMenu, showContextMenu, hideContextMenu } = useContextMenu();
 
   // Локальное состояние компонента
   const [markupFileName, setMarkupFileName] = useState<string | null>(null);
