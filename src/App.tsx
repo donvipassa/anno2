@@ -274,7 +274,7 @@ const AppContent: React.FC = () => {
       const newBboxId = addBoundingBox(bboxData);
       selectObject(newBboxId, 'bbox');
     }
-  }, [addBoundingBox, selectObject]);
+  }, [addBoundingBox, selectObject, openDefectFormModal]);
 
   const handleCloseDefectModal = useCallback((shouldDelete: boolean = false) => {
     // Удаляем рамку только при отмене создания НОВОГО дефекта (когда нет initialRecord)
@@ -284,7 +284,7 @@ const AppContent: React.FC = () => {
     }
     
     closeDefectFormModal();
-  }, [defectFormModalState.bboxId, deleteBoundingBox, selectObject, closeDefectFormModal]);
+  }, [defectFormModalState.bboxId, defectFormModalState.initialRecord, deleteBoundingBox, selectObject, closeDefectFormModal]);
 
   const handleEditDefectBbox = useCallback((bboxId: string) => {
     const bboxToEdit = annotations.boundingBoxes.find(bbox => bbox.id === bboxId);
@@ -292,7 +292,7 @@ const AppContent: React.FC = () => {
       selectObject(bboxId, 'bbox');
       openDefectFormModal(bboxId, bboxToEdit.classId, bboxToEdit.defectRecord || null);
     }
-  }, [annotations.boundingBoxes, selectObject]);
+  }, [annotations.boundingBoxes, selectObject, openDefectFormModal]);
 
   const handleSaveDefectRecord = useCallback((bboxId: string, record: DefectRecord, formattedString: string) => {
     updateBoundingBoxDefectRecord(bboxId, record, formattedString);
