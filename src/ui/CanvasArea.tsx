@@ -360,10 +360,10 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
         setIsDragging(true);
         setDragStart(coords);
       } else {
-        // Сбрасываем выделение только если не активен инструмент рисования
-        if (activeTool !== 'ruler' && activeTool !== 'calibration' && activeTool !== 'density' && (activeTool !== 'bbox' || activeClassId < 0)) {
-          selectObject(null, null);
-        }
+        // При клике по пустому месту ВСЕГДА сбрасываем всё
+        selectObject(null, null);
+        onToolChange('');
+        onSelectClass(-1);
 
         // Начинаем рисование в зависимости от активного инструмента
         if (activeTool === 'bbox' && activeClassId >= 0) {
@@ -376,9 +376,6 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
           // Создаем точку плотности сразу
           const pointId = addDensityPoint({ x: coords.x, y: coords.y });
           selectObject(pointId, 'density');
-        } else {
-          // Сбрасываем выделение если нет активного инструмента
-          selectObject(null, null);
         }
       }
     }

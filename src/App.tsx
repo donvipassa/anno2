@@ -133,7 +133,7 @@ const AppContent: React.FC = () => {
           setActiveClassId(-1);
           break;
         case 'density':
-          handleToolChange('density');
+          // НЕ активируем инструмент при выделении точки плотности
           setActiveClassId(-1);
           break;
       }
