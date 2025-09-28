@@ -196,6 +196,12 @@ const AppContent: React.FC = () => {
       selectObject(null, null);
       setActiveClassId(-1);
     }
+    
+    // Сбрасываем выделение и класс при сбросе инструмента (пустая строка)
+    if (tool === '') {
+      selectObject(null, null);
+      setActiveClassId(-1);
+    }
   }, [handleToolChange, selectObject, setActiveClassId]);
 
   const handleDeleteSelected = useCallback(() => {
