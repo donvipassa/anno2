@@ -232,7 +232,7 @@ const AppContent: React.FC = () => {
   }, [annotations.selectedObjectId, setMarkupModifiedState, resetTools]);
 
   const handleAutoAnnotate = useCallback(async () => {
-    if (!imageState.file || autoAnnotationPerformed) {
+    if (!imageState.file) {
       showModal(MODAL_TYPES.ERROR, 'Ошибка', 'Сначала загрузите изображение', [
         { text: 'Ок', action: closeModal }
       ]);
@@ -278,7 +278,6 @@ const AppContent: React.FC = () => {
       });
       
       if (isMountedRef.current) {
-        setAutoAnnotationPerformed(true);
         showModal(MODAL_TYPES.INFO, 'Успех', `Обнаружено объектов: ${detections.length}`, [
           { text: 'Ок', action: closeModal }
         ]);

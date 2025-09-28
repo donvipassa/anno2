@@ -89,7 +89,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         icon={<Sparkles size={24} />}
         tooltip="Авто-разметка"
         onClick={onAutoAnnotate}
-        disabled={!hasImage || autoAnnotationPerformed}
+        disabled={!hasImage}
       />
 
       <div className="w-px h-6 bg-gray-300 mx-2" />
