@@ -61,27 +61,6 @@ const AppContent: React.FC = () => {
   const { modalState, closeModal, showModal } = useModalState();
   const { defectFormModalState, openDefectFormModal, closeDefectFormModal } = useDefectFormModal();
   const { contextMenu, showContextMenu, hideContextMenu } = useContextMenu();
-  const {
-    activeTool,
-    activeClassId,
-    layerVisible,
-    filterActive,
-    autoAnnotationPerformed,
-    isProcessingAutoAnnotation,
-    markupFileName,
-    calibrationInputValue,
-    setActiveTool,
-    setActiveClassId,
-    setLayerVisible,
-    setFilterActive,
-    setAutoAnnotationPerformed,
-    setIsProcessingAutoAnnotation,
-    setMarkupFileName,
-    setCalibrationInputValue,
-    handleToolChange,
-    handleClassSelect
-  } = useAppState();
-
   // Используем кастомный хук для управления состоянием приложения
   const {
     activeTool,
