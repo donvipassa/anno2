@@ -19,7 +19,7 @@ import { useAnnotations } from './core/AnnotationManager';
 import { useCalibration } from './core/CalibrationManager';
 import { saveImageAsFile } from './utils';
 import { detectObjects } from './services/api';
-import { mapApiClassToDefectClassId, convertApiBboxToPixels } from './utils';
+import { convertApiBboxToPixels } from './utils';
 import { useModalState } from './hooks/useModalState';
 import { useDefectFormModal } from './hooks/useDefectFormModal';
 import { useContextMenu } from './hooks/useContextMenu';
@@ -92,6 +92,7 @@ const AppContent: React.FC = () => {
   // Refs для безопасного доступа к DOM
   const calibrationInputRef = useRef<HTMLInputElement>(null);
   const isMountedRef = useRef<boolean>(true);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Хук для файловых операций
   const { openFileDialog, handleSaveMarkup, handleOpenMarkup } = useFileOperations(
@@ -476,9 +477,8 @@ const AppContent: React.FC = () => {
         zoomReset();
       } else if (key === 'f') {
         e.preventDefault();
-        const canvas = document.querySelector('canvas');
-        if (canvas) {
-          fitToCanvas(canvas.clientWidth, canvas.clientHeight);
+        if (canvasRef.current) {
+          fitToCanvas(canvasRef.current.clientWidth, canvasRef.current.clientHeight);
         }
       } else if (key === 'i') {
         e.preventDefault();
@@ -565,6 +565,7 @@ const AppContent: React.FC = () => {
         />
         
         <CanvasArea
+          canvasRef={canvasRef}
           activeTool={activeTool}
           activeClassId={activeClassId}
           layerVisible={layerVisible}
