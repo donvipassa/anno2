@@ -157,6 +157,7 @@ export const useCalibrationModal = (
     calibrationInputRef,
     handleCalibrationLineFinished,
     handleEditCalibration,
+    handleEditCalibration,
     setCalibrationInputValue
   };
 };
