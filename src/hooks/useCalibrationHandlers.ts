@@ -130,7 +130,6 @@ export const useCalibrationHandlers = (
                 });
               }
               
-              setCalibrationScale(pixelLength, realLength);
               closeModal();
             } catch (error) {
               console.error('Ошибка при установке калибровки:', error);

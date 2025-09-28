@@ -148,7 +148,6 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     if (!annotations.calibrationLine) {
       resetScale();
-      handleToolChange(''); // Сбрасываем активный инструмент при удалении калибровочной линии
     }
   }, [annotations.calibrationLine, resetScale, handleToolChange]);
 
