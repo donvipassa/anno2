@@ -17,6 +17,7 @@ interface CanvasAreaProps {
   onCalibrationLineFinished: (lineData: any, isNew: boolean) => void;
   onBboxCreated: (bboxData: Omit<BoundingBox, 'id' | 'defectRecord' | 'formattedDefectString'>) => void;
   onEditDefectBbox: (bboxId: string) => void;
+  onEditCalibration: () => void;
 }
 
 export const CanvasArea: React.FC<CanvasAreaProps> = ({
@@ -30,7 +31,8 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
   onShowContextMenu,
   onCalibrationLineFinished,
   onBboxCreated,
-  onEditDefectBbox
+  onEditDefectBbox,
+  onEditCalibration
 }) => {
   const internalCanvasRef = useRef<HTMLCanvasElement>(null);
   const canvasRef = externalCanvasRef || internalCanvasRef;
@@ -55,7 +57,8 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
     activeClassId,
     onCalibrationLineFinished,
     onBboxCreated,
-    onShowContextMenu
+    onShowContextMenu,
+    onEditCalibration
   );
 
   const { draw } = useCanvasRendering(

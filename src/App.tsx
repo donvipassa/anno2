@@ -425,6 +425,7 @@ const AppContent: React.FC = () => {
           onCalibrationLineFinished={handleCalibrationLineFinished}
           onBboxCreated={handleBboxCreated}
           onEditDefectBbox={handleEditDefectBbox}
+          onEditCalibration={handleEditCalibration}
         />
       </div>
 

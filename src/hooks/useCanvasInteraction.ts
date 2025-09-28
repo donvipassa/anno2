@@ -10,7 +10,8 @@ export const useCanvasInteraction = (
   activeClassId: number,
   onCalibrationLineFinished: (lineData: any, isNew: boolean) => void,
   onBboxCreated: (bboxData: any) => void,
-  onShowContextMenu: (x: number, y: number) => void
+  onShowContextMenu: (x: number, y: number) => void,
+  onEditCalibration: () => void
 ) => {
   const { imageState, setOffset, zoomToPoint } = useImage();
   const { 
@@ -312,6 +313,12 @@ export const useCanvasInteraction = (
           setLineHandle(clickedObject.handle);
           setIsDragging(true);
           setDragStart(coords);
+          return;
+        }
+
+        // Обработка двойного клика по калибровочной линии
+        if (clickedObject.type === 'calibration' && e.detail === 2) {
+          onEditCalibration();
           return;
         }
 
