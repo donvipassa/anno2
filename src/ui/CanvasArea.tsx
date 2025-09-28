@@ -374,10 +374,6 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
           // Создаем точку плотности сразу
           const pointId = addDensityPoint({ x: coords.x, y: coords.y });
           selectObject(pointId, 'density');
-        } else {
-          // Если нет активного инструмента или класса, сбрасываем всё
-          onToolChange('');
-          onSelectClass(-1);
         }
       }
     }
