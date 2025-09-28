@@ -89,38 +89,6 @@ const AppContent: React.FC = () => {
 
   // Эффект синхронизации activeClassId с выделенным объектом
   useEffect(() => {
-    if (annotations.selectedObjectId) {
-      switch (annotations.selectedObjectType) {
-        case 'bbox':
-          const selectedBbox = annotations.boundingBoxes.find(bbox => bbox.id === annotations.selectedObjectId);
-          if (selectedBbox) {
-            setActiveTool('bbox');
-            if (selectedBbox.classId >= 0 && selectedBbox.classId <= 10) {
-              // Стандартный класс дефекта
-              setActiveClassId(selectedBbox.classId);
-            } else {
-              // API класс
-              setActiveClassId(-1);
-            }
-          }
-          break;
-        case 'ruler':
-          setActiveTool('ruler');
-          setActiveClassId(-1);
-          break;
-        case 'calibration':
-          setActiveTool('calibration');
-          setActiveClassId(-1);
-          break;
-        case 'density':
-          setActiveTool('density');
-          setActiveClassId(-1);
-          break;
-      }
-    }
-    // Не сбрасываем инструменты при selectedObjectId === null, 
-    // чтобы пользователь мог продолжить рисование
-  }, [annotations.selectedObjectId, annotations.selectedObjectType, annotations.boundingBoxes]);
 
   // Эффект синхронизации состояния калибровки
   useEffect(() => {
