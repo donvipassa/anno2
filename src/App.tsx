@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ImageProvider } from './core/ImageProvider';
 import { AnnotationProvider } from './core/AnnotationManager';
@@ -17,14 +17,26 @@ import {
 import { useImage } from './core/ImageProvider';
 import { useAnnotations } from './core/AnnotationManager';
 import { useCalibration } from './core/CalibrationManager';
-import { saveImageAsFile, MODAL_TYPES } from './utils';
+import { saveImageAsFile } from './utils';
 import { detectObjects } from './services/api';
 import { mapApiClassToDefectClassId, convertApiBboxToPixels } from './utils';
 import { useModalState } from './hooks/useModalState';
 import { useDefectFormModal } from './hooks/useDefectFormModal';
 import { useContextMenu } from './hooks/useContextMenu';
 import { useFileOperations } from './hooks/useFileOperations';
+import { MODAL_TYPES } from './constants/modalTypes';
 import jsonData from './data/defect-classes.json';
+
+// Типизация для JSON данных
+interface DefectClassData {
+  apiID: number;
+  name: string;
+  russian_name: string;
+  color: [number, number, number];
+  description?: string;
+}
+
+const typedJsonData = jsonData as DefectClassData[];
 
 const AppContent: React.FC = () => {
   // Хуки для управления состоянием
@@ -75,8 +87,11 @@ const AppContent: React.FC = () => {
   const [autoAnnotationPerformed, setAutoAnnotationPerformed] = useState<boolean>(false);
 
   // Состояние калибровки
-  const [pendingCalibrationLine, setPendingCalibrationLine] = useState<any>(null);
   const [calibrationInputValue, setCalibrationInputValue] = useState<string>('50');
+
+  // Refs для безопасного доступа к DOM
+  const calibrationInputRef = useRef<HTMLInputElement>(null);
+  const isMountedRef = useRef<boolean>(true);
 
   // Хук для файловых операций
   const { openFileDialog, handleSaveMarkup, handleOpenMarkup } = useFileOperations(
@@ -86,6 +101,61 @@ const AppContent: React.FC = () => {
     setMarkupModifiedState,
     setAutoAnnotationPerformed
   );
+
+  // Общая логика калибровки
+  const processCalibration = useCallback((
+    lineData: any, 
+    realLength: number, 
+    isNew: boolean
+  ) => {
+    try {
+      // Определяем, какую линию использовать для расчетов
+      let lineToCalculateFrom;
+      if (isNew) {
+        lineToCalculateFrom = lineData;
+      } else {
+        lineToCalculateFrom = annotations.calibrationLine;
+      }
+      
+      if (!lineToCalculateFrom) {
+        throw new Error('Нет данных линии для расчета');
+      }
+      
+      // Вычисляем пиксельную длину
+      const pixelLength = Math.sqrt(
+        (lineToCalculateFrom.x2 - lineToCalculateFrom.x1) ** 2 + 
+        (lineToCalculateFrom.y2 - lineToCalculateFrom.y1) ** 2
+      );
+      
+      if (isNew) {
+        setCalibrationLine({
+          ...lineData,
+          realLength: realLength
+        });
+      } else if (!isNew && annotations.calibrationLine) {
+        updateCalibrationLine({
+          realLength: realLength
+        });
+      }
+      
+      // Устанавливаем масштаб
+      setCalibrationScale(pixelLength, realLength);
+      setActiveTool(''); // Сбрасываем активный инструмент после успешной калибровки
+      closeModal();
+    } catch (error) {
+      console.error('Ошибка при установке калибровки:', error);
+      closeModal();
+      alert('Произошла ошибка при установке калибровки');
+    }
+  }, [annotations.calibrationLine, setCalibrationLine, updateCalibrationLine, setCalibrationScale, closeModal]);
+
+  // Эффект для отслеживания монтирования компонента
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   // Эффект синхронизации activeClassId с выделенным объектом
   useEffect(() => {
@@ -188,7 +258,7 @@ const AppContent: React.FC = () => {
       setActiveTool('');
       setActiveClassId(-1);
     }
-  }, [annotations.selectedObjectId]);
+  }, [annotations.selectedObjectId, setMarkupModifiedState]);
 
   const handleAutoAnnotate = useCallback(async () => {
     if (!imageState.file || autoAnnotationPerformed) {
@@ -204,19 +274,24 @@ const AppContent: React.FC = () => {
     try {
       const detections = await detectObjects(imageState.file);
       
+      // Проверяем, что компонент еще смонтирован
+      if (!isMountedRef.current) {
+        return;
+      }
+      
       // Добавляем обнаруженные объекты как новые bounding boxes
       detections.forEach(detection => {
         const bbox = convertApiBboxToPixels(detection.bbox);
         
         // Ищем соответствие в JSON файле
-        const jsonEntry = jsonData.find((entry: any) => {
+        const jsonEntry = typedJsonData.find((entry) => {
           const entryName = entry.name.toLowerCase().trim();
           const detectionClass = detection.class.toLowerCase().trim();
           return entryName === detectionClass;
         });
         
         // Используем apiID из JSON файла как classId
-        const classId = jsonEntry ? (jsonEntry as any).apiID : 10;
+        const classId = jsonEntry ? jsonEntry.apiID : 10;
         
         addBoundingBox({
           x: bbox.x,
@@ -231,18 +306,24 @@ const AppContent: React.FC = () => {
         });
       });
       
-      setAutoAnnotationPerformed(true);
-      showModal(MODAL_TYPES.INFO, 'Успех', `Обнаружено объектов: ${detections.length}`, [
-        { text: 'Ок', action: closeModal }
-      ]);
+      if (isMountedRef.current) {
+        setAutoAnnotationPerformed(true);
+        showModal(MODAL_TYPES.INFO, 'Успех', `Обнаружено объектов: ${detections.length}`, [
+          { text: 'Ок', action: closeModal }
+        ]);
+      }
     } catch (error) {
-      showModal(MODAL_TYPES.ERROR, 'Ошибка', 'Не удалось выполнить автоматическую аннотацию', [
-        { text: 'Ок', action: closeModal }
-      ]);
+      if (isMountedRef.current) {
+        showModal(MODAL_TYPES.ERROR, 'Ошибка', 'Не удалось выполнить автоматическую аннотацию', [
+          { text: 'Ок', action: closeModal }
+        ]);
+      }
     } finally {
-      setIsProcessingAutoAnnotation(false);
+      if (isMountedRef.current) {
+        setIsProcessingAutoAnnotation(false);
+      }
     }
-  }, [imageState.file, addBoundingBox, autoAnnotationPerformed]);
+  }, [imageState.file, addBoundingBox, autoAnnotationPerformed, showModal, closeModal]);
 
   const handleBboxCreated = useCallback((bboxData: Omit<BoundingBox, 'id' | 'defectRecord' | 'formattedDefectString'>) => {
     // Проверяем, что это дефект (классы 0-9)
@@ -255,7 +336,7 @@ const AppContent: React.FC = () => {
       const newBboxId = addBoundingBox(bboxData);
       selectObject(newBboxId, 'bbox');
     }
-  }, [addBoundingBox, selectObject]);
+  }, [addBoundingBox, selectObject, openDefectFormModal]);
 
   const handleCloseDefectModal = useCallback((shouldDelete: boolean = false) => {
     // Если нужно удалить рамку (при отмене), удаляем её
@@ -273,7 +354,7 @@ const AppContent: React.FC = () => {
       selectObject(bboxId, 'bbox');
       openDefectFormModal(bboxId, bboxToEdit.classId, bboxToEdit.defectRecord || null);
     }
-  }, [annotations.boundingBoxes, selectObject]);
+  }, [annotations.boundingBoxes, selectObject, openDefectFormModal]);
 
   const handleSaveDefectRecord = useCallback((bboxId: string, record: DefectRecord, formattedString: string) => {
     updateBoundingBoxDefectRecord(bboxId, record, formattedString);
@@ -290,81 +371,36 @@ const AppContent: React.FC = () => {
     if (annotations.calibrationLine) {
       // При редактировании устанавливаем текущее значение
       const currentValue = annotations.calibrationLine.realLength.toString();
-      console.log('handleEditCalibration: текущее значение', currentValue);
+      setCalibrationInputValue(currentValue);
       
       showModal(MODAL_TYPES.CALIBRATION, 'Калибровка масштаба', 'Укажите реальный размер эталона для установки масштаба (мм):',
         [
           { 
             text: 'Отмена', 
-            action: () => {
-              console.log('Отмена калибровки');
-              closeModal();
-            }
+            action: closeModal
           },
           { 
             text: 'Применить', 
             action: () => {
-              // Получаем значение из поля ввода в момент нажатия кнопки
-              const inputElement = document.querySelector('input[type="number"]') as HTMLInputElement;
-              const inputValue = inputElement ? inputElement.value : calibrationInputValue;
-              console.log('Применить нажато, значение:', inputValue);
-              
+              // Получаем значение из ref
+              const inputValue = calibrationInputRef.current?.value || calibrationInputValue;
               const realLength = parseFloat(inputValue);
+              
               if (isNaN(realLength) || realLength <= 0) {
                 alert('Пожалуйста, введите корректное положительное число');
                 return;
               }
               
-              try {
-                const lineToCalculateFrom = annotations.calibrationLine;
-                console.log('Используем существующую calibrationLine:', lineToCalculateFrom);
-                
-                if (!lineToCalculateFrom) {
-                  console.error('Нет данных линии для расчета');
-                  alert('Ошибка: нет данных линии для расчета');
-                  closeModal();
-                  return;
-                }
-                
-                const pixelLength = Math.sqrt(
-                  (lineToCalculateFrom.x2 - lineToCalculateFrom.x1) ** 2 + 
-                  (lineToCalculateFrom.y2 - lineToCalculateFrom.y1) ** 2
-                );
-                
-                console.log('Пиксельная длина:', pixelLength);
-                
-                updateCalibrationLine({
-                  realLength: realLength
-                });
-                console.log('Обновлена калибровочная линия:', realLength, 'мм');
-                
-                const scale = realLength / pixelLength;
-                setCalibrationScale(pixelLength, realLength);
-                console.log('Установлен масштаб:', scale, 'мм/пиксель');
-
-                setActiveTool(''); // Сбрасываем активный инструмент после успешной калибровки
-                closeModal();
-              } catch (error) {
-                console.error('Ошибка при установке калибровки:', error);
-                closeModal();
-                alert('Произошла ошибка при установке калибровки');
-              }
+              processCalibration(null, realLength, false);
             },
             primary: true
           }
         ]
       );
-      
-      // Устанавливаем значение ПОСЛЕ показа модального окна
-      setTimeout(() => {
-        setCalibrationInputValue(currentValue);
-      }, 100);
     }
-  }, [annotations.calibrationLine, showModal, closeModal, updateCalibrationLine, setCalibrationScale]);
+  }, [annotations.calibrationLine, calibrationInputValue, processCalibration, showModal, closeModal]);
 
   const handleCalibrationLineFinished = useCallback((lineData: any, isNew: boolean) => {
-    console.log('handleCalibrationLineFinished вызвана:', { lineData, isNew });
-    
     // Определяем значение по умолчанию
     let defaultLength = '50';
     if (!isNew && annotations.calibrationLine) {
@@ -388,82 +424,22 @@ const AppContent: React.FC = () => {
         { 
           text: 'Применить', 
           action: () => {
-            // Получаем значение из поля ввода в момент нажатия кнопки
-            const inputElement = document.querySelector('input[type="number"]') as HTMLInputElement;
-            const inputValue = inputElement ? inputElement.value : calibrationInputValue;
-            console.log('Применить нажато, значение:', inputValue);
-            console.log('isNew:', isNew);
-            console.log('lineData:', lineData);
-            console.log('annotations.calibrationLine:', annotations.calibrationLine);
-            
+            // Получаем значение из ref
+            const inputValue = calibrationInputRef.current?.value || calibrationInputValue;
             const realLength = parseFloat(inputValue);
+            
             if (isNaN(realLength) || realLength <= 0) {
               alert('Пожалуйста, введите корректное положительное число');
               return;
             }
             
-            try {
-              // Определяем, какую линию использовать для расчетов
-              let lineToCalculateFrom;
-              if (isNew) {
-                lineToCalculateFrom = lineData;
-                console.log('Используем lineData для новой линии:', lineToCalculateFrom);
-              } else {
-                lineToCalculateFrom = annotations.calibrationLine;
-                console.log('Используем существующую calibrationLine:', lineToCalculateFrom);
-              }
-              
-              if (!lineToCalculateFrom) {
-                console.error('Нет данных линии для расчета. isNew:', isNew, 'lineData:', lineData, 'calibrationLine:', annotations.calibrationLine);
-                alert('Ошибка: нет данных линии для расчета. Попробуйте нарисовать линию заново.');
-                closeModal();
-                return;
-              }
-              
-              // Вычисляем пиксельную длину
-              const pixelLength = Math.sqrt(
-                (lineToCalculateFrom.x2 - lineToCalculateFrom.x1) ** 2 + 
-                (lineToCalculateFrom.y2 - lineToCalculateFrom.y1) ** 2
-              );
-              
-              console.log('Пиксельная длина:', pixelLength);
-              
-              if (isNew) {
-                console.log('Создаем новую калибровочную линию:', lineData);
-                setCalibrationLine({
-                  ...lineData,
-                  realLength: realLength
-                });
-                console.log('Создана новая калибровочная линия:', realLength, 'мм, пиксельная длина:', pixelLength);
-              } else if (!isNew && annotations.calibrationLine) {
-                updateCalibrationLine({
-                  realLength: realLength
-                });
-                console.log('Обновлена калибровочная линия:', realLength, 'мм');
-              }
-              
-              // Устанавливаем масштаб
-              const scale = realLength / pixelLength;
-              setCalibrationScale(pixelLength, realLength);
-              console.log('Установлен масштаб:', scale, 'мм/пиксель');
-
-              closeModal();
-            } catch (error) {
-              console.error('Ошибка при установке калибровки:', error);
-              closeModal();
-              alert('Произошла ошибка при установке калибровки');
-            }
+            processCalibration(lineData, realLength, isNew);
           },
           primary: true
         }
       ]
     );
-    
-    // Устанавливаем значение ПОСЛЕ показа модального окна
-    setTimeout(() => {
-      setCalibrationInputValue(defaultLength);
-    }, 100);
-  }, [annotations.calibrationLine, setCalibrationLine, updateCalibrationLine, setCalibrationScale, showModal, closeModal]);
+  }, [annotations.calibrationLine, calibrationInputValue, processCalibration, showModal, closeModal]);
 
   // Горячие клавиши
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -530,8 +506,8 @@ const AppContent: React.FC = () => {
       }
   }, [
     handleOpenFile, handleSaveMarkup, zoomIn, zoomOut, zoomReset, fitToCanvas, 
-    toggleInversion, setActiveTool, layerVisible, setLayerVisible, filterActive, 
-    setFilterActive, handleHelp, selectObject, handleDeleteSelected, handleClassSelect, handleToolChange
+    toggleInversion, layerVisible, setLayerVisible, filterActive, 
+    setFilterActive, handleHelp, selectObject, handleDeleteSelected, handleToolChange
   ]);
 
   useEffect(() => {
@@ -539,19 +515,19 @@ const AppContent: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  // Предупреждение при закрытии страницы
+  // Предупреждение при закрытии страницы - оптимизированная подписка
   useEffect(() => {
+    if (!markupModified) return;
+
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (markupModified) { // Use markupModified from context
-        e.preventDefault();
-        e.returnValue = '';
-        return '';
-      }
+      e.preventDefault();
+      e.returnValue = '';
+      return '';
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [markupModified]); // Use markupModified from context
+  }, [markupModified]);
   
   return (
     <div className="h-screen flex flex-col bg-gray-100">
@@ -610,6 +586,7 @@ const AppContent: React.FC = () => {
         {modalState.type === MODAL_TYPES.CALIBRATION && (
           <div className="mt-4">
             <input
+              ref={calibrationInputRef}
               type="number"
               step="0.1"
               min="0.1"
