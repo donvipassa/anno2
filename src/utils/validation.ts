@@ -26,17 +26,33 @@ export const validateImageFile = (file: File): ValidationResult => {
 };
 
 /**
+ * Извлекает базовое имя файла, убирая расширения изображений и .txt
+ * @param fileName - Имя файла
+ * @returns Базовое имя без расширений
+ */
+const getBaseName = (fileName: string): string => {
+  // Убираем .txt если есть
+  let baseName = fileName.replace(/\.txt$/i, '');
+  
+  // Убираем расширения изображений
+  baseName = baseName.replace(/\.(jpg|jpeg|png|bmp|gif|webp)$/i, '');
+  
+  return baseName;
+};
+
+/**
  * Валидация имени файла разметки
  * @param markupFileName - Имя файла разметки
  * @param imageFileName - Имя файла изображения
  * @returns true если имена соответствуют
  */
 export const validateMarkupFileName = (markupFileName: string, imageFileName: string): boolean => {
-  // Более гибкая проверка - убираем расширение из имени файла разметки и сравниваем
-  const markupBaseName = markupFileName.replace(/\.txt$/i, '');
-  const imageBaseName = imageFileName;
+  // Извлекаем базовые имена файлов
+  const markupBaseName = getBaseName(markupFileName);
+  const imageBaseName = getBaseName(imageFileName);
   
-  return markupBaseName === imageBaseName || markupFileName === `${imageFileName}.txt`;
+  // Сравниваем базовые имена
+  return markupBaseName === imageBaseName;
 };
 
 /**
