@@ -135,9 +135,11 @@ const AppContent: React.FC = () => {
           setActiveClassId(-1);
           break;
       }
+    } else {
+      // При сбросе выделения сбрасываем активный класс и инструмент
+      setActiveClassId(-1);
+      setActiveTool('');
     }
-    // Не сбрасываем инструменты при selectedObjectId === null, 
-    // чтобы пользователь мог продолжить рисование
   }, [annotations.selectedObjectId, annotations.selectedObjectType, annotations.boundingBoxes, handleToolChange, setActiveClassId]);
 
   // Эффект синхронизации состояния калибровки
