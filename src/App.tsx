@@ -274,8 +274,8 @@ const AppContent: React.FC = () => {
   }, [addBoundingBox, selectObject]);
 
   const handleCloseDefectModal = useCallback((shouldDelete: boolean = false) => {
-    // Если нужно удалить рамку (при отмене), удаляем её
-    if (shouldDelete && defectFormModalState.bboxId) {
+    // Удаляем рамку только при отмене создания НОВОГО дефекта (когда нет initialRecord)
+    if (shouldDelete && defectFormModalState.bboxId && !defectFormModalState.initialRecord) {
       deleteBoundingBox(defectFormModalState.bboxId);
       selectObject(null, null);
     }
