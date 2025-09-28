@@ -125,7 +125,7 @@ const AppContent: React.FC = () => {
           }
           break;
         case 'ruler':
-          handleToolChange('ruler');
+          // НЕ сбрасываем инструмент при выделении линейки - оставляем текущий активный инструмент
           setActiveClassId(-1);
           break;
         case 'calibration':
