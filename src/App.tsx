@@ -81,7 +81,6 @@ const AppContent: React.FC = () => {
 
   // Локальное состояние компонента
   const [markupFileName, setMarkupFileName] = useState<string | null>(null);
-  const [activeClassId, setActiveClassId] = useState<number>(-1);
   const [layerVisible, setLayerVisible] = useState<boolean>(true);
   const [filterActive, setFilterActive] = useState<boolean>(false);
   const [autoAnnotationPerformed, setAutoAnnotationPerformed] = useState<boolean>(false);
@@ -393,7 +392,7 @@ const AppContent: React.FC = () => {
           layerVisible={layerVisible}
           filterActive={filterActive}
           onToolChange={handleToolChange}
-          onSelectClass={setActiveClassId}
+          onSelectClass={handleClassSelect}
           onShowContextMenu={showContextMenu}
           onCalibrationLineFinished={handleCalibrationLineFinished}
           onBboxCreated={handleBboxCreated}
