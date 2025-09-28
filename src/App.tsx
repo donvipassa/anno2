@@ -101,13 +101,61 @@ const AppContent: React.FC = () => {
   } = useToolManagement();
 
   // Хук для управления калибровкой
+  // Получаем базовые поля из хука (без handleEditCalibration)
   const {
     calibrationInputValue,
     calibrationInputRef,
     handleCalibrationLineFinished,
+    setCalibrationInputValue
+  } = useCalibrationModal(
+    showModal,
+    closeModal,
+    setActiveTool,
+    annotations.calibrationLine
+  );
+
+  // Реализуем handleEditCalibration в App.tsx с актуальными данными
+  const handleEditCalibration = useCallback(() => {
+    if (!annotations.calibrationLine) return;
+
+    const currentValue = annotations.calibrationLine.realLength.toString();
+    setCalibrationInputValue(currentValue);
+    
+    showModal(MODAL_TYPES.CALIBRATION, 'Калибровка масштаба', 'Укажите реальный размер эталона для установки масштаба (мм):', [
+      { text: 'Отмена', action: closeModal },
+      { 
+        text: 'Применить', 
+        action: () => {
+          const inputValue = calibrationInputRef.current?.value || calibrationInputValue;
+          const realLength = parseFloat(inputValue);
+          if (isNaN(realLength) || realLength <= 0) {
+            alert('Пожалуйста, введите корректное положительное число');
+            return;
+          }
+          // Обновляем линию и масштаб
+          updateCalibrationLine({ realLength });
+          const pixelLength = Math.sqrt(
+            (annotations.calibrationLine.x2 - annotations.calibrationLine.x1) ** 2 +
+            (annotations.calibrationLine.y2 - annotations.calibrationLine.y1) ** 2
+          );
+          setCalibrationScale(pixelLength, realLength);
+          setActiveTool('');
+          closeModal();
+        },
+        primary: true
+      }
+    ]);
+  }, [
+    annotations.calibrationLine,
     setCalibrationInputValue,
-    handleEditCalibration
-  } = useCalibrationModal(showModal, closeModal, setActiveTool, annotations.calibrationLine);
+    showModal,
+    closeModal,
+    calibrationInputRef,
+    calibrationInputValue,
+    updateCalibrationLine,
+    setCalibrationScale,
+    setActiveTool
+  ]);
 
   // Хук для файловых операций
   const { openFileDialog, handleSaveMarkup, handleOpenMarkup } = useFileOperations(
