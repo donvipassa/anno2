@@ -85,6 +85,7 @@ const AppContent: React.FC = () => {
   const [filterActive, setFilterActive] = useState<boolean>(false);
   const [autoAnnotationPerformed, setAutoAnnotationPerformed] = useState<boolean>(false);
   const [isProcessingAutoAnnotation, setIsProcessingAutoAnnotation] = useState<boolean>(false);
+  
   // Refs для безопасного доступа к DOM
   const isMountedRef = useRef<boolean>(true);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -103,7 +104,8 @@ const AppContent: React.FC = () => {
     calibrationInputValue,
     calibrationInputRef,
     handleCalibrationLineFinished,
-    handleEditCalibration
+    handleEditCalibration,
+    setCalibrationInputValue
   } = useCalibrationModal(showModal, closeModal, setActiveTool);
 
   // Хук для файловых операций
