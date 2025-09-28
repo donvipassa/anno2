@@ -90,6 +90,8 @@ const AppContent: React.FC = () => {
   // Эффект синхронизации activeClassId с выделенным объектом
   useEffect(() => {
 
+  }, []);
+
   // Эффект синхронизации состояния калибровки
   useEffect(() => {
     if (!annotations.calibrationLine) {
