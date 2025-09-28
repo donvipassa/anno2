@@ -360,10 +360,8 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
         setIsDragging(true);
         setDragStart(coords);
       } else {
-        // При клике по пустому месту ВСЕГДА сбрасываем всё
+        // Сбрасываем выделение
         selectObject(null, null);
-        onToolChange('');
-        onSelectClass(-1);
 
         // Начинаем рисование в зависимости от активного инструмента
         if (activeTool === 'bbox' && activeClassId >= 0) {
