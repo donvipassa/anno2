@@ -131,6 +131,8 @@ export const useCalibrationHandlers = (
               }
               
               closeModal();
+              setActiveTool(''); // Сбрасываем инструмент калибровки после установки масштаба
+              setActiveTool(''); // Сбрасываем инструмент калибровки после установки масштаба
             } catch (error) {
               console.error('Ошибка при установке калибровки:', error);
               closeModal();

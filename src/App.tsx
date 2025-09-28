@@ -148,7 +148,6 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     if (!annotations.calibrationLine) {
       resetScale();
-    }
   }, [annotations.calibrationLine, resetScale, handleToolChange]);
 
   const handleOpenFile = () => {
