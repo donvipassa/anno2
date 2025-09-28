@@ -84,6 +84,7 @@ const AppContent: React.FC = () => {
   const [layerVisible, setLayerVisible] = useState<boolean>(true);
   const [filterActive, setFilterActive] = useState<boolean>(false);
   const [autoAnnotationPerformed, setAutoAnnotationPerformed] = useState<boolean>(false);
+  const [isProcessingAutoAnnotation, setIsProcessingAutoAnnotation] = useState<boolean>(false);
   // Refs для безопасного доступа к DOM
   const isMountedRef = useRef<boolean>(true);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -113,6 +114,28 @@ const AppContent: React.FC = () => {
     setMarkupModifiedState,
     setAutoAnnotationPerformed
   );
+
+  // Функция помощи
+  const handleHelp = () => {
+    showModal(MODAL_TYPES.INFO, 'Горячие клавиши', 
+      'Ctrl+O - Открыть файл\n' +
+      'Ctrl+S - Сохранить разметку\n' +
+      'Ctrl+Plus - Увеличить\n' +
+      'Ctrl+Minus - Уменьшить\n' +
+      'Ctrl+1 - Сброс масштаба\n' +
+      'F - Подогнать под размер\n' +
+      'I - Инвертировать цвета\n' +
+      'D - Инструмент плотности\n' +
+      'R - Линейка\n' +
+      'C - Калибровка\n' +
+      'L - Показать/скрыть слой\n' +
+      'Ctrl+L - Фильтр\n' +
+      'Escape - Сбросить выделение\n' +
+      'Delete - Удалить выделенный объект\n' +
+      'F1 или Ctrl+H - Эта справка',
+      [{ text: 'Закрыть', action: closeModal }]
+    );
+  };
 
   // Эффект для отслеживания монтирования компонента
   useEffect(() => {
