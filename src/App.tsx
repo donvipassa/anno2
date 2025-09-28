@@ -24,6 +24,8 @@ import { useModalState } from './hooks/useModalState';
 import { useDefectFormModal } from './hooks/useDefectFormModal';
 import { useContextMenu } from './hooks/useContextMenu';
 import { useFileOperations } from './hooks/useFileOperations';
+import { useToolManagement } from './hooks/useToolManagement';
+import { useCalibrationModal } from './hooks/useCalibrationModal';
 import { MODAL_TYPES } from './constants/modalTypes';
 import jsonData from './data/defect-classes.json';
 
@@ -79,20 +81,30 @@ const AppContent: React.FC = () => {
 
   // Локальное состояние компонента
   const [markupFileName, setMarkupFileName] = useState<string | null>(null);
-  const [isProcessingAutoAnnotation, setIsProcessingAutoAnnotation] = useState<boolean>(false);
-  const [activeTool, setActiveTool] = useState<string>('');
   const [activeClassId, setActiveClassId] = useState<number>(-1);
   const [layerVisible, setLayerVisible] = useState<boolean>(true);
   const [filterActive, setFilterActive] = useState<boolean>(false);
   const [autoAnnotationPerformed, setAutoAnnotationPerformed] = useState<boolean>(false);
-
-  // Состояние калибровки
-  const [calibrationInputValue, setCalibrationInputValue] = useState<string>('50');
-
   // Refs для безопасного доступа к DOM
-  const calibrationInputRef = useRef<HTMLInputElement>(null);
   const isMountedRef = useRef<boolean>(true);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Хуки для управления инструментами и калибровкой
+  const {
+    activeTool,
+    activeClassId,
+    handleClassSelect,
+    handleToolChange,
+    resetTools,
+    setActiveTool
+  } = useToolManagement();
+
+  const {
+    calibrationInputValue,
+    calibrationInputRef,
+    handleCalibrationLineFinished,
+    handleEditCalibration
+  } = useCalibrationModal(showModal, closeModal, setActiveTool);
 
   // Хук для файловых операций
   const { openFileDialog, handleSaveMarkup, handleOpenMarkup } = useFileOperations(
@@ -103,54 +115,6 @@ const AppContent: React.FC = () => {
     setAutoAnnotationPerformed
   );
 
-  // Общая логика калибровки
-  const processCalibration = useCallback((realLength: number, isNew: boolean, lineDataForNew?: any) => {
-    try {
-      let lineToCalculateFrom;
-      if (isNew) {
-        lineToCalculateFrom = lineDataForNew;
-      } else {
-        lineToCalculateFrom = annotations.calibrationLine;
-      }
-      
-      if (!lineToCalculateFrom) {
-        throw new Error('Нет данных линии для расчета');
-      }
-      
-      // Вычисляем пиксельную длину
-      const pixelLength = Math.sqrt(
-        (lineToCalculateFrom.x2 - lineToCalculateFrom.x1) ** 2 + 
-        (lineToCalculateFrom.y2 - lineToCalculateFrom.y1) ** 2
-      );
-      
-      if (isNew) {
-        setCalibrationLine({
-          ...lineToCalculateFrom,
-          realLength: realLength
-        });
-      } else if (!isNew && annotations.calibrationLine) {
-        updateCalibrationLine({
-          realLength: realLength
-        });
-      }
-      
-      // Устанавливаем масштаб
-      setCalibrationScale(pixelLength, realLength);
-      setActiveTool(''); // Сбрасываем активный инструмент после успешной калибровки
-      closeModal();
-    } catch (error) {
-      console.error('Ошибка при установке калибровки:', error);
-      closeModal();
-      alert('Произошла ошибка при установке калибровки');
-    }
-  }, [
-    annotations.calibrationLine,
-    setCalibrationLine,
-    updateCalibrationLine,
-    setCalibrationScale,
-    closeModal
-  ]);
-
   // Эффект для отслеживания монтирования компонента
   useEffect(() => {
     isMountedRef.current = true;
@@ -159,48 +123,13 @@ const AppContent: React.FC = () => {
     };
   }, []);
 
-  // Эффект синхронизации activeClassId с выделенным объектом
-  useEffect(() => {
-    if (annotations.selectedObjectId) {
-      switch (annotations.selectedObjectType) {
-        case 'bbox':
-          const selectedBbox = annotations.boundingBoxes.find(bbox => bbox.id === annotations.selectedObjectId);
-          if (selectedBbox) {
-            setActiveTool('bbox');
-            if (selectedBbox.classId >= 0 && selectedBbox.classId <= 10) {
-              // Стандартный класс дефекта
-              setActiveClassId(selectedBbox.classId);
-            } else {
-              // API класс
-              setActiveClassId(-1);
-            }
-          }
-          break;
-        case 'ruler':
-          setActiveTool('ruler');
-          setActiveClassId(-1);
-          break;
-        case 'calibration':
-          setActiveTool('calibration');
-          setActiveClassId(-1);
-          break;
-        case 'density':
-          setActiveTool('density');
-          setActiveClassId(-1);
-          break;
-      }
-    }
-    // Не сбрасываем инструменты при selectedObjectId === null, 
-    // чтобы пользователь мог продолжить рисование
-  }, [annotations.selectedObjectId, annotations.selectedObjectType, annotations.boundingBoxes]);
-
   // Эффект синхронизации состояния калибровки
   useEffect(() => {
     if (!annotations.calibrationLine) {
       resetScale();
-      setActiveTool(''); // Сбрасываем активный инструмент при удалении калибровочной линии
+      resetTools(); // Сбрасываем активный инструмент при удалении калибровочной линии
     }
-  }, [annotations.calibrationLine, resetScale]);
+  }, [annotations.calibrationLine, resetScale, resetTools]);
 
   const handleOpenFile = () => {
     // Проверка на несохраненные изменения
@@ -234,33 +163,15 @@ const AppContent: React.FC = () => {
     openFileDialog();
   };
 
-  const handleClassSelect = useCallback((classId: number) => {
-    if (!imageState.src) return;
-    
-    setActiveClassId(classId);
-    setActiveTool('bbox');
-  }, [imageState.src]);
-
-  const handleToolChange = useCallback((tool: string) => {
-    setActiveTool(tool);
-    
-    // Сбрасываем выделение и класс при выборе инструментов измерения
-    if (tool === 'density' || tool === 'ruler' || tool === 'calibration') {
-      selectObject(null, null);
-      setActiveClassId(-1);
-    }
-  }, [selectObject]);
-
   const handleDeleteSelected = useCallback(() => {
     // Реализация удаления выделенного объекта
     if (annotations.selectedObjectId) {
       // The delete functions in AnnotationManager will call setMarkupModified(true)
       setMarkupModifiedState(true);
       // Сбрасываем активный инструмент и класс после удаления объекта
-      setActiveTool('');
-      setActiveClassId(-1);
+      resetTools();
     }
-  }, [annotations.selectedObjectId, setMarkupModifiedState]);
+  }, [annotations.selectedObjectId, setMarkupModifiedState, resetTools]);
 
   const handleAutoAnnotate = useCallback(async () => {
     if (!imageState.file || autoAnnotationPerformed) {
@@ -363,92 +274,6 @@ const AppContent: React.FC = () => {
     handleCloseDefectModal(false); // Не удаляем при сохранении
   }, [updateBoundingBoxDefectRecord, handleCloseDefectModal]);
 
-  const handleHelp = useCallback(() => {
-    showModal(MODAL_TYPES.HELP, 'О программе', 'Автор и разработчик Алексей Сотников\nТехнопарк "Университетские технологии"', [
-      { text: 'Ок', action: closeModal }
-    ]);
-  }, [showModal, closeModal]);
-
-  const handleEditCalibration = useCallback(() => {
-    if (annotations.calibrationLine) {
-      const currentValue = annotations.calibrationLine.realLength.toString();
-      setCalibrationInputValue(currentValue);
-      
-      showModal(MODAL_TYPES.CALIBRATION, 'Калибровка масштаба', 'Укажите реальный размер эталона для установки масштаба (мм):',
-        [
-          { 
-            text: 'Отмена', 
-            action: closeModal
-          },
-          { 
-            text: 'Применить', 
-            action: () => {
-              const inputValue = calibrationInputRef.current?.value || calibrationInputValue;
-              const realLength = parseFloat(inputValue);
-              
-              if (isNaN(realLength) || realLength <= 0) {
-                alert('Пожалуйста, введите корректное положительное число');
-                return;
-              }
-              
-              processCalibration(realLength, false);
-            },
-            primary: true
-          }
-        ]
-      );
-    }
-  }, [
-    annotations.calibrationLine,
-    calibrationInputValue,
-    processCalibration,
-    showModal,
-    closeModal
-  ]);
-
-  const handleCalibrationLineFinished = useCallback((lineData: any, isNew: boolean) => {
-    let defaultLength = '50';
-    if (!isNew && annotations.calibrationLine) {
-      defaultLength = annotations.calibrationLine.realLength.toString();
-    } else if (lineData?.realLength) {
-      defaultLength = lineData.realLength.toString();
-    }
-    
-    setCalibrationInputValue(defaultLength);
-    showModal(MODAL_TYPES.CALIBRATION, 'Калибровка масштаба', 'Укажите реальный размер эталона для установки масштаба (мм):',
-      [
-        { 
-          text: 'Отмена', 
-          action: () => {
-            setCalibrationInputValue('50');
-            closeModal();
-          }
-        },
-        { 
-          text: 'Применить', 
-          action: () => {
-            const inputValue = calibrationInputRef.current?.value || calibrationInputValue;
-            const realLength = parseFloat(inputValue);
-            
-            if (isNaN(realLength) || realLength <= 0) {
-              alert('Пожалуйста, введите корректное положительное число');
-              return;
-            }
-            
-            processCalibration(realLength, isNew, isNew ? lineData : undefined);
-          },
-          primary: true
-        }
-      ]
-    );
-  }, [
-    annotations.calibrationLine,
-    calibrationInputValue,
-    processCalibration,
-    showModal,
-    closeModal
-  ]);
-
   // Горячие клавиши
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
       // Проверяем, находится ли фокус на элементе ввода
@@ -503,10 +328,7 @@ const AppContent: React.FC = () => {
         handleHelp();
       } else if (key === 'escape') {
         e.preventDefault();
-        handleToolChange('');
-        setActiveClassId(-1);
-        // Сброс выделения объектов
-        selectObject(null, null);
+        resetTools();
       } else if (key === 'delete') {
         e.preventDefault();
         handleDeleteSelected();
@@ -514,7 +336,7 @@ const AppContent: React.FC = () => {
   }, [
     handleOpenFile, handleSaveMarkup, zoomIn, zoomOut, zoomReset, fitToCanvas, 
     toggleInversion, layerVisible, setLayerVisible, filterActive, 
-    setFilterActive, handleHelp, selectObject, handleDeleteSelected, handleToolChange
+    setFilterActive, handleHelp, handleDeleteSelected, handleToolChange, resetTools
   ]);
 
   useEffect(() => {
@@ -560,7 +382,7 @@ const AppContent: React.FC = () => {
       <div className="flex-1 flex overflow-hidden">
         <Sidebar
           activeClassId={activeClassId}
-          onClassSelect={handleClassSelect}
+          onClassSelect={(classId) => handleClassSelect(classId, !!imageState.src)}
           disabled={!imageState.src}
         />
         
