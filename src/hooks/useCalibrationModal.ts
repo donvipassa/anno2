@@ -9,9 +9,10 @@ import { MODAL_TYPES } from '../constants/modalTypes';
 export const useCalibrationModal = (
   showModal: (type: string, title: string, message: string, buttons?: any[]) => void,
   closeModal: () => void,
-  setActiveTool: (tool: string) => void
+  setActiveTool: (tool: string) => void,
+  calibrationLine: any
 ) => {
-  const { annotations, setCalibrationLine, updateCalibrationLine } = useAnnotations();
+  const { setCalibrationLine, updateCalibrationLine } = useAnnotations();
   const { setScale: setCalibrationScale } = useCalibration();
   
   const [calibrationInputValue, setCalibrationInputValue] = useState<string>('50');
@@ -24,7 +25,7 @@ export const useCalibrationModal = (
       if (isNew) {
         lineToCalculateFrom = pendingCalibrationLineRef.current;
       } else {
-        lineToCalculateFrom = annotations.calibrationLine;
+        lineToCalculateFrom = calibrationLine;
       }
       
       if (!lineToCalculateFrom) {
@@ -42,7 +43,7 @@ export const useCalibrationModal = (
           ...lineToCalculateFrom,
           realLength: realLength
         });
-      } else if (annotations.calibrationLine) {
+      } else if (calibrationLine) {
         updateCalibrationLine({
           realLength: realLength
         });
@@ -58,7 +59,7 @@ export const useCalibrationModal = (
       alert('Произошла ошибка при установке калибровки');
     }
   }, [
-    annotations.calibrationLine,
+    calibrationLine,
     setCalibrationLine,
     updateCalibrationLine,
     setCalibrationScale,
@@ -68,8 +69,8 @@ export const useCalibrationModal = (
 
   const handleCalibrationLineFinished = useCallback((lineData: any, isNew: boolean) => {
     let defaultLength = '50';
-    if (!isNew && annotations.calibrationLine) {
-      defaultLength = annotations.calibrationLine.realLength.toString();
+    if (!isNew && calibrationLine) {
+      defaultLength = calibrationLine.realLength.toString();
     } else if (lineData?.realLength) {
       defaultLength = lineData.realLength.toString();
     }
@@ -108,7 +109,7 @@ export const useCalibrationModal = (
       ]
     );
   }, [
-    annotations.calibrationLine,
+    calibrationLine,
     calibrationInputValue,
     processCalibration,
     showModal,
@@ -116,8 +117,8 @@ export const useCalibrationModal = (
   ]);
 
   const handleEditCalibration = useCallback(() => {
-    if (annotations.calibrationLine) {
-      const currentValue = annotations.calibrationLine.realLength.toString();
+    if (calibrationLine) {
+      const currentValue = calibrationLine.realLength.toString();
       setCalibrationInputValue(currentValue);
       
       showModal(MODAL_TYPES.CALIBRATION, 'Калибровка масштаба', 'Укажите реальный размер эталона для установки масштаба (мм):',
@@ -145,7 +146,7 @@ export const useCalibrationModal = (
       );
     }
   }, [
-    annotations.calibrationLine,
+    calibrationLine,
     calibrationInputValue,
     processCalibration,
     showModal,

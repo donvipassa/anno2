@@ -107,7 +107,7 @@ const AppContent: React.FC = () => {
     handleCalibrationLineFinished,
     setCalibrationInputValue,
     handleEditCalibration
-  } = useCalibrationModal(showModal, closeModal, setActiveTool);
+  } = useCalibrationModal(showModal, closeModal, setActiveTool, annotations.calibrationLine);
 
   // Хук для файловых операций
   const { openFileDialog, handleSaveMarkup, handleOpenMarkup } = useFileOperations(
