@@ -32,6 +32,7 @@ import jsonData from './data/defect-classes.json';
 const AppContent: React.FC = () => {
   // Хуки для управления состоянием
   const { 
+    annotations,
     imageState, 
     loadImage, 
     setScale, 
