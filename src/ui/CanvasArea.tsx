@@ -362,10 +362,6 @@ export const CanvasArea: React.FC<CanvasAreaProps> = ({
       } else {
         // Сбрасываем выделение
         selectObject(null, null);
-        
-        // Сбрасываем активный инструмент и класс при клике по пустому месту
-        onToolChange('');
-        onSelectClass(-1);
 
         // Начинаем рисование в зависимости от активного инструмента
         if (activeTool === 'bbox' && activeClassId >= 0) {
