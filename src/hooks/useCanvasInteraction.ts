@@ -67,6 +67,15 @@ export const useCanvasInteraction = (
 
   // Поиск объекта в точке
   const getObjectAtPoint = useCallback((x: number, y: number) => {
+    // Проверяем точки плотности ПЕРВЫМИ (наивысший приоритет)
+    for (let i = annotations.densityPoints.length - 1; i >= 0; i--) {
+      const point = annotations.densityPoints[i];
+      const distance = calculateDistance(x, y, point.x, point.y);
+      if (distance <= tolerances.density) {
+        return { type: 'density', object: point };
+      }
+    }
+    
     // Проверяем маркеры линеек и калибровочной линии
     
     // Проверяем маркеры калибровочной линии
@@ -132,15 +141,6 @@ export const useCanvasInteraction = (
           y >= Math.min(line.y1, line.y2) - tolerances.ruler &&
           y <= Math.max(line.y1, line.y2) + tolerances.ruler) {
         return { type: 'calibration', object: line };
-      }
-    }
-
-    // Проверяем точки плотности
-    for (let i = annotations.densityPoints.length - 1; i >= 0; i--) {
-      const point = annotations.densityPoints[i];
-      const distance = calculateDistance(x, y, point.x, point.y);
-      if (distance <= tolerances.density) {
-        return { type: 'density', object: point };
       }
     }
 
