@@ -469,9 +469,6 @@ export const useCanvasInteraction = (
         }
       }
 
-      if (!lineHandle) {
-        setDragStart(coords);
-      }
     }
 
     if (isDrawing) {
