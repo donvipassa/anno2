@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
+import { useMemo } from 'react';
 import { useImage } from '../core/ImageProvider';
 import { useAnnotations } from '../core/AnnotationManager';
 import { calculateDistance, clampToImageBounds, SIZES } from '../utils';
@@ -41,6 +42,14 @@ export const useCanvasInteraction = (
   const [panStart, setPanStart] = useState<{ x: number; y: number; offsetX: number; offsetY: number } | null>(null);
   const [hoverCursor, setHoverCursor] = useState<string>('default');
 
+  // Мемоизируем допуски для производительности
+  const tolerances = useMemo(() => ({
+    marker: SIZES.MARKER_TOLERANCE / imageState.scale,
+    ruler: SIZES.RULER_TOLERANCE / imageState.scale,
+    density: SIZES.DENSITY_POINT_TOLERANCE / imageState.scale,
+    border: SIZES.BORDER_WIDTH / imageState.scale
+  }), [imageState.scale]);
+
   // Получение координат изображения из координат мыши
   const getImageCoords = useCallback((clientX: number, clientY: number, canvasRef: React.RefObject<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -59,7 +68,6 @@ export const useCanvasInteraction = (
   // Поиск объекта в точке
   const getObjectAtPoint = useCallback((x: number, y: number) => {
     // Проверяем маркеры линеек и калибровочной линии
-    const markerTolerance = SIZES.MARKER_TOLERANCE / imageState.scale;
     
     // Проверяем маркеры калибровочной линии
     if (annotations.calibrationLine) {
@@ -67,10 +75,10 @@ export const useCanvasInteraction = (
       const distToStart = calculateDistance(x, y, line.x1, line.y1);
       const distToEnd = calculateDistance(x, y, line.x2, line.y2);
       
-      if (distToStart <= markerTolerance) {
+      if (distToStart <= tolerances.marker) {
         return { type: 'calibration', object: line, handle: 'start' };
       }
-      if (distToEnd <= markerTolerance) {
+      if (distToEnd <= tolerances.marker) {
         return { type: 'calibration', object: line, handle: 'end' };
       }
     }
@@ -81,10 +89,10 @@ export const useCanvasInteraction = (
       const distToStart = calculateDistance(x, y, ruler.x1, ruler.y1);
       const distToEnd = calculateDistance(x, y, ruler.x2, ruler.y2);
       
-      if (distToStart <= markerTolerance) {
+      if (distToStart <= tolerances.marker) {
         return { type: 'ruler', object: ruler, handle: 'start' };
       }
-      if (distToEnd <= markerTolerance) {
+      if (distToEnd <= tolerances.marker) {
         return { type: 'ruler', object: ruler, handle: 'end' };
       }
     }
@@ -98,17 +106,16 @@ export const useCanvasInteraction = (
     }
 
     // Проверяем линейки
-    const rulerTolerance = SIZES.RULER_TOLERANCE / imageState.scale;
     for (let i = annotations.rulers.length - 1; i >= 0; i--) {
       const ruler = annotations.rulers[i];
       const distance = Math.abs((ruler.y2 - ruler.y1) * x - (ruler.x2 - ruler.x1) * y + ruler.x2 * ruler.y1 - ruler.y2 * ruler.x1) /
                       Math.sqrt((ruler.y2 - ruler.y1) ** 2 + (ruler.x2 - ruler.x1) ** 2);
       
-      if (distance <= rulerTolerance &&
-          x >= Math.min(ruler.x1, ruler.x2) - rulerTolerance &&
-          x <= Math.max(ruler.x1, ruler.x2) + rulerTolerance &&
-          y >= Math.min(ruler.y1, ruler.y2) - rulerTolerance &&
-          y <= Math.max(ruler.y1, ruler.y2) + rulerTolerance) {
+      if (distance <= tolerances.ruler &&
+          x >= Math.min(ruler.x1, ruler.x2) - tolerances.ruler &&
+          x <= Math.max(ruler.x1, ruler.x2) + tolerances.ruler &&
+          y >= Math.min(ruler.y1, ruler.y2) - tolerances.ruler &&
+          y <= Math.max(ruler.y1, ruler.y2) + tolerances.ruler) {
         return { type: 'ruler', object: ruler };
       }
     }
@@ -119,38 +126,34 @@ export const useCanvasInteraction = (
       const distance = Math.abs((line.y2 - line.y1) * x - (line.x2 - line.x1) * y + line.x2 * line.y1 - line.y2 * line.x1) /
                       Math.sqrt((line.y2 - line.y1) ** 2 + (line.x2 - line.x1) ** 2);
       
-      if (distance <= rulerTolerance &&
-          x >= Math.min(line.x1, line.x2) - rulerTolerance &&
-          x <= Math.max(line.x1, line.x2) + rulerTolerance &&
-          y >= Math.min(line.y1, line.y2) - rulerTolerance &&
-          y <= Math.max(line.y1, line.y2) + rulerTolerance) {
+      if (distance <= tolerances.ruler &&
+          x >= Math.min(line.x1, line.x2) - tolerances.ruler &&
+          x <= Math.max(line.x1, line.x2) + tolerances.ruler &&
+          y >= Math.min(line.y1, line.y2) - tolerances.ruler &&
+          y <= Math.max(line.y1, line.y2) + tolerances.ruler) {
         return { type: 'calibration', object: line };
       }
     }
 
     // Проверяем точки плотности
-    const densityTolerance = 25 / imageState.scale;
     for (let i = annotations.densityPoints.length - 1; i >= 0; i--) {
       const point = annotations.densityPoints[i];
       const distance = calculateDistance(x, y, point.x, point.y);
-      if (distance <= densityTolerance) {
+      if (distance <= tolerances.density) {
         return { type: 'density', object: point };
       }
     }
 
     return null;
-  }, [annotations, imageState.scale]);
+  }, [annotations, tolerances]);
 
   // Определение курсора при наведении
   const getHoverCursor = useCallback((x: number, y: number) => {
-    const markerTolerance = SIZES.MARKER_TOLERANCE / imageState.scale;
-    
     // Проверяем точки плотности
-    const densityTolerance = SIZES.DENSITY_TOLERANCE / imageState.scale;
     for (let i = annotations.densityPoints.length - 1; i >= 0; i--) {
       const point = annotations.densityPoints[i];
       const distance = calculateDistance(x, y, point.x, point.y);
-      if (distance <= densityTolerance) {
+      if (distance <= tolerances.density) {
         return 'pointer';
       }
     }
@@ -161,7 +164,7 @@ export const useCanvasInteraction = (
       const distToStart = calculateDistance(x, y, line.x1, line.y1);
       const distToEnd = calculateDistance(x, y, line.x2, line.y2);
       
-      if (distToStart <= markerTolerance || distToEnd <= markerTolerance) {
+      if (distToStart <= tolerances.marker || distToEnd <= tolerances.marker) {
         return 'pointer';
       }
     }
@@ -172,7 +175,7 @@ export const useCanvasInteraction = (
       const distToStart = calculateDistance(x, y, ruler.x1, ruler.y1);
       const distToEnd = calculateDistance(x, y, ruler.x2, ruler.y2);
       
-      if (distToStart <= markerTolerance || distToEnd <= markerTolerance) {
+      if (distToStart <= tolerances.marker || distToEnd <= tolerances.marker) {
         return 'pointer';
       }
     }
@@ -196,16 +199,15 @@ export const useCanvasInteraction = (
     // Проверяем границы bbox для перемещения
     for (let i = annotations.boundingBoxes.length - 1; i >= 0; i--) {
       const bbox = annotations.boundingBoxes[i];
-      const borderWidth = SIZES.BORDER_WIDTH / imageState.scale;
       const isOnBorder = (
-        (x >= bbox.x - borderWidth && x <= bbox.x + bbox.width + borderWidth && 
-         y >= bbox.y - borderWidth && y <= bbox.y + borderWidth) ||
-        (x >= bbox.x - borderWidth && x <= bbox.x + bbox.width + borderWidth && 
-         y >= bbox.y + bbox.height - borderWidth && y <= bbox.y + bbox.height + borderWidth) ||
-        (x >= bbox.x - borderWidth && x <= bbox.x + borderWidth && 
-         y >= bbox.y - borderWidth && y <= bbox.y + bbox.height + borderWidth) ||
-        (x >= bbox.x + bbox.width - borderWidth && x <= bbox.x + bbox.width + borderWidth && 
-         y >= bbox.y - borderWidth && y <= bbox.y + bbox.height + borderWidth)
+        (x >= bbox.x - tolerances.border && x <= bbox.x + bbox.width + tolerances.border && 
+         y >= bbox.y - tolerances.border && y <= bbox.y + tolerances.border) ||
+        (x >= bbox.x - tolerances.border && x <= bbox.x + bbox.width + tolerances.border && 
+         y >= bbox.y + bbox.height - tolerances.border && y <= bbox.y + bbox.height + tolerances.border) ||
+        (x >= bbox.x - tolerances.border && x <= bbox.x + tolerances.border && 
+         y >= bbox.y - tolerances.border && y <= bbox.y + bbox.height + tolerances.border) ||
+        (x >= bbox.x + bbox.width - tolerances.border && x <= bbox.x + bbox.width + tolerances.border && 
+         y >= bbox.y - tolerances.border && y <= bbox.y + bbox.height + tolerances.border)
       );
       
       if (isOnBorder) {
@@ -216,44 +218,42 @@ export const useCanvasInteraction = (
     // Проверяем тело калибровочной линии для перемещения
     if (annotations.calibrationLine) {
       const line = annotations.calibrationLine;
-      const rulerTolerance = SIZES.RULER_TOLERANCE / imageState.scale;
       const distance = Math.abs((line.y2 - line.y1) * x - (line.x2 - line.x1) * y + line.x2 * line.y1 - line.y2 * line.x1) /
                       Math.sqrt((line.y2 - line.y1) ** 2 + (line.x2 - line.x1) ** 2);
       
-      if (distance <= rulerTolerance &&
-          x >= Math.min(line.x1, line.x2) - rulerTolerance &&
-          x <= Math.max(line.x1, line.x2) + rulerTolerance &&
-          y >= Math.min(line.y1, line.y2) - rulerTolerance &&
-          y <= Math.max(line.y1, line.y2) + rulerTolerance) {
+      if (distance <= tolerances.ruler &&
+          x >= Math.min(line.x1, line.x2) - tolerances.ruler &&
+          x <= Math.max(line.x1, line.x2) + tolerances.ruler &&
+          y >= Math.min(line.y1, line.y2) - tolerances.ruler &&
+          y <= Math.max(line.y1, line.y2) + tolerances.ruler) {
         const distToStart = calculateDistance(x, y, line.x1, line.y1);
         const distToEnd = calculateDistance(x, y, line.x2, line.y2);
-        if (distToStart > markerTolerance && distToEnd > markerTolerance) {
+        if (distToStart > tolerances.marker && distToEnd > tolerances.marker) {
           return 'move';
         }
       }
     }
 
     // Проверяем тело линеек для перемещения
-    const rulerTolerance = 15 / imageState.scale;
     for (let i = annotations.rulers.length - 1; i >= 0; i--) {
       const ruler = annotations.rulers[i];
       const distance = Math.abs((ruler.y2 - ruler.y1) * x - (ruler.x2 - ruler.x1) * y + ruler.x2 * ruler.y1 - ruler.y2 * ruler.x1) /
                       Math.sqrt((ruler.y2 - ruler.y1) ** 2 + (ruler.x2 - ruler.x1) ** 2);
       
-      if (distance <= rulerTolerance &&
-          x >= Math.min(ruler.x1, ruler.x2) - rulerTolerance &&
-          x <= Math.max(ruler.x1, ruler.x2) + rulerTolerance &&
-          y >= Math.min(ruler.y1, ruler.y2) - rulerTolerance &&
-          y <= Math.max(ruler.y1, ruler.y2) + rulerTolerance) {
+      if (distance <= tolerances.ruler &&
+          x >= Math.min(ruler.x1, ruler.x2) - tolerances.ruler &&
+          x <= Math.max(ruler.x1, ruler.x2) + tolerances.ruler &&
+          y >= Math.min(ruler.y1, ruler.y2) - tolerances.ruler &&
+          y <= Math.max(ruler.y1, ruler.y2) + tolerances.ruler) {
         const distToStart = calculateDistance(x, y, ruler.x1, ruler.y1);
         const distToEnd = calculateDistance(x, y, ruler.x2, ruler.y2);
-        if (distToStart > markerTolerance && distToEnd > markerTolerance) {
+        if (distToStart > tolerances.marker && distToEnd > tolerances.marker) {
           return 'move';
         }
       }
     }
     return 'default';
-  }, [annotations, imageState.scale]);
+  }, [annotations, tolerances]);
 
   // Обработчик нажатия мыши
   const handleMouseDown = useCallback((e: React.MouseEvent, canvasRef: React.RefObject<HTMLCanvasElement>) => {

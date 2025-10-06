@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { useMemo } from 'react';
 import { useImage } from '../core/ImageProvider';
 import { useAnnotations } from '../core/AnnotationManager';
 import { useCalibration } from '../core/CalibrationManager';
@@ -19,6 +20,36 @@ export const useCanvasRendering = (
   const { imageState, getOriginalPixelColor } = useImage();
   const { annotations } = useAnnotations();
   const { getLength } = useCalibration();
+
+  // Мемоизируем тяжелые вычисления
+  const memoizedAnnotations = useMemo(() => {
+    return {
+      visibleBoundingBoxes: filterActive && activeClassId >= 0 
+        ? annotations.boundingBoxes.filter(bbox => bbox.classId === activeClassId)
+        : annotations.boundingBoxes,
+      rulers: annotations.rulers,
+      calibrationLine: annotations.calibrationLine,
+      densityPoints: annotations.densityPoints,
+      selectedObjectId: annotations.selectedObjectId,
+      selectedObjectType: annotations.selectedObjectType
+    };
+  }, [annotations, filterActive, activeClassId]);
+
+  // Мемоизируем стили для объектов
+  const getObjectStyles = useMemo(() => ({
+    ruler: {
+      default: { color: '#FFFF00', width: 2 },
+      selected: { color: '#FF0000', width: 3 }
+    },
+    calibration: {
+      default: { color: '#0000FF', width: 3 },
+      selected: { color: '#FF0000', width: 4 }
+    },
+    density: {
+      default: { color: '#FF00FF', width: 2 },
+      selected: { color: '#FF0000', width: 3 }
+    }
+  }), []);
 
   const draw = useCallback((canvasRef: React.RefObject<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -44,23 +75,18 @@ export const useCanvasRendering = (
 
     if (layerVisible) {
       // Рисуем bounding boxes
-      annotations.boundingBoxes.forEach(bbox => {
-        if (filterActive && activeClassId >= 0 && bbox.classId !== activeClassId) {
-          return;
-        }
-
-        const isSelected = annotations.selectedObjectId === bbox.id && annotations.selectedObjectType === 'bbox';
+      memoizedAnnotations.visibleBoundingBoxes.forEach(bbox => {
+        const isSelected = memoizedAnnotations.selectedObjectId === bbox.id && memoizedAnnotations.selectedObjectType === 'bbox';
         drawBoundingBox(ctx, bbox, isSelected, imageState.scale, DEFECT_CLASSES, jsonData, annotations.calibrationLine);
       });
 
       // Рисуем линейки
-      ctx.strokeStyle = '#FFFF00';
-      ctx.lineWidth = 2 / imageState.scale;
-      annotations.rulers.forEach(ruler => {
-        const isSelected = annotations.selectedObjectId === ruler.id && annotations.selectedObjectType === 'ruler';
+      memoizedAnnotations.rulers.forEach(ruler => {
+        const isSelected = memoizedAnnotations.selectedObjectId === ruler.id && memoizedAnnotations.selectedObjectType === 'ruler';
         
-        ctx.strokeStyle = isSelected ? '#FF0000' : '#FFFF00';
-        ctx.lineWidth = (isSelected ? 3 : 2) / imageState.scale;
+        const style = isSelected ? getObjectStyles.ruler.selected : getObjectStyles.ruler.default;
+        ctx.strokeStyle = style.color;
+        ctx.lineWidth = style.width / imageState.scale;
         
         ctx.beginPath();
         ctx.moveTo(ruler.x1, ruler.y1);
@@ -96,12 +122,13 @@ export const useCanvasRendering = (
       });
 
       // Рисуем калибровочную линию
-      if (annotations.calibrationLine) {
-        const line = annotations.calibrationLine;
-        const isSelected = annotations.selectedObjectId === line.id && annotations.selectedObjectType === 'calibration';
+      if (memoizedAnnotations.calibrationLine) {
+        const line = memoizedAnnotations.calibrationLine;
+        const isSelected = memoizedAnnotations.selectedObjectId === line.id && memoizedAnnotations.selectedObjectType === 'calibration';
         
-        ctx.strokeStyle = isSelected ? '#FF0000' : '#0000FF';
-        ctx.lineWidth = (isSelected ? 4 : 3) / imageState.scale;
+        const style = isSelected ? getObjectStyles.calibration.selected : getObjectStyles.calibration.default;
+        ctx.strokeStyle = style.color;
+        ctx.lineWidth = style.width / imageState.scale;
         
         ctx.beginPath();
         ctx.moveTo(line.x1, line.y1);
@@ -128,11 +155,12 @@ export const useCanvasRendering = (
       }
 
       // Рисуем точки плотности
-      annotations.densityPoints.forEach(point => {
-        const isSelected = annotations.selectedObjectId === point.id && annotations.selectedObjectType === 'density';
+      memoizedAnnotations.densityPoints.forEach(point => {
+        const isSelected = memoizedAnnotations.selectedObjectId === point.id && memoizedAnnotations.selectedObjectType === 'density';
         
-        ctx.strokeStyle = isSelected ? '#FF0000' : '#FF00FF';
-        ctx.lineWidth = (isSelected ? 3 : 2) / imageState.scale;
+        const style = isSelected ? getObjectStyles.density.selected : getObjectStyles.density.default;
+        ctx.strokeStyle = style.color;
+        ctx.lineWidth = style.width / imageState.scale;
 
         // Крест
         const crossSize = 15 / imageState.scale;
@@ -180,16 +208,16 @@ export const useCanvasRendering = (
     ctx.restore();
   }, [
     imageState, 
-    annotations, 
+    memoizedAnnotations,
+    getObjectStyles,
     layerVisible, 
-    filterActive, 
-    activeClassId, 
     isDrawing, 
     currentBox, 
     currentLine, 
     activeTool, 
     getOriginalPixelColor, 
-    getLength
+    getLength,
+    annotations.calibrationLine // Оставляем для совместимости с drawBoundingBox
   ]);
 
   return { draw };
