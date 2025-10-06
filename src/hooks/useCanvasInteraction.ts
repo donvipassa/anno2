@@ -39,6 +39,8 @@ export const useCanvasInteraction = (
   const [resizeHandle, setResizeHandle] = useState<string | null>(null);
   const [lineHandle, setLineHandle] = useState<'start' | 'end' | null>(null);
   const [isPanning, setIsPanning] = useState(false);
+  const [draggedObjectId, setDraggedObjectId] = useState<string | null>(null);
+  const [draggedObjectType, setDraggedObjectType] = useState<string | null>(null);
   const [panStart, setPanStart] = useState<{ x: number; y: number; offsetX: number; offsetY: number } | null>(null);
   const [hoverCursor, setHoverCursor] = useState<string>('default');
 
@@ -280,6 +282,9 @@ export const useCanvasInteraction = (
       if (clickedObject) {
         selectObject(clickedObject.object.id, clickedObject.type.split('-')[0] as any);
         
+        setDraggedObjectId(clickedObject.object.id);
+        setDraggedObjectType(clickedObject.type.split('-')[0]);
+        
         if (clickedObject.type === 'bbox') {
           const handle = getResizeHandle(coords.x, coords.y, clickedObject.object, imageState.scale);
           if (handle && handle !== 'move') {
@@ -359,12 +364,12 @@ export const useCanvasInteraction = (
       return;
     }
 
-    if (isDragging && dragStart && annotations.selectedObjectId) {
+    if (isDragging && dragStart && draggedObjectId) {
       const deltaX = coords.x - dragStart.x;
       const deltaY = coords.y - dragStart.y;
 
-      if (annotations.selectedObjectType === 'bbox') {
-        const bbox = annotations.boundingBoxes.find(b => b.id === annotations.selectedObjectId);
+      if (draggedObjectType === 'bbox') {
+        const bbox = annotations.boundingBoxes.find(b => b.id === draggedObjectId);
         if (bbox) {
           if (resizeHandle) {
             let newBbox = { ...bbox };
@@ -414,9 +419,9 @@ export const useCanvasInteraction = (
             updateBoundingBox(bbox.id, { x: newX, y: newY });
           }
         }
-      } else if (annotations.selectedObjectType === 'ruler') {
+      } else if (draggedObjectType === 'ruler') {
         if (lineHandle) {
-          const ruler = annotations.rulers.find(r => r.id === annotations.selectedObjectId);
+          const ruler = annotations.rulers.find(r => r.id === draggedObjectId);
           if (ruler) {
             if (lineHandle === 'start') {
               updateRuler(ruler.id, { x1: coords.x, y1: coords.y });
@@ -425,7 +430,7 @@ export const useCanvasInteraction = (
             }
           }
         } else {
-          const ruler = annotations.rulers.find(r => r.id === annotations.selectedObjectId);
+          const ruler = annotations.rulers.find(r => r.id === draggedObjectId);
           if (ruler) {
             updateRuler(ruler.id, {
               x1: ruler.x1 + deltaX,
@@ -435,7 +440,7 @@ export const useCanvasInteraction = (
             });
           }
         }
-      } else if (annotations.selectedObjectType === 'calibration') {
+      } else if (draggedObjectType === 'calibration') {
         if (lineHandle) {
           if (annotations.calibrationLine) {
             if (lineHandle === 'start') {
@@ -454,8 +459,8 @@ export const useCanvasInteraction = (
             });
           }
         }
-      } else if (annotations.selectedObjectType === 'density') {
-        const point = annotations.densityPoints.find(p => p.id === annotations.selectedObjectId);
+      } else if (draggedObjectType === 'density') {
+        const point = annotations.densityPoints.find(p => p.id === draggedObjectId);
         if (point) {
           updateDensityPoint(point.id, {
             x: Math.max(0, Math.min(coords.x, imageState.width)),
@@ -491,6 +496,8 @@ export const useCanvasInteraction = (
     if (isDragging) {
       setIsDragging(false);
       setDragStart(null);
+      setDraggedObjectId(null);
+      setDraggedObjectType(null);
       setResizeHandle(null);
       setLineHandle(null);
       return;
