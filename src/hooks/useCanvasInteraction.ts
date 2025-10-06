@@ -148,7 +148,7 @@ export const useCanvasInteraction = (
   }, [annotations, tolerances]);
 
   // Определение курсора при наведении
-  const getHoverCursor = useCallback((x: number, y: number) => {
+  const getHoverCursor = (x: number, y: number) => {
     // Проверяем точки плотности
     for (let i = annotations.densityPoints.length - 1; i >= 0; i--) {
       const point = annotations.densityPoints[i];
@@ -253,7 +253,7 @@ export const useCanvasInteraction = (
       }
     }
     return 'default';
-  }, [annotations, tolerances]);
+  };
 
   // Обработчик нажатия мыши
   const handleMouseDown = useCallback((e: React.MouseEvent, canvasRef: React.RefObject<HTMLCanvasElement>) => {
