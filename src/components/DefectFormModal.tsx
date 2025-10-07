@@ -41,6 +41,17 @@ export const DefectFormModal: React.FC<DefectFormModalProps> = ({
 
   const defectsData = defectsDataJson as DefectsData;
 
+  // Получаем изображение для отображения
+  const getDisplayImage = useCallback((): string => {
+    if (activeCharacter) {
+      return activeCharacter.файл_изображение;
+    }
+    if (selectedCharacter) {
+      return selectedCharacter.файл_изображение;
+    }
+    return '';
+  }, [selectedDefect, selectedCharacter, selectedVariety]);
+
   // Загрузка URL изображения из файла
   useEffect(() => {
     const loadImageUrl = async (filename: string) => {
@@ -64,7 +75,8 @@ export const DefectFormModal: React.FC<DefectFormModalProps> = ({
     } else {
       setImageUrl('');
     }
-  }, [selectedDefect, selectedCharacter, selectedVariety]);
+  }, [getDisplayImage]);
+
   // Проверяем, является ли дефект простым (без характера)
   const isSimpleDefect = (): boolean => {
     if (!selectedDefect) return false;
@@ -309,17 +321,6 @@ export const DefectFormModal: React.FC<DefectFormModalProps> = ({
   
   const isChainOrCluster = activeCharacter?.название_характера.includes('Цепочка') || 
                           activeCharacter?.название_характера.includes('Скопление');
-
-  // Получаем изображение для отображения
-  const getDisplayImage = (): string => {
-    if (activeCharacter) {
-      return activeCharacter.файл_изображение;
-    }
-    if (selectedCharacter) {
-      return selectedCharacter.файл_изображение;
-    }
-    return '';
-  };
 
   const displayImage = getDisplayImage();
 
