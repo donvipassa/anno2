@@ -37,7 +37,6 @@ export const DefectFormModal: React.FC<DefectFormModalProps> = ({
   });
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [formattedRecordString, setFormattedRecordString] = useState<string>('');
-  const [imageUrl, setImageUrl] = useState<string>('');
 
   const defectsData = defectsDataJson as DefectsData;
 
@@ -91,47 +90,6 @@ export const DefectFormModal: React.FC<DefectFormModalProps> = ({
     return '';
   }, [activeCharacter, selectedCharacter]);
 
-  // Загрузка URL изображения из файла
-  useEffect(() => {
-    const loadImageUrl = async (filename: string) => {
-      try {
-        // Сначала получаем URL из файла
-        const urlResponse = await fetch(`/${filename}`);
-        if (!urlResponse.ok) {
-          setImageUrl('');
-          return;
-        }
-        
-        const remoteUrl = await urlResponse.text();
-        const cleanUrl = remoteUrl.trim();
-        
-        // Затем загружаем изображение по этому URL и конвертируем в Data URL
-        const imageResponse = await fetch(cleanUrl);
-        if (imageResponse.ok) {
-          const blob = await imageResponse.blob();
-          const dataUrl = await new Promise<string>((resolve) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.readAsDataURL(blob);
-          });
-          setImageUrl(dataUrl);
-        } else {
-          setImageUrl('');
-        }
-      } catch (error) {
-        console.error(`Ошибка загрузки URL изображения: ${filename}`, error);
-        setImageUrl('');
-      }
-    };
-
-    const displayImage = getDisplayImage();
-    if (displayImage) {
-      loadImageUrl(displayImage);
-    } else {
-      setImageUrl('');
-    }
-  }, [getDisplayImage]);
-
   // Проверяем, является ли дефект простым (без характера)
   const isSimpleDefect = (): boolean => {
     if (!selectedDefect) return false;
@@ -173,7 +131,7 @@ export const DefectFormModal: React.FC<DefectFormModalProps> = ({
       }
       setValidationErrors([]);
     }
-  }, [isOpen, defectClassId, initialRecord]);
+  }, [isOpen, defectClassId, initialRecord, getUniqueCharacters]);
 
   // Сброс размеров при смене характера или разновидности
   useEffect(() => {
@@ -342,7 +300,7 @@ export const DefectFormModal: React.FC<DefectFormModalProps> = ({
   const displayImage = getDisplayImage();
 
   return (
-    <Modal isOpen={isOpen} title="Параметры дефекта" onClose={onClose} maxWidth="max-w-5xl">
+    <Modal isOpen={isOpen} title="Параметры дефекта" onClose={() => onClose(true)} maxWidth="max-w-5xl">
       <div className="max-h-[80vh] overflow-y-auto">
         {/* Ошибки валидации */}
         {validationErrors.length > 0 && (
@@ -363,20 +321,20 @@ export const DefectFormModal: React.FC<DefectFormModalProps> = ({
           {/* Изображение дефекта */}
           <div className="flex-shrink-0 w-64 min-w-64 flex flex-col">
             <h3 className="font-medium text-gray-700 mb-3">{selectedDefect.вид_дефекта}</h3>
-            {imageUrl && (
+            {displayImage && (
               <div className="bg-gray-100 rounded-lg p-4 flex items-center justify-center flex-grow">
                 <img
-                  src={imageUrl}
+                  src={`/${displayImage}`}
                   alt={activeCharacter?.название_характера || selectedDefect.вид_дефекта}
                   className="w-full h-full object-contain"
                   onError={(e) => {
-                    console.error(`Ошибка загрузки изображения: ${imageUrl}`);
+                    console.error(`Ошибка загрузки изображения: ${displayImage}`);
                     e.currentTarget.style.display = 'none';
                   }}
                 />
               </div>
             )}
-            {!imageUrl && (
+            {!displayImage && (
               <div className="bg-gray-100 rounded-lg p-4 flex items-center justify-center flex-grow">
                 <span className="text-gray-500 text-sm">Изображение не найдено</span>
               </div>
@@ -656,7 +614,7 @@ export const DefectFormModal: React.FC<DefectFormModalProps> = ({
       </div>
 
       <ModalButtons>
-        <ModalButton onClick={onClose}>Отмена</ModalButton>
+        <ModalButton onClick={() => onClose(true)}>Отмена</ModalButton>
         <ModalButton onClick={handleSave} primary disabled={!selectedCharacter}>
           Сохранить
         </ModalButton>
