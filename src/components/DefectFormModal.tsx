@@ -37,9 +37,34 @@ export const DefectFormModal: React.FC<DefectFormModalProps> = ({
   });
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [formattedRecordString, setFormattedRecordString] = useState<string>('');
+  const [imageUrl, setImageUrl] = useState<string>('');
 
   const defectsData = defectsDataJson as DefectsData;
 
+  // Загрузка URL изображения из файла
+  useEffect(() => {
+    const loadImageUrl = async (filename: string) => {
+      try {
+        const response = await fetch(`/${filename}`);
+        if (response.ok) {
+          const url = await response.text();
+          setImageUrl(url.trim());
+        } else {
+          setImageUrl('');
+        }
+      } catch (error) {
+        console.error(`Ошибка загрузки URL изображения: ${filename}`, error);
+        setImageUrl('');
+      }
+    };
+
+    const displayImage = getDisplayImage();
+    if (displayImage) {
+      loadImageUrl(displayImage);
+    } else {
+      setImageUrl('');
+    }
+  }, [selectedDefect, selectedCharacter, selectedVariety]);
   // Проверяем, является ли дефект простым (без характера)
   const isSimpleDefect = (): boolean => {
     if (!selectedDefect) return false;
@@ -320,20 +345,20 @@ export const DefectFormModal: React.FC<DefectFormModalProps> = ({
           {/* Изображение дефекта */}
           <div className="flex-shrink-0 w-64 min-w-64 flex flex-col">
             <h3 className="font-medium text-gray-700 mb-3">{selectedDefect.вид_дефекта}</h3>
-            {displayImage && (
+            {imageUrl && (
               <div className="bg-gray-100 rounded-lg p-4 flex items-center justify-center flex-grow">
                 <img
-                  src={`/${displayImage}`}
+                  src={imageUrl}
                   alt={activeCharacter?.название_характера || selectedDefect.вид_дефекта}
                   className="w-full h-full object-contain"
                   onError={(e) => {
-                    console.error(`Ошибка загрузки изображения: ${displayImage}`);
+                    console.error(`Ошибка загрузки изображения: ${imageUrl}`);
                     e.currentTarget.style.display = 'none';
                   }}
                 />
               </div>
             )}
-            {!displayImage && (
+            {!imageUrl && (
               <div className="bg-gray-100 rounded-lg p-4 flex items-center justify-center flex-grow">
                 <span className="text-gray-500 text-sm">Изображение не найдено</span>
               </div>
