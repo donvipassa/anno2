@@ -56,10 +56,9 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const addBoundingBox = useCallback((bbox: Omit<BoundingBox, 'id'>): string => {
     const id = uuidv4();
-    const newBbox = { ...bbox, id };
     setAnnotations(prev => ({
       ...prev,
-      boundingBoxes: [...prev.boundingBoxes, newBbox]
+      boundingBoxes: [...prev.boundingBoxes, { ...bbox, id }]
     }));
     setMarkupModified(true);
     return id;
@@ -97,10 +96,9 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const addRuler = useCallback((ruler: Omit<Ruler, 'id'>): string => {
     const id = uuidv4();
-    const newRuler = { ...ruler, id };
     setAnnotations(prev => ({
       ...prev,
-      rulers: [...prev.rulers, newRuler]
+      rulers: [...prev.rulers, { ...ruler, id }]
     }));
     setMarkupModified(true);
     return id;
@@ -139,10 +137,9 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const setCalibrationLine = useCallback((line: Omit<CalibrationLine, 'id'> | null) => {
     if (line) {
       const id = uuidv4();
-      const newLine = { ...line, id };
       setAnnotations(prev => ({
         ...prev,
-        calibrationLine: newLine
+        calibrationLine: { ...line, id }
       }));
     } else {
       setAnnotations(prev => ({
@@ -175,10 +172,9 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const addDensityPoint = useCallback((point: Omit<DensityPoint, 'id'>): string => {
     const id = uuidv4();
-    const newPoint = { ...point, id };
     setAnnotations(prev => ({
       ...prev,
-      densityPoints: [...prev.densityPoints, newPoint]
+      densityPoints: [...prev.densityPoints, { ...point, id }]
     }));
     setMarkupModified(true);
     return id;

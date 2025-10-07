@@ -69,15 +69,6 @@ export const useCanvasInteraction = (
 
   // Поиск объекта в точке
   const getObjectAtPoint = useCallback((x: number, y: number) => {
-    // Проверяем точки плотности ПЕРВЫМИ (наивысший приоритет)
-    for (let i = annotations.densityPoints.length - 1; i >= 0; i--) {
-      const point = annotations.densityPoints[i];
-      const distance = calculateDistance(x, y, point.x, point.y);
-      if (distance <= tolerances.density) {
-        return { type: 'density', object: point };
-      }
-    }
-    
     // Проверяем маркеры линеек и калибровочной линии
     
     // Проверяем маркеры калибровочной линии
@@ -146,11 +137,20 @@ export const useCanvasInteraction = (
       }
     }
 
+    // Проверяем точки плотности ПОСЛЕДНИМИ (наименьший приоритет)
+    for (let i = annotations.densityPoints.length - 1; i >= 0; i--) {
+      const point = annotations.densityPoints[i];
+      const distance = calculateDistance(x, y, point.x, point.y);
+      if (distance <= tolerances.density) {
+        return { type: 'density', object: point };
+      }
+    }
+
     return null;
   }, [annotations, tolerances]);
 
   // Определение курсора при наведении
-  const getHoverCursor = useCallback((x: number, y: number) => {
+  const getHoverCursor = (x: number, y: number) => {
     // Проверяем точки плотности
     for (let i = annotations.densityPoints.length - 1; i >= 0; i--) {
       const point = annotations.densityPoints[i];
@@ -255,7 +255,7 @@ export const useCanvasInteraction = (
       }
     }
     return 'default';
-  }, [annotations, tolerances, imageState.scale]);
+  };
 
   // Обработчик нажатия мыши
   const handleMouseDown = useCallback((e: React.MouseEvent, canvasRef: React.RefObject<HTMLCanvasElement>) => {
@@ -483,7 +483,7 @@ export const useCanvasInteraction = (
         setCurrentLine({ ...currentLine, x2: coords.x, y2: coords.y });
       }
     }
-  }, [imageState, getImageCoords, getHoverCursor, hoverCursor, isPanning, panStart, setOffset, isDragging, dragStart, annotations, resizeHandle, updateBoundingBox, updateRuler, updateCalibrationLine, updateDensityPoint, isDrawing, currentBox, currentLine]);
+  }, [imageState, getImageCoords, hoverCursor, isPanning, panStart, setOffset, isDragging, dragStart, annotations, resizeHandle, updateBoundingBox, updateRuler, updateCalibrationLine, updateDensityPoint, isDrawing, currentBox, currentLine]);
 
   // Обработчик отпускания мыши
   const handleMouseUp = useCallback((e: React.MouseEvent, canvasRef: React.RefObject<HTMLCanvasElement>) => {
