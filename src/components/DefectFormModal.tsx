@@ -95,10 +95,26 @@ export const DefectFormModal: React.FC<DefectFormModalProps> = ({
   useEffect(() => {
     const loadImageUrl = async (filename: string) => {
       try {
-        const response = await fetch(`/${filename}`);
+        // Сначала получаем URL из файла
+        const urlResponse = await fetch(`/${filename}`);
+        if (!urlResponse.ok) {
+          setImageUrl('');
+          return;
+        }
+        
+        const remoteUrl = await urlResponse.text();
+        const cleanUrl = remoteUrl.trim();
+        
+        // Затем загружаем изображение по этому URL и конвертируем в Data URL
+        const imageResponse = await fetch(cleanUrl);
         if (response.ok) {
-          const url = await response.text();
-          setImageUrl(url.trim());
+          const blob = await imageResponse.blob();
+          const dataUrl = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.readAsDataURL(blob);
+          });
+          setImageUrl(dataUrl);
         } else {
           setImageUrl('');
         }
