@@ -41,6 +41,45 @@ export const DefectFormModal: React.FC<DefectFormModalProps> = ({
 
   const defectsData = defectsDataJson as DefectsData;
 
+  // Получаем уникальные характеры дефектов
+  const getUniqueCharacters = useCallback((defect: Defect) => {
+    const uniqueCharacters = new Map();
+    defect.характер_дефекта.forEach(char => {
+      if (!uniqueCharacters.has(char.id)) {
+        uniqueCharacters.set(char.id, char);
+      }
+    });
+    return Array.from(uniqueCharacters.values());
+  }, []);
+
+  // Получаем уникальные разновидности для выбранного характера
+  const getVarieties = useCallback(() => {
+    if (!selectedCharacter || !selectedDefect) return [];
+    
+    const varieties = selectedDefect.характер_дефекта
+      .filter(char => char.id === selectedCharacter.id)
+      .map(char => char.разновидность_дефекта)
+      .filter(variety => variety !== '-');
+    
+    return [...new Set(varieties)];
+  }, [selectedCharacter, selectedDefect]);
+
+  // Получаем активный характер с учетом выбранной разновидности
+  const getActiveCharacter = useCallback((): DefectCharacter | null => {
+    if (!selectedCharacter || !selectedDefect) return null;
+    
+    const varieties = getVarieties();
+    if (varieties.length > 0 && selectedVariety) {
+      return selectedDefect.характер_дефекта.find(char => 
+        char.id === selectedCharacter.id && char.разновидность_дефекта === selectedVariety
+      ) || null;
+    }
+    
+    return selectedCharacter;
+  }, [selectedCharacter, selectedDefect, selectedVariety, getVarieties]);
+
+  const activeCharacter = getActiveCharacter();
+
   // Получаем изображение для отображения
   const getDisplayImage = useCallback((): string => {
     if (activeCharacter) {
@@ -50,7 +89,7 @@ export const DefectFormModal: React.FC<DefectFormModalProps> = ({
       return selectedCharacter.файл_изображение;
     }
     return '';
-  }, [selectedDefect, selectedCharacter, selectedVariety]);
+  }, [activeCharacter, selectedCharacter]);
 
   // Загрузка URL изображения из файла
   useEffect(() => {
@@ -145,43 +184,6 @@ export const DefectFormModal: React.FC<DefectFormModalProps> = ({
       setFormattedRecordString('');
     }
   }, [selectedDefect, selectedCharacter, selectedVariety, count, dimensions, bboxId, initialRecord]);
-
-  // Получаем уникальные характеры дефектов
-  const getUniqueCharacters = (defect: Defect) => {
-    const uniqueCharacters = new Map();
-    defect.характер_дефекта.forEach(char => {
-      if (!uniqueCharacters.has(char.id)) {
-        uniqueCharacters.set(char.id, char);
-      }
-    });
-    return Array.from(uniqueCharacters.values());
-  };
-
-  // Получаем уникальные разновидности для выбранного характера
-  const getVarieties = () => {
-    if (!selectedCharacter || !selectedDefect) return [];
-    
-    const varieties = selectedDefect.характер_дефекта
-      .filter(char => char.id === selectedCharacter.id)
-      .map(char => char.разновидность_дефекта)
-      .filter(variety => variety !== '-');
-    
-    return [...new Set(varieties)];
-  };
-
-  // Получаем активный характер с учетом выбранной разновидности
-  const getActiveCharacter = (): DefectCharacter | null => {
-    if (!selectedCharacter || !selectedDefect) return null;
-    
-    const varieties = getVarieties();
-    if (varieties.length > 0 && selectedVariety) {
-      return selectedDefect.характер_дефекта.find(char => 
-        char.id === selectedCharacter.id && char.разновидность_дефекта === selectedVariety
-      ) || null;
-    }
-    
-    return selectedCharacter;
-  };
 
   // Проверяем, выбраны ли характер и разновидность (если нужна)
   const isCharacterAndVarietySelected = (): boolean => {
@@ -317,7 +319,6 @@ export const DefectFormModal: React.FC<DefectFormModalProps> = ({
 
   const uniqueCharacters = getUniqueCharacters(selectedDefect);
   const varieties = getVarieties();
-  const activeCharacter = getActiveCharacter();
   
   const isChainOrCluster = activeCharacter?.название_характера.includes('Цепочка') || 
                           activeCharacter?.название_характера.includes('Скопление');
