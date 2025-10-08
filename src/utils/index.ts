@@ -13,3 +13,4 @@ export * from './formatDefectRecord';
 export * from './constants';
 export * from './coordinates';
 export * from './boundaries';
+export * from './performance';

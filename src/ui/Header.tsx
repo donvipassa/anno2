@@ -1,6 +1,6 @@
 import React from 'react';
 
-export const Header: React.FC = () => {
+export const Header = React.memo(() => {
   return (
     <header className="w-full bg-white border-b border-gray-200 px-4 py-3">
       <h1 className="text-lg font-bold text-gray-900 text-left">
@@ -8,4 +8,4 @@ export const Header: React.FC = () => {
       </h1>
     </header>
   );
-};
+});

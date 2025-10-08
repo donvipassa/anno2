@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { DEFECT_CLASSES } from '../types';
 import { useAnnotations } from '../core/AnnotationManager';
 import { useImage } from '../core/ImageProvider';
@@ -11,7 +11,7 @@ interface SidebarProps {
   disabled: boolean;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({
+export const Sidebar = React.memo<SidebarProps>(({
   activeClassId,
   onClassSelect,
   disabled
@@ -140,4 +140,4 @@ export const Sidebar: React.FC<SidebarProps> = ({
       )}
     </div>
   );
-};
+});

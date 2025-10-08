@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useImage } from '../core/ImageProvider';
 import { useAnnotations } from '../core/AnnotationManager';
 import { DEFECT_CLASSES } from '../types';
@@ -7,7 +7,7 @@ interface StatusBarProps {
   markupFileName: string | null;
 }
 
-export const StatusBar: React.FC<StatusBarProps> = ({ markupFileName }) => {
+export const StatusBar = React.memo<StatusBarProps>(({ markupFileName }) => {
   const { imageState } = useImage();
   const { annotations } = useAnnotations();
 
@@ -77,4 +77,4 @@ export const StatusBar: React.FC<StatusBarProps> = ({ markupFileName }) => {
       </div>
     </div>
   );
-};
+});
