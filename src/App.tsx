@@ -52,6 +52,7 @@ const AppContent: React.FC = () => {
     selectObject,
     addBoundingBox,
     deleteBoundingBox,
+    updateBoundingBox,
     updateBoundingBoxDefectRecord,
     updateCalibrationLine,
     markupModified,
@@ -337,6 +338,10 @@ const AppContent: React.FC = () => {
           activeClassId={activeClassId}
           onClassSelect={(classId) => handleClassSelect(classId, !!imageState.src)}
           disabled={!imageState.src}
+          boundingBoxes={annotations.boundingBoxes}
+          selectedObjectId={annotations.selectedObjectId}
+          selectedObjectType={annotations.selectedObjectType}
+          onUpdateBoundingBox={updateBoundingBox}
         />
 
         <CanvasArea
@@ -355,7 +360,15 @@ const AppContent: React.FC = () => {
         />
       </div>
 
-      <StatusBar markupFileName={markupFileName} />
+      <StatusBar
+        markupFileName={markupFileName}
+        imageFileName={imageState.file?.name || null}
+        imageScale={imageState.scale}
+        hasImage={!!imageState.src}
+        calibrationLine={annotations.calibrationLine}
+        selectedObjectId={annotations.selectedObjectId}
+        boundingBoxes={annotations.boundingBoxes}
+      />
 
       <ModalContainer
         isOpen={modalState.type !== null || isProcessingAutoAnnotation}
