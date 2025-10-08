@@ -11,3 +11,5 @@ export * from './validation';
 export * from './errorHandler';
 export * from './formatDefectRecord';
 export * from './constants';
+export * from './coordinates';
+export * from './boundaries';

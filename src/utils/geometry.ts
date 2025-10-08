@@ -14,23 +14,6 @@ export const pointInRect = (
   return px >= x && px <= x + width && py >= y && py <= y + height;
 };
 
-export const clampToImageBounds = (
-  x: number, y: number, width: number, height: number,
-  imageWidth: number, imageHeight: number
-): { x: number; y: number; width: number; height: number } => {
-  const clampedX = Math.max(0, Math.min(x, imageWidth - width));
-  const clampedY = Math.max(0, Math.min(y, imageHeight - height));
-  const clampedWidth = Math.min(width, imageWidth - clampedX);
-  const clampedHeight = Math.min(height, imageHeight - clampedY);
-  
-  return {
-    x: clampedX,
-    y: clampedY,
-    width: clampedWidth,
-    height: clampedHeight
-  };
-};
-
 export const normalizeCoordinates = (
   x: number, y: number, width: number, height: number,
   imageWidth: number, imageHeight: number

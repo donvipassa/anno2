@@ -1,6 +1,7 @@
 // Основные типы данных приложения
 export * from './api';
 export * from './defects';
+export * from './canvas';
 
 /**
  * Интерфейс для JSON данных классов от API

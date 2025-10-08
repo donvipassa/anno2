@@ -1,5 +1,15 @@
 // Вспомогательные функции для масштабирования и позиционирования
 import { SIZES } from './constants';
+import { BoundingBox, DefectClass, CalibrationLine } from '../types';
+import type { ResizeHandle } from '../types/canvas';
+
+interface ApiClassData {
+  apiID: number;
+  name: string;
+  russian_name: string;
+  color: [number, number, number];
+  description?: string;
+}
 
 // Функция для масштабирования от центра
 export function scaleFromCenter(
@@ -68,7 +78,11 @@ export function scaleFromPoint(
 }
 
 // Проверка попадания точки в рамку
-export function isPointInBox(x: number, y: number, box: any): boolean {
+export function isPointInBox(
+  x: number,
+  y: number,
+  box: { x: number; y: number; width: number; height: number }
+): boolean {
   return x >= box.x && x <= box.x + box.width && y >= box.y && y <= box.y + box.height;
 }
 
@@ -76,9 +90,9 @@ export function isPointInBox(x: number, y: number, box: any): boolean {
 export function getResizeHandle(
   x: number,
   y: number,
-  box: any,
+  box: { x: number; y: number; width: number; height: number },
   scale: number
-): 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'move' | null {
+): ResizeHandle | null {
   const handleSize = SIZES.HANDLE_SIZE_HOVER / scale;
   const centerX = box.x + box.width / 2;
   const centerY = box.y + box.height / 2;
@@ -102,7 +116,11 @@ export function getResizeHandle(
 }
 
 // Отрисовка маркеров изменения размера
-export function drawResizeHandles(ctx: CanvasRenderingContext2D, box: any, scale: number) {
+export function drawResizeHandles(
+  ctx: CanvasRenderingContext2D,
+  box: { x: number; y: number; width: number; height: number },
+  scale: number
+) {
   const handleSize = SIZES.HANDLE_SIZE_VISUAL / scale;
   
   ctx.fillStyle = 'white';
@@ -129,12 +147,12 @@ export function drawResizeHandles(ctx: CanvasRenderingContext2D, box: any, scale
 // Отрисовка ограничивающей рамки
 export function drawBoundingBox(
   ctx: CanvasRenderingContext2D,
-  box: any,
+  box: BoundingBox,
   isSelected: boolean,
   scale: number,
-  defectClasses: any[],
-  jsonData?: any[],
-  calibrationLine?: any
+  defectClasses: DefectClass[],
+  jsonData?: ApiClassData[],
+  calibrationLine?: CalibrationLine | null
 ) {
   let defectClass = defectClasses.find(c => c.id === box.classId);
   let strokeColor = '#808080'; // цвет по умолчанию
@@ -156,7 +174,7 @@ export function drawBoundingBox(
     labelText = `${defectClass.name} - ${sizeText}`;
   } else if (jsonData && box.classId >= 12) {
     // Класс от API - ищем в JSON данных
-    const jsonEntry = jsonData.find((entry: any) => entry.apiID === box.classId);
+    const jsonEntry = jsonData.find((entry) => entry.apiID === box.classId);
     if (jsonEntry) {
       const [r, g, b] = jsonEntry.color;
       strokeColor = `rgb(${r}, ${g}, ${b})`;
@@ -198,7 +216,10 @@ export function drawBoundingBox(
 }
 
 // Вспомогательная функция для получения текста размеров
-function getSizeText(box: any, calibrationLine?: any): string {
+function getSizeText(
+  box: { width: number; height: number },
+  calibrationLine?: CalibrationLine | null
+): string {
   if (calibrationLine) {
     // Если есть калибровка, показываем в мм
     const pixelLength = Math.sqrt(
