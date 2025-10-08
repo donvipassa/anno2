@@ -1,7 +1,5 @@
-import React, { useMemo } from 'react';
-import { DEFECT_CLASSES } from '../types';
-import { useAnnotations } from '../core/AnnotationManager';
-import { useImage } from '../core/ImageProvider';
+import React, { useMemo, useCallback } from 'react';
+import { DEFECT_CLASSES, BoundingBox } from '../types';
 import { Tooltip } from './Tooltip';
 import jsonData from '../data/defect-classes.json';
 
@@ -9,59 +7,69 @@ interface SidebarProps {
   activeClassId: number;
   onClassSelect: (classId: number) => void;
   disabled: boolean;
+  boundingBoxes: BoundingBox[];
+  selectedObjectId: string | null;
+  selectedObjectType: string | null;
+  onUpdateBoundingBox: (id: string, updates: Partial<BoundingBox>) => void;
 }
 
-export const Sidebar = React.memo<SidebarProps>(({
+export const Sidebar = React.memo<SidebarProps>(function Sidebar({
   activeClassId,
   onClassSelect,
-  disabled
-}) => {
-  const { annotations, updateBoundingBox } = useAnnotations();
-  const { imageState } = useImage();
+  disabled,
+  boundingBoxes,
+  selectedObjectId,
+  selectedObjectType,
+  onUpdateBoundingBox
+}) {
 
-  const getClassCount = (classId: number): number => {
-    if (classId === 10) {
-      // Для класса "Другое" считаем только объекты, которые действительно имеют classId = 10
-      return annotations.boundingBoxes.filter(bbox => bbox.classId === 10).length;
-    } else {
-      // Для остальных классов считаем по classId
-      return annotations.boundingBoxes.filter(bbox => bbox.classId === classId).length;
-    }
-  };
+  const classCounts = useMemo(() => {
+    const counts: Record<number, number> = {};
+    DEFECT_CLASSES.forEach(dc => {
+      counts[dc.id] = boundingBoxes.filter(bbox => bbox.classId === dc.id).length;
+    });
+    return counts;
+  }, [boundingBoxes]);
 
-  const handleClassClick = (classId: number) => {
-    // Проверяем, есть ли выделенный bbox
-    const selectedBbox = annotations.selectedObjectId && annotations.selectedObjectType === 'bbox' 
-      ? annotations.boundingBoxes.find(bbox => bbox.id === annotations.selectedObjectId)
+  const selectedBbox = useMemo(() => {
+    return selectedObjectId && selectedObjectType === 'bbox'
+      ? boundingBoxes.find(bbox => bbox.id === selectedObjectId)
       : null;
+  }, [selectedObjectId, selectedObjectType, boundingBoxes]);
 
+  const handleClassClick = useCallback((classId: number) => {
     if (selectedBbox) {
-      // Если есть выделенный bbox, изменяем его класс
-      updateBoundingBox(selectedBbox.id, { classId });
+      onUpdateBoundingBox(selectedBbox.id, { classId });
     } else {
-      // Если нет выделенного bbox, активируем класс для рисования
       onClassSelect(classId);
     }
-  };
-  const getClassColor = (classId: number): string => {
-    const defectClass = DEFECT_CLASSES.find(c => c.id === classId);
-    if (!defectClass) return '#808080';
-    
-    // Для класса "Другое" показываем стандартный цвет в боковой панели
-    return defectClass.color;
-  };
+  }, [selectedBbox, onUpdateBoundingBox, onClassSelect]);
+  const apiDetectedClasses = useMemo(() => {
+    const classMap = new Map<number, { name: string; color: number[]; count: number }>();
+    boundingBoxes
+      .filter(bbox => bbox.classId >= 12)
+      .forEach(bbox => {
+        const existing = classMap.get(bbox.classId);
+        if (existing) {
+          existing.count++;
+        } else {
+          const jsonEntry = jsonData.find((entry: any) => entry.apiID === bbox.classId);
+          classMap.set(bbox.classId, {
+            name: jsonEntry ? jsonEntry.russian_name : 'Неизвестно',
+            color: jsonEntry ? jsonEntry.color : [128, 128, 128],
+            count: 1
+          });
+        }
+      });
+    return Array.from(classMap.values());
+  }, [boundingBoxes]);
   return (
     <div className="w-64 bg-white border-r border-gray-200 p-4 overflow-y-auto">
       <h2 className="text-sm font-semibold text-gray-700 mb-4">Классы дефектов</h2>
       
       <div className="space-y-2">
         {DEFECT_CLASSES.map((defectClass) => {
-          const count = getClassCount(defectClass.id);
-          const selectedBbox = annotations.selectedObjectId && annotations.selectedObjectType === 'bbox' 
-            ? annotations.boundingBoxes.find(bbox => bbox.id === annotations.selectedObjectId)
-            : null;
-          
-          // Унифицированное выделение: активный класс для рисования ИЛИ класс выделенной рамки
+          const count = classCounts[defectClass.id] || 0;
           const isUnifiedSelected = activeClassId === defectClass.id || selectedBbox?.classId === defectClass.id;
           
           return (
@@ -88,7 +96,7 @@ export const Sidebar = React.memo<SidebarProps>(({
                   ${isUnifiedSelected && !disabled ? 'border-4 ring-2 ring-blue-400 ring-opacity-50' : ''}
                 `}
                 style={{
-                  borderColor: disabled ? undefined : getClassColor(defectClass.id),
+                  borderColor: disabled ? undefined : defectClass.color,
                   borderWidth: isUnifiedSelected && !disabled ? '4px' : '2px'
                 }}
                 onClick={() => !disabled && handleClassClick(defectClass.id)}
@@ -108,25 +116,13 @@ export const Sidebar = React.memo<SidebarProps>(({
         })}
       </div>
       
-      {/* Показываем информацию о классах от API */}
-      {annotations.boundingBoxes.some(bbox => bbox.classId >= 12) && (
+      {apiDetectedClasses.length > 0 && (
         <div className="mt-6 pt-4 border-t border-gray-200">
           <h3 className="text-sm font-semibold text-gray-700 mb-2">Обнаружено объектов:</h3>
           <div className="space-y-1 text-xs text-gray-600">
-            {Array.from(new Map(
-              annotations.boundingBoxes
-                .filter(bbox => bbox.classId >= 12)
-                .map(bbox => {
-                  const jsonEntry = jsonData.find((entry: any) => entry.apiID === bbox.classId);
-                  return [bbox.classId, {
-                    name: jsonEntry ? jsonEntry.russian_name : 'Неизвестно',
-                    color: jsonEntry ? jsonEntry.color : [128, 128, 128],
-                    count: annotations.boundingBoxes.filter(b => b.classId === bbox.classId).length
-                  }];
-                })
-            ).values()).map((classInfo: any, index) => (
+            {apiDetectedClasses.map((classInfo, index) => (
               <div key={index} className="flex items-center space-x-2">
-                <div 
+                <div
                   className="w-3 h-3 border rounded"
                   style={{
                     backgroundColor: `rgb(${classInfo.color[0]}, ${classInfo.color[1]}, ${classInfo.color[2]})`
@@ -139,5 +135,13 @@ export const Sidebar = React.memo<SidebarProps>(({
         </div>
       )}
     </div>
+  );
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.activeClassId === nextProps.activeClassId &&
+    prevProps.disabled === nextProps.disabled &&
+    prevProps.selectedObjectId === nextProps.selectedObjectId &&
+    prevProps.selectedObjectType === nextProps.selectedObjectType &&
+    prevProps.boundingBoxes === nextProps.boundingBoxes
   );
 });
