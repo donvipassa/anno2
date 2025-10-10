@@ -227,10 +227,6 @@ export const useCanvasInteraction = (
       if (clickedObject) {
         selectObject(clickedObject.object.id, clickedObject.type.split('-')[0] as any);
 
-        if (activeTool === 'density' && clickedObject.type === 'density') {
-          return;
-        }
-
         if (clickedObject.type === 'bbox') {
           const handle = getResizeHandleAtPoint(coords.x, coords.y, clickedObject.object);
           if (handle && handle !== 'move') {
