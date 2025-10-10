@@ -182,7 +182,7 @@ const AppContent: React.FC = () => {
 
   const handleAnalyzeDefects = useCallback(() => {
     const bboxesWithDefects = annotations.boundingBoxes.filter(
-      bbox => bbox.defectRecord && bbox.defectRecord.length > 0
+      bbox => bbox.formattedDefectString && bbox.formattedDefectString.trim().length > 0
     );
 
     if (bboxesWithDefects.length === 0) {
@@ -195,14 +195,9 @@ const AppContent: React.FC = () => {
       return;
     }
 
-    const defectCodes = bboxesWithDefects.map(bbox => {
-      const formatted = formatDefectRecord(
-        bbox.defectRecord!,
-        defectsData as DefectsData,
-        false
-      );
-      return formatted;
-    }).filter(code => code.length > 0);
+    const defectCodes = bboxesWithDefects
+      .map(bbox => bbox.formattedDefectString!.trim())
+      .filter(code => code.length > 0);
 
     if (defectCodes.length === 0) {
       showModal(
