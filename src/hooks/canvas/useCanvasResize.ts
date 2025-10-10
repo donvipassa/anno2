@@ -8,6 +8,7 @@ interface ResizeState {
   resizeHandle: string | null;
   resizeStart: { x: number; y: number } | null;
   resizingObjectId: string | null;
+  originalBbox: BoundingBox | null;
 }
 
 export const useCanvasResize = (
@@ -21,7 +22,8 @@ export const useCanvasResize = (
     isResizing: false,
     resizeHandle: null,
     resizeStart: null,
-    resizingObjectId: null
+    resizingObjectId: null,
+    originalBbox: null
   });
 
   const startResize = useCallback((
@@ -34,15 +36,15 @@ export const useCanvasResize = (
       isResizing: true,
       resizeHandle: handle,
       resizeStart: { x, y },
-      resizingObjectId: bbox.id
+      resizingObjectId: bbox.id,
+      originalBbox: { ...bbox }
     });
   }, []);
 
   const updateResize = useCallback((x: number, y: number) => {
-    if (!resizeState.isResizing || !resizeState.resizeStart || !resizeState.resizingObjectId) return;
+    if (!resizeState.isResizing || !resizeState.resizeStart || !resizeState.originalBbox) return;
 
-    const bbox = boundingBoxes.find(b => b.id === resizeState.resizingObjectId);
-    if (!bbox) return;
+    const bbox = resizeState.originalBbox;
 
     const deltaX = x - resizeState.resizeStart.x;
     const deltaY = y - resizeState.resizeStart.y;
@@ -87,15 +89,16 @@ export const useCanvasResize = (
     }
 
     const clamped = clampToImageBounds(newBbox.x, newBbox.y, newBbox.width, newBbox.height, imageWidth, imageHeight);
-    updateBoundingBox(bbox.id, clamped);
-  }, [resizeState, boundingBoxes, imageWidth, imageHeight, updateBoundingBox]);
+    updateBoundingBox(resizeState.resizingObjectId!, clamped);
+  }, [resizeState, imageWidth, imageHeight, updateBoundingBox]);
 
   const stopResize = useCallback(() => {
     setResizeState({
       isResizing: false,
       resizeHandle: null,
       resizeStart: null,
-      resizingObjectId: null
+      resizingObjectId: null,
+      originalBbox: null
     });
   }, []);
 
