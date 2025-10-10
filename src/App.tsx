@@ -23,6 +23,9 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useModalDialogs } from './hooks/useModalDialogs';
 import { MODAL_TYPES } from './constants/modalTypes';
 import jsonData from './data/defect-classes.json';
+import defectsData from './data/defects_data.json';
+import { DefectsData } from './types/defects';
+import { formatDefectRecord } from './utils/formatDefectRecord';
 
 interface DefectClassData {
   apiID: number;
@@ -177,6 +180,63 @@ const AppContent: React.FC = () => {
     );
   };
 
+  const handleAnalyzeDefects = useCallback(() => {
+    const bboxesWithDefects = annotations.boundingBoxes.filter(
+      bbox => bbox.defectRecord && bbox.defectRecord.length > 0
+    );
+
+    if (bboxesWithDefects.length === 0) {
+      showModal(
+        MODAL_TYPES.INFO,
+        'Нет данных',
+        'На снимке отсутствуют размеченные дефекты с заполненными данными.',
+        [{ text: 'Закрыть', action: closeModal }]
+      );
+      return;
+    }
+
+    const defectCodes = bboxesWithDefects.map(bbox => {
+      const formatted = formatDefectRecord(
+        bbox.defectRecord!,
+        defectsData as DefectsData,
+        false
+      );
+      return formatted;
+    }).filter(code => code.length > 0);
+
+    if (defectCodes.length === 0) {
+      showModal(
+        MODAL_TYPES.INFO,
+        'Нет данных',
+        'Не удалось извлечь условные обозначения дефектов.',
+        [{ text: 'Закрыть', action: closeModal }]
+      );
+      return;
+    }
+
+    const prompt = `Расшифруй следующие условные записи дефектов на рентгеновском снимке согласно ГОСТ 7512-82:\n${defectCodes.map(code => `- ${code}`).join('\n')}`;
+
+    const agentUrl = 'https://chatgpt.com/g/g-67f0b4be01d08191b3c69ab1c1d044f6-analiz-defektov-na-rentgenovskih-snimkah';
+
+    window.open(agentUrl, '_blank');
+
+    navigator.clipboard.writeText(prompt).then(() => {
+      showModal(
+        MODAL_TYPES.INFO,
+        'Запрос скопирован',
+        'Запрос для анализа дефектов скопирован в буфер обмена.\n\nAgent GPT открыт в новой вкладке.\nВставьте запрос в чат и отправьте для получения расшифровки.',
+        [{ text: 'Закрыть', action: closeModal }]
+      );
+    }).catch(() => {
+      showModal(
+        MODAL_TYPES.INFO,
+        'Запрос сформирован',
+        `Скопируйте текст запроса и вставьте в Agent GPT:\n\n${prompt}`,
+        [{ text: 'Закрыть', action: closeModal }]
+      );
+    });
+  }, [annotations.boundingBoxes, showModal, closeModal]);
+
   const handleDeleteSelected = useCallback(() => {
     if (annotations.selectedObjectId) {
       setMarkupModifiedState(true);
@@ -322,6 +382,7 @@ const AppContent: React.FC = () => {
         onOpenFile={handleOpenFile}
         onSaveMarkup={handleSaveMarkup}
         onAutoAnnotate={handleAutoAnnotate}
+        onAnalyzeDefects={handleAnalyzeDefects}
         onInvertColors={toggleInversion}
         onHelp={handleHelp}
         layerVisible={layerVisible}

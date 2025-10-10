@@ -1,5 +1,5 @@
 import React from 'react';
-import { FolderOpen, Save, ZoomIn, ZoomOut, RotateCcw, Palette, Ruler, Trash2, Eye, EyeOff, Filter, BadgeHelp as Help, Maximize, Sparkles } from 'lucide-react';
+import { FolderOpen, Save, ZoomIn, ZoomOut, RotateCcw, Palette, Ruler, Trash2, Eye, EyeOff, Filter, BadgeHelp as Help, Maximize, Sparkles, MessageSquare } from 'lucide-react';
 import { useImage } from '../core/ImageProvider';
 import { useAnnotations } from '../core/AnnotationManager';
 import { Tooltip } from './Tooltip';
@@ -12,6 +12,7 @@ interface ToolbarProps {
   onInvertColors: () => void;
   onHelp: () => void;
   onAutoAnnotate: () => void;
+  onAnalyzeDefects: () => void;
   layerVisible: boolean;
   onToggleLayer: () => void;
   filterActive: boolean;
@@ -29,6 +30,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onInvertColors,
   onHelp,
   onAutoAnnotate,
+  onAnalyzeDefects,
   layerVisible,
   onToggleLayer,
   filterActive,
@@ -90,6 +92,13 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         tooltip="Авто-разметка"
         onClick={onAutoAnnotate}
         disabled={!hasImage}
+      />
+
+      <ToolButton
+        icon={<MessageSquare size={24} />}
+        tooltip="Анализ дефектов (Agent GPT)"
+        onClick={onAnalyzeDefects}
+        disabled={!hasAnnotations}
       />
 
       <div className="w-px h-6 bg-gray-300 mx-2" />
