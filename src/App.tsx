@@ -260,12 +260,6 @@ const AppContent: React.FC = () => {
         const sendButton = widget.shadowRoot?.querySelector('.send-button') as HTMLButtonElement;
         if (sendButton && !sendButton.disabled) {
           sendButton.click();
-          showModal(
-            MODAL_TYPES.INFO,
-            'Запрос отправлен',
-            'Запрос для анализа дефектов отправлен в чат-бот.',
-            [{ text: 'Закрыть', action: closeModal }]
-          );
         } else {
           navigator.clipboard.writeText(prompt);
           showModal(
