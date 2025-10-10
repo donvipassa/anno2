@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useImage } from '../core/ImageProvider';
 import { useAnnotations } from '../core/AnnotationManager';
 import { SIZES } from '../utils';
@@ -28,6 +28,8 @@ export const useCanvasInteraction = (
     selectObject,
     updateBoundingBox
   } = useAnnotations();
+
+  const [lastMouseCoords, setLastMouseCoords] = useState<{ x: number; y: number } | null>(null);
 
   const tolerances = useMemo(() => ({
     marker: SIZES.MARKER_TOLERANCE / imageState.scale,
@@ -281,6 +283,7 @@ export const useCanvasInteraction = (
     if (!imageState.imageElement) return;
 
     const coords = getImageCoords(e.clientX, e.clientY, canvasRef);
+    setLastMouseCoords(coords);
 
     if (isPanning) {
       updatePanning(e.clientX, e.clientY);
@@ -301,6 +304,8 @@ export const useCanvasInteraction = (
       updateDrawing(coords.x, coords.y);
       return;
     }
+
+    updateHoveredObject(coords.x, coords.y);
   }, [
     imageState.imageElement,
     getImageCoords,
@@ -311,7 +316,8 @@ export const useCanvasInteraction = (
     isDragging,
     updateDrag,
     isDrawing,
-    updateDrawing
+    updateDrawing,
+    updateHoveredObject
   ]);
 
   const handleMouseUp = useCallback((e: React.MouseEvent, canvasRef: React.RefObject<HTMLCanvasElement>) => {
@@ -371,15 +377,8 @@ export const useCanvasInteraction = (
       if (activeTool === 'density') return 'crosshair';
     }
 
-    if (!isDragging && !isPanning && !isDrawing && imageState.imageElement) {
-      const canvas = document.querySelector('canvas');
-      if (canvas) {
-        const rect = canvas.getBoundingClientRect();
-        const lastMouseX = (window as any).lastMouseX || 0;
-        const lastMouseY = (window as any).lastMouseY || 0;
-        const coords = getImageCoords(lastMouseX, lastMouseY, { current: canvas } as React.RefObject<HTMLCanvasElement>);
-        return getHoverCursor(coords.x, coords.y);
-      }
+    if (!isDragging && !isPanning && !isDrawing && imageState.imageElement && lastMouseCoords) {
+      return getHoverCursor(lastMouseCoords.x, lastMouseCoords.y);
     }
 
     if (activeTool === 'bbox' && activeClassId >= 0) return 'crosshair';
@@ -397,7 +396,7 @@ export const useCanvasInteraction = (
     activeTool,
     activeClassId,
     imageState.imageElement,
-    getImageCoords,
+    lastMouseCoords,
     getHoverCursor
   ]);
 
