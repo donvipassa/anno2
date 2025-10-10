@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { calculateDistance } from '../../utils';
-import { isPointInBox } from '../../utils/canvas';
+import { isPointInBox, isPointOnBoxBorder } from '../../utils/canvas';
 import { BoundingBox, Ruler, CalibrationLine, DensityPoint } from '../../types';
 
 interface Annotations {
@@ -59,7 +59,7 @@ export const useCanvasSelection = (
 
     for (let i = annotations.boundingBoxes.length - 1; i >= 0; i--) {
       const bbox = annotations.boundingBoxes[i];
-      if (isPointInBox(x, y, bbox)) {
+      if (isPointOnBoxBorder(x, y, bbox, tolerances.border)) {
         return { type: 'bbox', object: bbox };
       }
     }

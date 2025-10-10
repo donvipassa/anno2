@@ -234,24 +234,6 @@ export const useCanvasInteraction = (
           if (handle && handle !== 'move') {
             startResize(coords.x, coords.y, clickedObject.object, handle);
             return;
-          } else if (handle === 'move') {
-            const bbox = clickedObject.object;
-            const borderWidth = 4 / imageState.scale;
-            const isOnBorder = (
-              (coords.x >= bbox.x - borderWidth && coords.x <= bbox.x + bbox.width + borderWidth &&
-               coords.y >= bbox.y - borderWidth && coords.y <= bbox.y + borderWidth) ||
-              (coords.x >= bbox.x - borderWidth && coords.x <= bbox.x + bbox.width + borderWidth &&
-               coords.y >= bbox.y + bbox.height - borderWidth && coords.y <= bbox.y + bbox.height + borderWidth) ||
-              (coords.x >= bbox.x - borderWidth && coords.x <= bbox.x + borderWidth &&
-               coords.y >= bbox.y - borderWidth && coords.y <= bbox.y + bbox.height + borderWidth) ||
-              (coords.x >= bbox.x + bbox.width - borderWidth && coords.x <= bbox.x + bbox.width + borderWidth &&
-               coords.y >= bbox.y - borderWidth && coords.y <= bbox.y + bbox.height + borderWidth)
-            );
-
-            if (isOnBorder) {
-              startDrag(coords.x, coords.y, clickedObject.object.id, clickedObject.type.split('-')[0]);
-              return;
-            }
           }
         }
 

@@ -86,6 +86,20 @@ export function isPointInBox(
   return x >= box.x && x <= box.x + box.width && y >= box.y && y <= box.y + box.height;
 }
 
+export function isPointOnBoxBorder(
+  x: number,
+  y: number,
+  box: { x: number; y: number; width: number; height: number },
+  tolerance: number
+): boolean {
+  const isNearLeft = Math.abs(x - box.x) <= tolerance && y >= box.y - tolerance && y <= box.y + box.height + tolerance;
+  const isNearRight = Math.abs(x - (box.x + box.width)) <= tolerance && y >= box.y - tolerance && y <= box.y + box.height + tolerance;
+  const isNearTop = Math.abs(y - box.y) <= tolerance && x >= box.x - tolerance && x <= box.x + box.width + tolerance;
+  const isNearBottom = Math.abs(y - (box.y + box.height)) <= tolerance && x >= box.x - tolerance && x <= box.x + box.width + tolerance;
+
+  return isNearLeft || isNearRight || isNearTop || isNearBottom;
+}
+
 // Определение маркера изменения размера
 export function getResizeHandle(
   x: number,
