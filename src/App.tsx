@@ -211,25 +211,56 @@ const AppContent: React.FC = () => {
 
     const prompt = `Расшифруй следующие условные записи дефектов на рентгеновском снимке согласно ГОСТ 7512-82:\n${defectCodes.map(code => `- ${code}`).join('\n')}`;
 
-    const agentUrl = 'https://chatgpt.com/g/g-67f0b4be01d08191b3c69ab1c1d044f6-analiz-defektov-na-rentgenovskih-snimkah';
+    const widget = document.querySelector('agent-chat-widget');
 
-    window.open(agentUrl, '_blank');
-
-    navigator.clipboard.writeText(prompt).then(() => {
+    if (!widget) {
       showModal(
         MODAL_TYPES.INFO,
-        'Запрос скопирован',
-        'Запрос для анализа дефектов скопирован в буфер обмена.\n\nAgent GPT открыт в новой вкладке.\nВставьте запрос в чат и отправьте для получения расшифровки.',
+        'Чат-бот не найден',
+        'Не удалось найти чат-бот на странице. Запрос скопирован в буфер обмена.',
         [{ text: 'Закрыть', action: closeModal }]
       );
-    }).catch(() => {
-      showModal(
-        MODAL_TYPES.INFO,
-        'Запрос сформирован',
-        `Скопируйте текст запроса и вставьте в Agent GPT:\n\n${prompt}`,
-        [{ text: 'Закрыть', action: closeModal }]
-      );
-    });
+      navigator.clipboard.writeText(prompt);
+      return;
+    }
+
+    const expandButton = widget.shadowRoot?.querySelector('.floating-button') as HTMLButtonElement;
+    if (expandButton && !widget.shadowRoot?.querySelector('.widget-container')) {
+      expandButton.click();
+    }
+
+    setTimeout(() => {
+      const textarea = widget.shadowRoot?.querySelector('.message-input') as HTMLTextAreaElement;
+      if (textarea) {
+        textarea.value = prompt;
+        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+
+        const event = new KeyboardEvent('keydown', {
+          key: 'Enter',
+          code: 'Enter',
+          keyCode: 13,
+          which: 13,
+          bubbles: true,
+          cancelable: true
+        });
+        textarea.dispatchEvent(event);
+
+        showModal(
+          MODAL_TYPES.INFO,
+          'Запрос отправлен',
+          'Запрос для анализа дефектов отправлен в чат-бот.',
+          [{ text: 'Закрыть', action: closeModal }]
+        );
+      } else {
+        navigator.clipboard.writeText(prompt);
+        showModal(
+          MODAL_TYPES.INFO,
+          'Запрос скопирован',
+          'Не удалось автоматически отправить запрос.\nЗапрос скопирован в буфер обмена.\nВставьте его в чат-бот вручную.',
+          [{ text: 'Закрыть', action: closeModal }]
+        );
+      }
+    }, 500);
   }, [annotations.boundingBoxes, showModal, closeModal]);
 
   const handleDeleteSelected = useCallback(() => {
