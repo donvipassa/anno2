@@ -231,35 +231,51 @@ const AppContent: React.FC = () => {
 
     setTimeout(() => {
       const textarea = widget.shadowRoot?.querySelector('.message-input') as HTMLTextAreaElement;
-      if (textarea) {
-        textarea.value = prompt;
-        textarea.dispatchEvent(new Event('input', { bubbles: true }));
-
-        const event = new KeyboardEvent('keydown', {
-          key: 'Enter',
-          code: 'Enter',
-          keyCode: 13,
-          which: 13,
-          bubbles: true,
-          cancelable: true
-        });
-        textarea.dispatchEvent(event);
-
-        showModal(
-          MODAL_TYPES.INFO,
-          'Запрос отправлен',
-          'Запрос для анализа дефектов отправлен в чат-бот.',
-          [{ text: 'Закрыть', action: closeModal }]
-        );
-      } else {
+      if (!textarea) {
         navigator.clipboard.writeText(prompt);
         showModal(
           MODAL_TYPES.INFO,
           'Запрос скопирован',
-          'Не удалось автоматически отправить запрос.\nЗапрос скопирован в буфер обмена.\nВставьте его в чат-бот вручную.',
+          'Не удалось найти поле ввода.\nЗапрос скопирован в буфер обмена.\nВставьте его в чат-бот вручную.',
           [{ text: 'Закрыть', action: closeModal }]
         );
+        return;
       }
+
+      const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLTextAreaElement.prototype,
+        'value'
+      )?.set;
+
+      if (nativeInputValueSetter) {
+        nativeInputValueSetter.call(textarea, prompt);
+      } else {
+        textarea.value = prompt;
+      }
+
+      textarea.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+      textarea.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
+
+      setTimeout(() => {
+        const sendButton = widget.shadowRoot?.querySelector('.send-button') as HTMLButtonElement;
+        if (sendButton && !sendButton.disabled) {
+          sendButton.click();
+          showModal(
+            MODAL_TYPES.INFO,
+            'Запрос отправлен',
+            'Запрос для анализа дефектов отправлен в чат-бот.',
+            [{ text: 'Закрыть', action: closeModal }]
+          );
+        } else {
+          navigator.clipboard.writeText(prompt);
+          showModal(
+            MODAL_TYPES.INFO,
+            'Запрос готов',
+            'Запрос вставлен в поле ввода чат-бота и скопирован в буфер обмена.\nНажмите кнопку отправки в чат-боте.',
+            [{ text: 'Закрыть', action: closeModal }]
+          );
+        }
+      }, 100);
     }, 500);
   }, [annotations.boundingBoxes, showModal, closeModal]);
 
