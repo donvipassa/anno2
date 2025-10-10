@@ -66,7 +66,7 @@ export const useCanvasInteraction = (
     setOffset
   );
 
-  const { getObjectAtPoint } = useCanvasSelection(annotations, tolerances);
+  const { getObjectAtPoint, updateHoveredObject } = useCanvasSelection(annotations, tolerances);
 
   const { isDragging, lineHandle, startDrag, updateDrag, stopDrag } = useCanvasDragAndDrop(
     annotations,
