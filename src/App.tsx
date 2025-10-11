@@ -395,18 +395,6 @@ const AppContent: React.FC = () => {
     };
   }, []);
 
-  useEffect(() => {
-    if (!markupModified) return;
-
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      e.returnValue = '';
-      return '';
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [markupModified]);
 
   return (
     <div className="h-screen flex flex-col bg-gray-100">
