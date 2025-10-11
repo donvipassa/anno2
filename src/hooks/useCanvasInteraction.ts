@@ -220,10 +220,6 @@ export const useCanvasInteraction = (
     if (e.button === 0) {
       const clickedObject = getObjectAtPoint(coords.x, coords.y);
 
-      if (clickedObject && activeTool === 'density' && clickedObject.type !== 'density') {
-        return;
-      }
-
       if (clickedObject) {
         selectObject(clickedObject.object.id, clickedObject.type.split('-')[0] as any);
 

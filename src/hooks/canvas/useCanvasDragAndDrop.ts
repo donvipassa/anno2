@@ -118,13 +118,13 @@ export const useCanvasDragAndDrop = (
   ]);
 
   const stopDrag = useCallback(() => {
-    setDragState({
+    setDragState(prev => ({
       isDragging: false,
       dragStart: null,
       draggedObjectId: null,
       draggedObjectType: null,
       lineHandle: null
-    });
+    }));
   }, []);
 
   return {
