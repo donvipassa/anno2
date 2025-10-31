@@ -41,6 +41,7 @@ const AppContent: React.FC = () => {
   const {
     imageState,
     toggleInversion,
+    toggleCLAHE,
     fitToCanvas,
     zoomIn,
     zoomOut,
@@ -378,6 +379,7 @@ const AppContent: React.FC = () => {
         }
       },
       onToggleInversion: toggleInversion,
+      onToggleCLAHE: toggleCLAHE,
       onToggleLayer: () => setLayerVisible(!layerVisible),
       onToggleFilter: () => setFilterActive(!filterActive),
       onHelp: handleHelp,
@@ -408,6 +410,7 @@ const AppContent: React.FC = () => {
         onAutoAnnotate={handleAutoAnnotate}
         onAnalyzeDefects={handleAnalyzeDefects}
         onInvertColors={toggleInversion}
+        onToggleCLAHE={toggleCLAHE}
         onHelp={handleHelp}
         layerVisible={layerVisible}
         onToggleLayer={() => setLayerVisible(!layerVisible)}
@@ -416,6 +419,7 @@ const AppContent: React.FC = () => {
         calibrationSet={calibration.isSet}
         onEditCalibration={handleEditCalibration}
         autoAnnotationPerformed={autoAnnotationPerformed}
+        claheActive={imageState.claheActive}
       />
 
       <div className="flex-1 flex overflow-hidden">

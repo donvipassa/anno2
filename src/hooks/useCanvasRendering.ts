@@ -67,11 +67,28 @@ export const useCanvasRendering = (
     ctx.scale(imageState.scale, imageState.scale);
 
     // Рисуем изображение
-    if (imageState.inverted) {
-      ctx.filter = 'invert(1)';
+    if (imageState.claheActive && imageState.processedImageData) {
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = imageState.width;
+      tempCanvas.height = imageState.height;
+      const tempCtx = tempCanvas.getContext('2d');
+
+      if (tempCtx) {
+        tempCtx.putImageData(imageState.processedImageData, 0, 0);
+
+        if (imageState.inverted) {
+          ctx.filter = 'invert(1)';
+        }
+        ctx.drawImage(tempCanvas, 0, 0, imageState.width, imageState.height);
+        ctx.filter = 'none';
+      }
+    } else {
+      if (imageState.inverted) {
+        ctx.filter = 'invert(1)';
+      }
+      ctx.drawImage(imageState.imageElement, 0, 0, imageState.width, imageState.height);
+      ctx.filter = 'none';
     }
-    ctx.drawImage(imageState.imageElement, 0, 0, imageState.width, imageState.height);
-    ctx.filter = 'none';
 
     if (layerVisible) {
       // Рисуем bounding boxes

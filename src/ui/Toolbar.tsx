@@ -1,5 +1,5 @@
 import React from 'react';
-import { FolderOpen, Save, ZoomIn, ZoomOut, RotateCcw, Palette, Ruler, Trash2, Eye, EyeOff, Filter, BadgeHelp as Help, Maximize, Sparkles, MessageSquare } from 'lucide-react';
+import { FolderOpen, Save, ZoomIn, ZoomOut, RotateCcw, Palette, Ruler, Trash2, Eye, EyeOff, Filter, BadgeHelp as Help, Maximize, Sparkles, MessageSquare, Contrast } from 'lucide-react';
 import { useImage } from '../core/ImageProvider';
 import { useAnnotations } from '../core/AnnotationManager';
 import { Tooltip } from './Tooltip';
@@ -10,6 +10,7 @@ interface ToolbarProps {
   onOpenFile: () => void;
   onSaveMarkup: () => void;
   onInvertColors: () => void;
+  onToggleCLAHE: () => void;
   onHelp: () => void;
   onAutoAnnotate: () => void;
   onAnalyzeDefects: () => void;
@@ -20,6 +21,7 @@ interface ToolbarProps {
   calibrationSet: boolean;
   onEditCalibration: () => void;
   autoAnnotationPerformed: boolean;
+  claheActive: boolean;
 }
 
 export const Toolbar: React.FC<ToolbarProps> = ({
@@ -28,6 +30,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onOpenFile,
   onSaveMarkup,
   onInvertColors,
+  onToggleCLAHE,
   onHelp,
   onAutoAnnotate,
   onAnalyzeDefects,
@@ -37,7 +40,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onToggleFilter,
   calibrationSet,
   onEditCalibration,
-  autoAnnotationPerformed
+  autoAnnotationPerformed,
+  claheActive
 }) => {
   const { imageState, zoomIn, zoomOut, zoomReset, fitToCanvas } = useImage();
   const { annotations } = useAnnotations();
@@ -200,6 +204,13 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         onClick={onToggleFilter}
         disabled={!hasImage}
         active={filterActive}
+      />
+      <ToolButton
+        icon={<Contrast size={24} />}
+        tooltip="Выравнивание гистрограммы (H)"
+        onClick={onToggleCLAHE}
+        disabled={!hasImage}
+        active={claheActive}
       />
 
       <div className="w-px h-6 bg-gray-300 mx-2" />

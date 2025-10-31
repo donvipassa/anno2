@@ -8,6 +8,7 @@ export interface KeyboardShortcutsHandlers {
   onZoomReset: () => void;
   onFitToCanvas: () => void;
   onToggleInversion: () => void;
+  onToggleCLAHE: () => void;
   onToggleLayer: () => void;
   onToggleFilter: () => void;
   onHelp: () => void;
@@ -51,6 +52,9 @@ export const useKeyboardShortcuts = (
       } else if (key === 'i') {
         e.preventDefault();
         handlers.onToggleInversion();
+      } else if (key === 'h' && !ctrl) {
+        e.preventDefault();
+        handlers.onToggleCLAHE();
       } else if (key === 'd') {
         e.preventDefault();
         handlers.onSelectTool('density');

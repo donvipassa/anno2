@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 import { ImageState } from '../types';
 import { scaleFromCenter, fitImageToCanvas, scaleFromPoint } from '../utils/canvas';
+import { applyCLAHE } from '../utils/clahe';
 
 interface ImageContextType {
   imageState: ImageState;
@@ -8,6 +9,7 @@ interface ImageContextType {
   setScale: (scale: number) => void;
   setOffset: (offsetX: number, offsetY: number) => void;
   toggleInversion: () => void;
+  toggleCLAHE: () => void;
   resetView: () => void;
   fitToCanvas: (canvasWidth: number, canvasHeight: number) => void;
   zoomIn: (canvasWidth?: number, canvasHeight?: number) => void;
@@ -37,7 +39,9 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     offsetX: 0,
     offsetY: 0,
     inverted: false,
-    imageElement: null
+    claheActive: false,
+    imageElement: null,
+    processedImageData: null
   });
 
   // Скрытый canvas для чтения пикселей
@@ -111,7 +115,9 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             offsetX: 0,
             offsetY: 0,
             inverted: false,
-            imageElement: img
+            claheActive: false,
+            imageElement: img,
+            processedImageData: null
           }));
           
           // Небольшая задержка для обеспечения обновления состояния
@@ -138,6 +144,42 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const toggleInversion = useCallback(() => {
     setImageState(prev => ({ ...prev, inverted: !prev.inverted }));
+  }, []);
+
+  const toggleCLAHE = useCallback(() => {
+    setImageState(prev => {
+      if (!prev.imageElement) return prev;
+
+      const newClaheActive = !prev.claheActive;
+
+      if (newClaheActive && !prev.processedImageData) {
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = prev.width;
+        tempCanvas.height = prev.height;
+        const tempCtx = tempCanvas.getContext('2d');
+
+        if (!tempCtx) return prev;
+
+        tempCtx.drawImage(prev.imageElement, 0, 0);
+        const imageData = tempCtx.getImageData(0, 0, prev.width, prev.height);
+
+        const processedData = applyCLAHE(imageData, {
+          clipLimit: 2.0,
+          tileGridSize: 8
+        });
+
+        return {
+          ...prev,
+          claheActive: newClaheActive,
+          processedImageData: processedData
+        };
+      }
+
+      return {
+        ...prev,
+        claheActive: newClaheActive
+      };
+    });
   }, []);
 
   const resetView = useCallback(() => {
@@ -295,6 +337,7 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setScale,
         setOffset,
         toggleInversion,
+        toggleCLAHE,
         resetView,
         fitToCanvas,
         zoomIn,

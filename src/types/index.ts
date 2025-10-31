@@ -90,7 +90,9 @@ export interface ImageState {
   offsetX: number;
   offsetY: number;
   inverted: boolean;
+  claheActive: boolean;
   imageElement: HTMLImageElement | null;
+  processedImageData: ImageData | null;
 }
 
 /**
