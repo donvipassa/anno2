@@ -23,8 +23,7 @@ interface ObjectClass {
 
 const OBJECT_CLASSES_ORDER = [
   { ids: [13, 16, 18], label: 'Эталоны чувствительности' },
-  { ids: [14], label: 'Маркировочные знаки' },
-  { ids: [19], label: 'Текстовые комментарии' },
+  { ids: [14, 19], label: 'Маркировочные знаки' },
   { ids: [15], label: 'Мерные пояса' }
 ];
 
