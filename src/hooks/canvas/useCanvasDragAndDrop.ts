@@ -66,30 +66,50 @@ export const useCanvasDragAndDrop = (
       const ruler = annotations.rulers.find(r => r.id === dragState.draggedObjectId);
       if (ruler) {
         if (dragState.lineHandle === 'start') {
-          updateRuler(ruler.id, { x1: x, y1: y });
-        } else if (dragState.lineHandle === 'end') {
-          updateRuler(ruler.id, { x2: x, y2: y });
-        } else {
           updateRuler(ruler.id, {
-            x1: ruler.x1 + deltaX,
-            y1: ruler.y1 + deltaY,
-            x2: ruler.x2 + deltaX,
-            y2: ruler.y2 + deltaY
+            x1: Math.max(0, Math.min(x, imageWidth)),
+            y1: Math.max(0, Math.min(y, imageHeight))
+          });
+        } else if (dragState.lineHandle === 'end') {
+          updateRuler(ruler.id, {
+            x2: Math.max(0, Math.min(x, imageWidth)),
+            y2: Math.max(0, Math.min(y, imageHeight))
+          });
+        } else {
+          const newX1 = Math.max(0, Math.min(ruler.x1 + deltaX, imageWidth));
+          const newY1 = Math.max(0, Math.min(ruler.y1 + deltaY, imageHeight));
+          const newX2 = Math.max(0, Math.min(ruler.x2 + deltaX, imageWidth));
+          const newY2 = Math.max(0, Math.min(ruler.y2 + deltaY, imageHeight));
+          updateRuler(ruler.id, {
+            x1: newX1,
+            y1: newY1,
+            x2: newX2,
+            y2: newY2
           });
         }
       }
     } else if (dragState.draggedObjectType === 'calibration') {
       if (annotations.calibrationLine) {
         if (dragState.lineHandle === 'start') {
-          updateCalibrationLine({ x1: x, y1: y });
-        } else if (dragState.lineHandle === 'end') {
-          updateCalibrationLine({ x2: x, y2: y });
-        } else {
           updateCalibrationLine({
-            x1: annotations.calibrationLine.x1 + deltaX,
-            y1: annotations.calibrationLine.y1 + deltaY,
-            x2: annotations.calibrationLine.x2 + deltaX,
-            y2: annotations.calibrationLine.y2 + deltaY
+            x1: Math.max(0, Math.min(x, imageWidth)),
+            y1: Math.max(0, Math.min(y, imageHeight))
+          });
+        } else if (dragState.lineHandle === 'end') {
+          updateCalibrationLine({
+            x2: Math.max(0, Math.min(x, imageWidth)),
+            y2: Math.max(0, Math.min(y, imageHeight))
+          });
+        } else {
+          const newX1 = Math.max(0, Math.min(annotations.calibrationLine.x1 + deltaX, imageWidth));
+          const newY1 = Math.max(0, Math.min(annotations.calibrationLine.y1 + deltaY, imageHeight));
+          const newX2 = Math.max(0, Math.min(annotations.calibrationLine.x2 + deltaX, imageWidth));
+          const newY2 = Math.max(0, Math.min(annotations.calibrationLine.y2 + deltaY, imageHeight));
+          updateCalibrationLine({
+            x1: newX1,
+            y1: newY1,
+            x2: newX2,
+            y2: newY2
           });
         }
       }

@@ -43,9 +43,12 @@ export const useCanvasDrawing = (
   const updateDrawing = useCallback((x: number, y: number) => {
     if (!drawingState.isDrawing) return;
 
+    const clampedX = Math.max(0, Math.min(x, imageWidth));
+    const clampedY = Math.max(0, Math.min(y, imageHeight));
+
     if (drawingState.currentBox) {
-      const width = x - drawingState.currentBox.x;
-      const height = y - drawingState.currentBox.y;
+      const width = clampedX - drawingState.currentBox.x;
+      const height = clampedY - drawingState.currentBox.y;
       setDrawingState(prev => ({
         ...prev,
         currentBox: prev.currentBox ? { ...prev.currentBox, width, height } : null
@@ -53,10 +56,10 @@ export const useCanvasDrawing = (
     } else if (drawingState.currentLine) {
       setDrawingState(prev => ({
         ...prev,
-        currentLine: prev.currentLine ? { ...prev.currentLine, x2: x, y2: y } : null
+        currentLine: prev.currentLine ? { ...prev.currentLine, x2: clampedX, y2: clampedY } : null
       }));
     }
-  }, [drawingState.isDrawing, drawingState.currentBox, drawingState.currentLine]);
+  }, [drawingState.isDrawing, drawingState.currentBox, drawingState.currentLine, imageWidth, imageHeight]);
 
   const finishDrawing = useCallback(() => {
     if (!drawingState.isDrawing) return;

@@ -245,13 +245,15 @@ export const useCanvasInteraction = (
       } else {
         selectObject(null, null);
 
-        if (activeTool === 'bbox' && activeClassId >= 0) {
-          startDrawing(coords.x, coords.y);
-        } else if (activeTool === 'ruler' || activeTool === 'calibration') {
-          startDrawing(coords.x, coords.y);
-        } else if (activeTool === 'density') {
-          const pointId = addDensityPoint({ x: coords.x, y: coords.y });
-          selectObject(pointId, 'density');
+        if (coords.x >= 0 && coords.x <= imageState.width && coords.y >= 0 && coords.y <= imageState.height) {
+          if (activeTool === 'bbox' && activeClassId >= 0) {
+            startDrawing(coords.x, coords.y);
+          } else if (activeTool === 'ruler' || activeTool === 'calibration') {
+            startDrawing(coords.x, coords.y);
+          } else if (activeTool === 'density') {
+            const pointId = addDensityPoint({ x: coords.x, y: coords.y });
+            selectObject(pointId, 'density');
+          }
         }
       }
     }
