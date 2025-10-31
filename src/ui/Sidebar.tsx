@@ -1,7 +1,6 @@
 import React, { useMemo, useCallback } from 'react';
 import { DEFECT_CLASSES, BoundingBox } from '../types';
 import { Tooltip } from './Tooltip';
-import jsonData from '../data/defect-classes.json';
 
 interface SidebarProps {
   activeClassId: number;
@@ -44,24 +43,8 @@ export const Sidebar = React.memo<SidebarProps>(function Sidebar({
       onClassSelect(classId);
     }
   }, [selectedBbox, onUpdateBoundingBox, onClassSelect]);
-  const apiDetectedClasses = useMemo(() => {
-    const classMap = new Map<number, { name: string; color: number[]; count: number }>();
-    boundingBoxes
-      .filter(bbox => bbox.classId >= 12)
-      .forEach(bbox => {
-        const existing = classMap.get(bbox.classId);
-        if (existing) {
-          existing.count++;
-        } else {
-          const jsonEntry = jsonData.find((entry: any) => entry.apiID === bbox.classId);
-          classMap.set(bbox.classId, {
-            name: jsonEntry ? jsonEntry.russian_name : 'Неизвестно',
-            color: jsonEntry ? jsonEntry.color : [128, 128, 128],
-            count: 1
-          });
-        }
-      });
-    return Array.from(classMap.values());
+  const defectCount = useMemo(() => {
+    return boundingBoxes.filter(bbox => bbox.classId === 12).length;
   }, [boundingBoxes]);
   return (
     <div className="w-64 bg-white border-r border-gray-200 p-4 overflow-y-auto">
@@ -116,21 +99,10 @@ export const Sidebar = React.memo<SidebarProps>(function Sidebar({
         })}
       </div>
       
-      {apiDetectedClasses.length > 0 && (
+      {defectCount > 0 && (
         <div className="mt-6 pt-4 border-t border-gray-200">
-          <h3 className="text-sm font-semibold text-gray-700 mb-2">Обнаружено объектов:</h3>
-          <div className="space-y-1 text-xs text-gray-600">
-            {apiDetectedClasses.map((classInfo, index) => (
-              <div key={index} className="flex items-center space-x-2">
-                <div
-                  className="w-3 h-3 border rounded"
-                  style={{
-                    backgroundColor: `rgb(${classInfo.color[0]}, ${classInfo.color[1]}, ${classInfo.color[2]})`
-                  }}
-                />
-                <span>{classInfo.name} ({classInfo.count})</span>
-              </div>
-            ))}
+          <div className="text-sm font-semibold text-gray-700">
+            Дефектов от авторазметки: {defectCount}
           </div>
         </div>
       )}

@@ -7,7 +7,7 @@ import { ContextMenuContainer } from './components/ContextMenuContainer';
 import { ModalContainer } from './components/ModalContainer';
 import { DefectRecord } from './types/defects';
 import { BoundingBox } from './types';
-import { Header, Toolbar, Sidebar, CanvasArea, StatusBar } from './ui';
+import { Header, Toolbar, Sidebar, ObjectClassesSidebar, CanvasArea, StatusBar } from './ui';
 import { useImage } from './core/ImageProvider';
 import { useAnnotations } from './core/AnnotationManager';
 import { useCalibration } from './core/CalibrationManager';
@@ -442,6 +442,16 @@ const AppContent: React.FC = () => {
           onBboxCreated={handleBboxCreated}
           onEditDefectBbox={handleEditDefectBbox}
           onEditCalibration={handleEditCalibration}
+        />
+
+        <ObjectClassesSidebar
+          activeClassId={activeClassId}
+          onClassSelect={(classId) => handleClassSelect(classId, !!imageState.src)}
+          disabled={!imageState.src}
+          boundingBoxes={annotations.boundingBoxes}
+          selectedObjectId={annotations.selectedObjectId}
+          selectedObjectType={annotations.selectedObjectType}
+          onUpdateBoundingBox={updateBoundingBox}
         />
       </div>
 
