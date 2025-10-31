@@ -94,15 +94,11 @@ export const StatusBar = React.memo<StatusBarProps>(function StatusBar({
           {selectedObjectSize}
         </span>
 
-        {(autoDetectionCounts.defectCount > 0 || autoDetectionCounts.objectsCount > 0) && (
-          <>
-            <span>|</span>
+        <span>|</span>
 
-            <span>
-              Авторазметка: дефектов {autoDetectionCounts.defectCount}, объектов {autoDetectionCounts.objectsCount}
-            </span>
-          </>
-        )}
+        <span>
+          Авторазметка: дефектов {autoDetectionCounts.defectCount}, объектов {autoDetectionCounts.objectsCount}
+        </span>
       </div>
     </div>
   );
