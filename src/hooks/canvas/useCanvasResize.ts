@@ -88,8 +88,25 @@ export const useCanvasResize = (
         break;
     }
 
-    const clamped = clampToImageBounds(newBbox.x, newBbox.y, newBbox.width, newBbox.height, imageWidth, imageHeight);
-    updateBoundingBox(resizeState.resizingObjectId!, clamped);
+    if (newBbox.x < 0) {
+      newBbox.width = newBbox.width + newBbox.x;
+      newBbox.x = 0;
+    }
+    if (newBbox.y < 0) {
+      newBbox.height = newBbox.height + newBbox.y;
+      newBbox.y = 0;
+    }
+    if (newBbox.x + newBbox.width > imageWidth) {
+      newBbox.width = imageWidth - newBbox.x;
+    }
+    if (newBbox.y + newBbox.height > imageHeight) {
+      newBbox.height = imageHeight - newBbox.y;
+    }
+
+    newBbox.width = Math.max(10, newBbox.width);
+    newBbox.height = Math.max(10, newBbox.height);
+
+    updateBoundingBox(resizeState.resizingObjectId!, newBbox);
   }, [resizeState, imageWidth, imageHeight, updateBoundingBox]);
 
   const stopResize = useCallback(() => {
