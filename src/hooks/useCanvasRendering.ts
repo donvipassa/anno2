@@ -68,6 +68,7 @@ export const useCanvasRendering = (
 
     // Рисуем изображение
     if (imageState.claheActive && imageState.processedImageData) {
+      console.log('Rendering with CLAHE');
       const tempCanvas = document.createElement('canvas');
       tempCanvas.width = imageState.width;
       tempCanvas.height = imageState.height;
@@ -83,6 +84,7 @@ export const useCanvasRendering = (
         ctx.filter = 'none';
       }
     } else {
+      console.log('Rendering original image');
       if (imageState.inverted) {
         ctx.filter = 'invert(1)';
       }

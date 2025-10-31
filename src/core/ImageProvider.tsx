@@ -153,6 +153,7 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const newClaheActive = !prev.claheActive;
 
       if (newClaheActive && !prev.processedImageData) {
+        console.log('Applying CLAHE filter...');
         const tempCanvas = document.createElement('canvas');
         tempCanvas.width = prev.width;
         tempCanvas.height = prev.height;
@@ -168,12 +169,16 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           tileGridSize: 8
         });
 
+        console.log('CLAHE applied successfully');
+
         return {
           ...prev,
           claheActive: newClaheActive,
           processedImageData: processedData
         };
       }
+
+      console.log('Toggling CLAHE:', newClaheActive ? 'ON' : 'OFF');
 
       return {
         ...prev,
