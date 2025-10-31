@@ -64,11 +64,6 @@ export const ObjectClassesSidebar = React.memo<ObjectClassesSidebarProps>(functi
     return counts;
   }, [boundingBoxes, objectClasses]);
 
-  const totalObjectsCount = useMemo(() => {
-    const allIds = OBJECT_CLASSES_ORDER.flatMap(group => group.ids);
-    return boundingBoxes.filter(bbox => allIds.includes(bbox.classId)).length;
-  }, [boundingBoxes]);
-
   return (
     <div className="w-64 bg-white border-l border-gray-200 p-4 overflow-y-auto">
       <h2 className="text-sm font-semibold text-gray-700 mb-4">Классы других объектов</h2>
@@ -134,14 +129,6 @@ export const ObjectClassesSidebar = React.memo<ObjectClassesSidebarProps>(functi
           );
         })}
       </div>
-
-      {totalObjectsCount > 0 && (
-        <div className="mt-6 pt-4 border-t border-gray-200">
-          <div className="text-sm font-semibold text-gray-700">
-            Всего объектов: {totalObjectsCount}
-          </div>
-        </div>
-      )}
     </div>
   );
 }, (prevProps, nextProps) => {

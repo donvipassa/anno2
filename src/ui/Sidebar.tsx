@@ -43,9 +43,6 @@ export const Sidebar = React.memo<SidebarProps>(function Sidebar({
       onClassSelect(classId);
     }
   }, [selectedBbox, onUpdateBoundingBox, onClassSelect]);
-  const defectCount = useMemo(() => {
-    return boundingBoxes.filter(bbox => bbox.classId === 12).length;
-  }, [boundingBoxes]);
   return (
     <div className="w-64 bg-white border-r border-gray-200 p-4 overflow-y-auto">
       <h2 className="text-sm font-semibold text-gray-700 mb-4">Классы дефектов</h2>
@@ -98,14 +95,6 @@ export const Sidebar = React.memo<SidebarProps>(function Sidebar({
           );
         })}
       </div>
-      
-      {defectCount > 0 && (
-        <div className="mt-6 pt-4 border-t border-gray-200">
-          <div className="text-sm font-semibold text-gray-700">
-            Дефектов от авторазметки: {defectCount}
-          </div>
-        </div>
-      )}
     </div>
   );
 }, (prevProps, nextProps) => {

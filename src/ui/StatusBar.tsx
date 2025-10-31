@@ -55,6 +55,14 @@ export const StatusBar = React.memo<StatusBarProps>(function StatusBar({
     }
   }, [selectedObject, calibrationLine]);
 
+  const autoDetectionCounts = useMemo(() => {
+    const defectCount = boundingBoxes.filter(bbox => bbox.classId === 12).length;
+    const objectsCount = boundingBoxes.filter(bbox =>
+      [13, 14, 15, 16, 18, 19].includes(bbox.classId)
+    ).length;
+    return { defectCount, objectsCount };
+  }, [boundingBoxes]);
+
   return (
     <div className="bg-white border-t border-gray-200 px-4 py-2 text-sm text-gray-700">
       <div className="flex items-center space-x-4">
@@ -85,6 +93,16 @@ export const StatusBar = React.memo<StatusBarProps>(function StatusBar({
         <span>
           {selectedObjectSize}
         </span>
+
+        {(autoDetectionCounts.defectCount > 0 || autoDetectionCounts.objectsCount > 0) && (
+          <>
+            <span>|</span>
+
+            <span>
+              Авторазметка: дефектов {autoDetectionCounts.defectCount}, объектов {autoDetectionCounts.objectsCount}
+            </span>
+          </>
+        )}
       </div>
     </div>
   );
