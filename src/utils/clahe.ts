@@ -39,11 +39,30 @@ export const applyCLAHE = (
       const idx = (y * width + x) * 3;
       const L = labData[idx];
 
-      const tileX = Math.min(Math.floor(x / tileWidth), tileGridSize - 1);
-      const tileY = Math.min(Math.floor(y / tileHeight), tileGridSize - 1);
+      const tileXFloat = (x / tileWidth) - 0.5;
+      const tileYFloat = (y / tileHeight) - 0.5;
 
-      const cdf = tileCDFs[tileY][tileX];
-      const newL = cdf[Math.min(255, Math.max(0, Math.round(L)))];
+      const tileX = Math.floor(tileXFloat);
+      const tileY = Math.floor(tileYFloat);
+
+      const tx = tileXFloat - tileX;
+      const ty = tileYFloat - tileY;
+
+      const tileX0 = Math.max(0, Math.min(tileGridSize - 1, tileX));
+      const tileX1 = Math.max(0, Math.min(tileGridSize - 1, tileX + 1));
+      const tileY0 = Math.max(0, Math.min(tileGridSize - 1, tileY));
+      const tileY1 = Math.max(0, Math.min(tileGridSize - 1, tileY + 1));
+
+      const LInt = Math.min(255, Math.max(0, Math.round(L)));
+
+      const v00 = tileCDFs[tileY0][tileX0][LInt];
+      const v10 = tileCDFs[tileY0][tileX1][LInt];
+      const v01 = tileCDFs[tileY1][tileX0][LInt];
+      const v11 = tileCDFs[tileY1][tileX1][LInt];
+
+      const v0 = v00 * (1 - tx) + v10 * tx;
+      const v1 = v01 * (1 - tx) + v11 * tx;
+      const newL = v0 * (1 - ty) + v1 * ty;
 
       labData[idx] = newL;
     }
